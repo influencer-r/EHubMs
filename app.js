@@ -10,6 +10,16 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 (function() {
   'use strict';
 
+  // Capture URL parameters BEFORE anything can strip or alter them!
+  const INITIAL_HASH = window.location.hash || '';
+  const INITIAL_SEARCH = window.location.search || '';
+  const IS_RECOVERY_INTENT = 
+    INITIAL_HASH.includes('type=recovery') || 
+    INITIAL_SEARCH.includes('type=recovery') || 
+    INITIAL_HASH.includes('access_token=') || 
+    INITIAL_HASH.includes('type=invite') ||
+    INITIAL_SEARCH.includes('code=');
+
   // ============================================================================
   // 1. GLOBAL STATE & INSTITUTIONAL CONFIGURATION
   // ============================================================================
@@ -88,6 +98,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
   const state = {
     data: loadStoredData(),
     currentUser: null, // Holds authenticated staff profile
+    isPasswordRecoveryActive: IS_RECOVERY_INTENT,
     activeBranch: 'bootcamp',
     activeCohort: 'August Intake',
     activeTrack: 'all',
@@ -151,6 +162,18 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
             autoRefreshToken: true
           }
         });
+
+        // Attach auth state listener immediately upon client creation
+        state.supabaseClient.auth.onAuthStateChange((event, session) => {
+          console.log('[Supabase Auth Event]:', event, session);
+          if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && state.isPasswordRecoveryActive)) {
+            state.isPasswordRecoveryActive = true;
+            if (typeof window.showPasswordRecoveryModeGlobal === 'function') {
+              window.showPasswordRecoveryModeGlobal();
+            }
+          }
+        });
+
         updateSupabaseStatus('connected');
         setupRealtimeSubscriptions();
         fetchSupabaseData();
@@ -205,7 +228,9 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       }
 
       saveStoredData();
-      renderApp();
+      if (!state.isPasswordRecoveryActive) {
+        renderApp();
+      }
       if (force) notify('Cloud data synchronized successfully!', 'success');
     } catch (e) {
       console.warn('Fetch data warning:', e);
@@ -311,6 +336,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     const resetForm = document.getElementById('auth-reset-form');
     const tabSignIn = document.getElementById('auth-tab-signin');
     const tabReset = document.getElementById('auth-tab-reset');
+    const tabActivate = document.getElementById('auth-tab-activate');
     const tabsBar = document.getElementById('auth-tabs-bar');
     const updatePasswordForm = document.getElementById('auth-update-password-form');
     const roleSimulator = document.getElementById('auth-role-simulator');
@@ -322,41 +348,49 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     function showPasswordRecoveryMode() {
       state.isPasswordRecoveryActive = true;
       if (authGateway) authGateway.classList.remove('hidden');
-      if (tabsBar) tabsBar.classList.add('hidden');
       if (loginForm) loginForm.classList.add('hidden');
       if (resetForm) resetForm.classList.add('hidden');
       if (roleSimulator) roleSimulator.classList.add('hidden');
       if (updatePasswordForm) updatePasswordForm.classList.remove('hidden');
+      
+      if (tabSignIn && tabReset && tabActivate) {
+        tabActivate.className = 'flex-1 py-2 rounded-lg bg-white text-slate-900 shadow-sm';
+        tabSignIn.className = 'flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900';
+        tabReset.className = 'flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900';
+      }
       if (window.lucide) window.lucide.createIcons();
     }
+    window.showPasswordRecoveryModeGlobal = showPasswordRecoveryMode;
 
     // Tab switcher
     tabSignIn?.addEventListener('click', () => {
       tabSignIn.className = 'flex-1 py-2 rounded-lg bg-white text-slate-900 shadow-sm';
       tabReset.className = 'flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900';
+      if (tabActivate) tabActivate.className = 'flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900';
       loginForm?.classList.remove('hidden');
       resetForm?.classList.add('hidden');
       updatePasswordForm?.classList.add('hidden');
+      roleSimulator?.classList.remove('hidden');
+      state.isPasswordRecoveryActive = false;
     });
 
     tabReset?.addEventListener('click', () => {
       tabReset.className = 'flex-1 py-2 rounded-lg bg-white text-slate-900 shadow-sm';
       tabSignIn.className = 'flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900';
+      if (tabActivate) tabActivate.className = 'flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900';
       resetForm?.classList.remove('hidden');
       loginForm?.classList.add('hidden');
       updatePasswordForm?.classList.add('hidden');
+      roleSimulator?.classList.remove('hidden');
+      state.isPasswordRecoveryActive = false;
     });
 
-    // Check URL parameters for recovery/invitation link immediately
-    const hashStr = window.location.hash || '';
-    const searchStr = window.location.search || '';
-    if (
-      hashStr.includes('type=recovery') || 
-      searchStr.includes('type=recovery') || 
-      hashStr.includes('access_token=') || 
-      hashStr.includes('type=invite') ||
-      searchStr.includes('code=')
-    ) {
+    tabActivate?.addEventListener('click', () => {
+      showPasswordRecoveryMode();
+    });
+
+    // Check URL parameters or active state immediately
+    if (state.isPasswordRecoveryActive) {
       showPasswordRecoveryMode();
     }
 
@@ -688,6 +722,16 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
   function renderApp() {
     const authGateway = document.getElementById('auth-gateway');
     const appShell = document.getElementById('app-shell');
+
+    // If password recovery is active, ensure the recovery form remains visible!
+    if (state.isPasswordRecoveryActive) {
+      if (authGateway) authGateway.classList.remove('hidden');
+      if (appShell) appShell.style.display = 'none';
+      if (typeof window.showPasswordRecoveryModeGlobal === 'function') {
+        window.showPasswordRecoveryModeGlobal();
+      }
+      return;
+    }
 
     // Authentication Guard
     if (!state.currentUser) {

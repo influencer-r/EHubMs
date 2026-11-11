@@ -52,7 +52,7 @@
   <script src="https://unpkg.com/lucide@latest"></script>
 
   <!-- Custom Stylesheet with cache busting -->
-  <link rel="stylesheet" href="./style.css?v=12">
+  <link rel="stylesheet" href="./style.css?v=13">
 </head>
 <body class="text-slate-900 min-h-screen flex flex-col antialiased selection:bg-sky-500 selection:text-white">
 
@@ -85,10 +85,11 @@
         <p class="text-xs text-slate-500 font-medium">Please authenticate with your official EldoHub staff account</p>
       </div>
 
-      <!-- Auth Tabs: Sign In / Forgot Password -->
+      <!-- Auth Tabs: Sign In / Forgot Password / Set Password -->
       <div id="auth-tabs-bar" class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
         <button id="auth-tab-signin" class="flex-1 py-2 rounded-lg bg-white text-slate-900 shadow-sm">Sign In</button>
-        <button id="auth-tab-reset" class="flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900">Reset Password</button>
+        <button id="auth-tab-reset" class="flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900">Forgot Password</button>
+        <button id="auth-tab-activate" class="flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900">Set Password</button>
       </div>
 
       <!-- Sign In Form -->
@@ -1109,6 +1110,6 @@
   <div id="toast-container" class="fixed bottom-20 sm:bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
   <!-- Application Logic with cache busting -->
-  <script src="./app.js?v=12"></script>
+  <script src="./app.js?v=13"></script>
 </body>
 </html>
