@@ -305,7 +305,7 @@ body {
 
 /* Touch-friendly buttons */
 .touch-btn {
-  min-height: 48px;
+  min-height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -317,6 +317,48 @@ body {
 
 .touch-btn:active {
   transform: scale(0.97);
+}
+
+/* Two-Box Checklist Buttons for Attendance (Present & Absent) */
+.checklist-btn {
+  min-height: 40px;
+  min-width: 96px;
+  border-radius: 0.625rem;
+  user-select: none;
+  cursor: pointer;
+  font-weight: 800;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.checklist-btn:active {
+  transform: scale(0.96);
+}
+
+/* Single-Check Buttons for Bus Pick-up, Drop-off & Gate */
+.single-check-btn {
+  min-height: 42px;
+  min-width: 148px;
+  border-radius: 0.625rem;
+  user-select: none;
+  cursor: pointer;
+  font-weight: 800;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.single-check-btn:active {
+  transform: scale(0.96);
 }
 
 /* ==============================================================================

@@ -1,11 +1,11 @@
 {
-  "name": "Tech & AI Academy - Operations & Attendance Portal",
+  "name": "EldoHub Tech & AI Academy - Operations & Fleet Management",
   "short_name": "Tech & AI Academy",
-  "description": "Daily logistics, morning & evening bus manifests, class registers, and student onboarding for Tech & AI Academy.",
+  "description": "Daily logistics, morning & evening bus manifests, class registers, and student onboarding for EldoHub Tech & AI Academy.",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#0ea5e9",
+  "background_color": "#ffffff",
+  "theme_color": "#0284c7",
   "orientation": "portrait-primary",
   "icons": [
     {
@@ -19,12 +19,6 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
-    },
-    {
-      "src": "./icons/icon.svg",
-      "sizes": "512x512",
-      "type": "image/svg+xml",
-      "purpose": "any"
     }
   ]
 }
