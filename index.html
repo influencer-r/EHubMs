@@ -407,11 +407,11 @@
         </span>
       </div>
 
-      <!-- Responsive Table View (Desktop & Tablet) -->
-      <div class="overflow-x-auto w-full" id="manifest-table-wrapper">
-        <table class="w-full text-left border-collapse text-sm">
+      <!-- Cloud School System: Clean Administrative Table View (Desktop & Tablet) -->
+      <div class="overflow-x-auto w-full hidden md:block" id="manifest-table-wrapper">
+        <table class="cloudschool-table text-left border-collapse text-sm">
           <thead>
-            <tr class="bg-dark-900/80 border-b border-white/10 text-[11px] font-bold uppercase tracking-wider text-slate-400 select-none">
+            <tr class="bg-dark-900/90 border-b border-white/10 text-[11px] font-bold uppercase tracking-wider text-slate-400 select-none">
               <th class="py-3.5 px-4 w-12 text-center">#</th>
               <th class="py-3.5 px-4 cursor-pointer hover:text-white" id="th-sort-name">
                 Student Name <span class="text-cyan-400">&darr; A-Z</span>
@@ -419,8 +419,8 @@
               <th class="py-3.5 px-4">Parent Phone</th>
               <th class="py-3.5 px-4">Residence</th>
               <th class="py-3.5 px-4">Track</th>
-              <th class="py-3.5 px-4 th-transport-col">Transport</th>
-              <th class="py-3.5 px-4 text-center">Action Toggle</th>
+              <th class="py-3.5 px-4 th-transport-col">Transport Mode</th>
+              <th class="py-3.5 px-4 text-center">Operational Action</th>
               <th class="py-3.5 px-4 text-right">Actions</th>
             </tr>
           </thead>
@@ -428,6 +428,13 @@
             <!-- Populated via JavaScript -->
           </tbody>
         </table>
+      </div>
+
+      <!-- SchoolPass: Rapid-Action Operational Cards Feed (Mobile Viewports) -->
+      <div class="block md:hidden p-3 space-y-3" id="manifest-cards-wrapper">
+        <div id="manifest-cards-container" class="space-y-3">
+          <!-- Populated via JavaScript -->
+        </div>
       </div>
 
       <!-- Clean State Indicator (When 0 students exist) -->

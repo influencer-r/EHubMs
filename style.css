@@ -54,24 +54,24 @@ body {
   background-repeat: no-repeat;
   opacity: 0;
   transform: scale(1) translate3d(0, 0, 0);
-  transition: opacity 1.8s cubic-bezier(0.4, 0, 0.2, 1), transform 8.2s cubic-bezier(0.25, 1, 0.5, 1);
+  transition: opacity 1.0s cubic-bezier(0.4, 0, 0.2, 1), transform 3.8s cubic-bezier(0.25, 1, 0.5, 1);
   will-change: transform, opacity;
 }
 
 .slide-item.active {
   opacity: 1;
-  transform: scale(1.08) translate3d(-1%, -1%, 0);
+  transform: scale(1.06) translate3d(-0.8%, -0.8%, 0);
 }
 
-/* Alternate Ken Burns directions for different slides */
+/* Alternate Ken Burns directions for different slides every 3s */
 .slide-item:nth-child(2).active {
-  transform: scale(1.09) translate3d(1%, -1%, 0);
+  transform: scale(1.07) translate3d(0.8%, -0.8%, 0);
 }
 .slide-item:nth-child(3).active {
-  transform: scale(1.08) translate3d(-1%, 1%, 0);
+  transform: scale(1.06) translate3d(-0.8%, 0.8%, 0);
 }
 .slide-item:nth-child(4).active {
-  transform: scale(1.09) translate3d(1%, 1%, 0);
+  transform: scale(1.07) translate3d(0.8%, 0.8%, 0);
 }
 
 /* Dark Gradient Vignette Overlay */
@@ -86,7 +86,7 @@ body {
 }
 
 /* ==============================================================================
-   2. Glassmorphic Surface System
+   2. Glassmorphic Surface System & Hybrid Identity (SchoolPass x Cloud School)
    ============================================================================== */
 .glass-panel {
   background: var(--glass-bg);
@@ -94,6 +94,61 @@ body {
   -webkit-backdrop-filter: blur(18px);
   border: 1px solid var(--glass-border);
   box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+/* SchoolPass Rapid-Action Operational Cards */
+.schoolpass-card {
+  background: rgba(15, 23, 42, 0.78);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left-width: 5px;
+  box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.35);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.schoolpass-card.status-completed {
+  border-left-color: #10b981; /* Emerald green verified */
+}
+
+.schoolpass-card.status-pending {
+  border-left-color: #f59e0b; /* Amber in-transit/pending */
+}
+
+.schoolpass-card.status-absent {
+  border-left-color: #f43f5e; /* Rose alert */
+}
+
+/* Cloud School System Clean Administrative Tables */
+.cloudschool-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.cloudschool-table thead th {
+  background: rgba(11, 15, 25, 0.95);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 14px 16px;
+}
+
+.cloudschool-table tbody tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: background-color 0.15s ease;
+}
+
+.cloudschool-table tbody tr:hover {
+  background-color: rgba(255, 255, 255, 0.035);
+}
+
+.cloudschool-table tbody td {
+  padding: 13px 16px;
+  vertical-align: middle;
 }
 
 .glass-panel-subtle {

@@ -264,12 +264,12 @@
     if (!slides || slides.length === 0) return;
 
     let currentIndex = 0;
-    // Cross slide every 8000ms with Ken Burns zoom animation
+    // Cross slide every 3000ms with Ken Burns zoom animation
     setInterval(() => {
       slides[currentIndex].classList.remove('active');
       currentIndex = (currentIndex + 1) % slides.length;
       slides[currentIndex].classList.add('active');
-    }, 8000);
+    }, 3000);
   }
 
   // ============================================================================
@@ -681,6 +681,7 @@
 
   function renderManifestTable() {
     const tbody = document.getElementById('manifest-table-body');
+    const cardsContainer = document.getElementById('manifest-cards-container');
     const emptyState = document.getElementById('manifest-empty-state');
     const countPill = document.getElementById('manifest-count-pill');
     const headingText = document.getElementById('heading-text');
@@ -736,18 +737,17 @@
     }
 
     if (students.length === 0) {
-      tbody.innerHTML = '';
+      if (tbody) tbody.innerHTML = '';
+      if (cardsContainer) cardsContainer.innerHTML = '';
       emptyState?.classList.remove('hidden');
       return;
     }
 
     emptyState?.classList.add('hidden');
-    tbody.innerHTML = '';
+    if (tbody) tbody.innerHTML = '';
+    if (cardsContainer) cardsContainer.innerHTML = '';
 
     students.forEach((student, index) => {
-      const tr = document.createElement('tr');
-      tr.className = 'hover:bg-white/[0.03] transition-colors border-b border-white/5';
-
       const currentStatus = getStudentStatus(student.id);
       const isCompleted = currentStatus !== 'pending' && currentStatus !== 'absent';
 
@@ -778,64 +778,134 @@
       else if (student.transport_mode === 'parent_pickup') transportLabel = '🚗 Parent Pick-up';
       else if (student.transport_mode === 'self_arrival') transportLabel = '🚶 Self Arrival';
 
-      tr.innerHTML = `
-        <td class="py-3.5 px-4 text-center font-mono text-xs text-slate-400 font-semibold">${index + 1}</td>
-        
-        <td class="py-3.5 px-4">
-          <div class="font-bold text-white flex items-center gap-2">
-            <span>${escapeHTML(student.name)}</span>
-            ${student.notes ? `<span title="${escapeHTML(student.notes)}" class="cursor-help text-cyan-400 text-xs"><i data-lucide="info" class="w-3.5 h-3.5 inline"></i></span>` : ''}
-          </div>
-          <div class="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
-            <span>${escapeHTML(student.cohort)}</span>
-          </div>
-        </td>
-
-        <td class="py-3.5 px-4">
-          <a href="tel:${escapeHTML(student.phone)}" class="inline-flex items-center gap-1 text-cyan-300 hover:text-cyan-200 font-mono text-xs py-1 px-2 rounded-lg bg-cyan-500/10 border border-cyan-500/20 touch-btn" title="Tap to call parent / guardian directly">
-            <i data-lucide="phone" class="w-3.5 h-3.5"></i>
-            <span>${escapeHTML(student.phone)}</span>
-          </a>
-        </td>
-
-        <td class="py-3.5 px-4 text-xs text-slate-300 font-medium">
-          <span class="inline-flex items-center gap-1">
-            <i data-lucide="map-pin" class="w-3 h-3 text-slate-400"></i>
-            ${escapeHTML(student.residence)}
-          </span>
-        </td>
-
-        <td class="py-3.5 px-4">
-          <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-white/5 border border-white/10 text-slate-200">
-            ${escapeHTML(student.track)}
-          </span>
-        </td>
-
-        ${isBootcamp && state.activeManifestType !== 'class_attendance' ? `
-          <td class="py-3.5 px-4 text-xs text-slate-300 th-transport-col">
-            <span class="text-[11px] font-semibold text-slate-300">${transportLabel}</span>
+      // 1. Cloud School System: Clean Administrative Table Row (Desktop)
+      if (tbody) {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-white/[0.035] transition-colors border-b border-white/5';
+        tr.innerHTML = `
+          <td class="py-3.5 px-4 text-center font-mono text-xs text-slate-400 font-semibold">${index + 1}</td>
+          
+          <td class="py-3.5 px-4">
+            <div class="font-bold text-white flex items-center gap-2">
+              <span>${escapeHTML(student.name)}</span>
+              ${student.notes ? `<span title="${escapeHTML(student.notes)}" class="cursor-help text-cyan-400 text-xs"><i data-lucide="info" class="w-3.5 h-3.5 inline"></i></span>` : ''}
+            </div>
+            <div class="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+              <span>${escapeHTML(student.cohort)}</span>
+            </div>
           </td>
-        ` : ''}
 
-        <td class="py-3.5 px-4 text-center">
-          <button data-student-id="${student.id}" class="toggle-status-btn touch-btn h-10 px-4 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 mx-auto ${
+          <td class="py-3.5 px-4">
+            <a href="tel:${escapeHTML(student.phone)}" class="inline-flex items-center gap-1 text-cyan-300 hover:text-cyan-200 font-mono text-xs py-1 px-2.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20 touch-btn" title="Tap to call parent / guardian directly">
+              <i data-lucide="phone" class="w-3.5 h-3.5"></i>
+              <span>${escapeHTML(student.phone)}</span>
+            </a>
+          </td>
+
+          <td class="py-3.5 px-4 text-xs text-slate-300 font-medium">
+            <span class="inline-flex items-center gap-1.5">
+              <i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-400"></i>
+              ${escapeHTML(student.residence)}
+            </span>
+          </td>
+
+          <td class="py-3.5 px-4">
+            <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-white/5 border border-white/10 text-slate-200">
+              ${escapeHTML(student.track)}
+            </span>
+          </td>
+
+          ${isBootcamp && state.activeManifestType !== 'class_attendance' ? `
+            <td class="py-3.5 px-4 text-xs text-slate-300 th-transport-col">
+              <span class="text-[11px] font-semibold text-slate-300">${transportLabel}</span>
+            </td>
+          ` : ''}
+
+          <td class="py-3.5 px-4 text-center">
+            <button data-student-id="${student.id}" class="toggle-status-btn touch-btn h-10 px-4 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 mx-auto ${
+              isCompleted
+                ? 'bg-emerald-500 text-dark-950 shadow-md shadow-emerald-500/25'
+                : 'glass-panel-subtle text-slate-300 hover:text-white border border-white/10'
+            }">
+              <i data-lucide="${isCompleted ? 'check' : 'circle'}" class="w-4 h-4"></i>
+              <span>${actionBtnText}</span>
+            </button>
+          </td>
+
+          <td class="py-3.5 px-4 text-right">
+            <button data-delete-id="${student.id}" class="delete-student-btn touch-btn w-9 h-9 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors inline-flex items-center justify-center" title="Remove student from roster">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      }
+
+      // 2. SchoolPass: Rapid-Action Operational Cards Feed (Mobile Viewports)
+      if (cardsContainer) {
+        const card = document.createElement('div');
+        const cardStatusClass = isCompleted ? 'status-completed' : (currentStatus === 'absent' ? 'status-absent' : 'status-pending');
+        card.className = `schoolpass-card ${cardStatusClass} rounded-2xl p-4 space-y-3`;
+        
+        card.innerHTML = `
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs font-mono font-bold text-slate-400">#${index + 1}</span>
+                <h4 class="font-extrabold text-base text-white">${escapeHTML(student.name)}</h4>
+              </div>
+              <div class="flex flex-wrap items-center gap-1.5 mt-1">
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-white/10 text-cyan-300 border border-white/10">${escapeHTML(student.cohort)}</span>
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-white/5 text-slate-300 border border-white/5">${escapeHTML(student.track)}</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-1">
+              <span class="badge-status ${isCompleted ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : (currentStatus === 'absent' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40')}">
+                <span class="pulse-dot ${isCompleted ? 'bg-emerald-400' : (currentStatus === 'absent' ? 'bg-rose-400' : 'bg-amber-400')}"></span>
+                <span>${isCompleted ? actionBtnText.toUpperCase() : (currentStatus === 'absent' ? 'ABSENT' : 'PENDING')}</span>
+              </span>
+              <button data-delete-id="${student.id}" class="delete-student-btn touch-btn w-8 h-8 rounded-lg text-slate-400 hover:text-rose-400 inline-flex items-center justify-center">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 text-xs text-slate-300 pt-0.5">
+            <div class="flex items-center gap-1.5 p-2.5 rounded-xl bg-white/5 border border-white/5">
+              <i data-lucide="map-pin" class="w-3.5 h-3.5 text-cyan-400 shrink-0"></i>
+              <span class="truncate font-medium">${escapeHTML(student.residence)}</span>
+            </div>
+            <a href="tel:${escapeHTML(student.phone)}" class="flex items-center justify-center gap-1.5 p-2.5 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-200 font-mono font-bold hover:bg-cyan-500/25 transition-all">
+              <i data-lucide="phone" class="w-3.5 h-3.5"></i>
+              <span class="truncate">${escapeHTML(student.phone)}</span>
+            </a>
+          </div>
+
+          ${isBootcamp && state.activeManifestType !== 'class_attendance' ? `
+            <div class="text-[11px] font-semibold text-slate-300 px-1 flex items-center gap-1.5">
+              <span class="text-slate-400">Transport:</span>
+              <span class="text-cyan-300 font-bold">${transportLabel}</span>
+            </div>
+          ` : ''}
+
+          ${student.notes ? `
+            <div class="text-xs text-amber-300/90 bg-amber-950/20 border border-amber-500/20 rounded-xl p-2.5 flex items-start gap-1.5">
+              <i data-lucide="info" class="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5"></i>
+              <span>${escapeHTML(student.notes)}</span>
+            </div>
+          ` : ''}
+
+          <button data-student-id="${student.id}" class="toggle-status-btn touch-btn w-full h-12 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg ${
             isCompleted
-              ? 'bg-emerald-500 text-dark-950 shadow-md shadow-emerald-500/20'
-              : 'glass-panel-subtle text-slate-300 hover:text-white border border-white/10'
+              ? 'bg-emerald-500 text-dark-950 shadow-emerald-500/25 active:scale-98'
+              : 'glass-panel-interactive border-white/15 text-white hover:bg-white/10 active:scale-98'
           }">
-            <i data-lucide="${isCompleted ? 'check' : 'circle'}" class="w-4 h-4"></i>
-            <span>${actionBtnText}</span>
+            <i data-lucide="${isCompleted ? 'check-circle-2' : 'circle'}" class="w-5 h-5"></i>
+            <span>${isCompleted ? `${actionBtnText} (Tap to Toggle)` : `Tap to Mark ${actionBtnText}`}</span>
           </button>
-        </td>
-
-        <td class="py-3.5 px-4 text-right">
-          <button data-delete-id="${student.id}" class="delete-student-btn touch-btn w-9 h-9 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors inline-flex items-center justify-center" title="Remove student from roster">
-            <i data-lucide="trash-2" class="w-4 h-4"></i>
-          </button>
-        </td>
-      `;
-
-      tbody.appendChild(tr);
+        `;
+        cardsContainer.appendChild(card);
+      }
     });
 
     // Wire status toggles
