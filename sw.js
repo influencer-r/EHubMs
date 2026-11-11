@@ -1,10 +1,10 @@
-// Service Worker for Tech & AI Academy Portal
-const CACHE_NAME = 'tech-ai-academy-v1';
+// Service Worker for Tech & AI Academy Portal (Cache v5)
+const CACHE_NAME = 'tech-ai-academy-v5';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './style.css',
-  './app.js',
+  './style.css?v=5',
+  './app.js?v=5',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -43,35 +43,42 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Network first with cache fallback for HTML/API; cache first for static assets
   const url = new URL(event.request.url);
   
-  // Skip non-GET requests or external analytics/supabase
   if (event.request.method !== 'GET' || url.origin !== self.location.origin) {
     return;
   }
 
+  // Network-first for CSS, JS, and HTML to guarantee users see fresh UI updates instantly
+  const isCodeAsset = url.pathname.endsWith('.html') || url.pathname.endsWith('.js') || url.pathname.endsWith('.css') || url.pathname === '/' || url.pathname.endsWith('/');
+
+  if (isCodeAsset) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
+  // Cache-first for heavy image and icon assets
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
-        // Fetch fresh copy in background to keep cache up to date
-        fetch(event.request).then((networkResponse) => {
-          if (networkResponse && networkResponse.status === 200) {
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, networkResponse);
-            });
-          }
-        }).catch(() => {});
         return cachedResponse;
       }
       return fetch(event.request).then((networkResponse) => {
-        if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
+        if (!networkResponse || networkResponse.status !== 200) {
           return networkResponse;
         }
         const responseToCache = networkResponse.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
         return networkResponse;
       });
     })

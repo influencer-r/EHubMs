@@ -1,7 +1,7 @@
 /**
  * ==============================================================================
- * Tech & AI Academy - Operations & Daily Logistics Portal
- * Production Single-Page Application Engine
+ * Tech & AI Academy - Operations & Fleet Management System
+ * Hybrid Architecture Engine: SchoolPass (Dismissal/Carline) x Cloud School System
  * ==============================================================================
  */
 
@@ -9,23 +9,23 @@
   'use strict';
 
   // ============================================================================
-  // 1. STATE & STORAGE MANAGEMENT
+  // 1. STORAGE KEYS & CONSTANTS
   // ============================================================================
 
   const STORAGE_KEY = 'tech_ai_academy_data_v1';
   const LOGO_STORAGE_KEY = 'tech_ai_academy_logo_v1';
   const SUPABASE_CONFIG_KEY = 'tech_ai_academy_supabase_cfg_v1';
 
-  // Default Academy Supabase Configuration
+  // Pre-configured Supabase PostgreSQL Credentials
   const DEFAULT_SUPABASE_CONFIG = {
     url: 'https://sopqoumqblhtguprgtwx.supabase.co',
     key: 'sb_publishable_zPJ4Fguz3X4SnLavQpurRg_lUMxf_BO'
   };
 
-  // Default initial tracks & cohorts (Clean state: 0 students)
+  // Clean initial state (Zero hardcoded dummy names)
   const DEFAULT_STATE = {
-    students: [], // Clean state: zero hardcoded dummy names
-    manifestLogs: [], // Clean state: daily records
+    students: [],
+    manifestLogs: [],
     cohorts: {
       bootcamp: ['August Intake', 'November Intake'],
       regular: ['January Intake', 'February Intake', 'March Intake', 'April Intake', 'May Intake', 'June Intake']
@@ -41,7 +41,7 @@
     }
   };
 
-  // App Runtime State
+  // Runtime State
   const state = {
     activeBranch: 'bootcamp', // 'bootcamp' or 'regular'
     activeCohort: 'August Intake',
@@ -49,10 +49,12 @@
     activeManifestType: 'morning_pickup', // 'morning_pickup' | 'evening_dropoff' | 'gate_pickup' | 'class_attendance'
     activeDate: new Date().toISOString().split('T')[0],
     searchQuery: '',
+    viewMode: window.innerWidth < 768 ? 'cards' : 'table', // 'table' (Cloud School) | 'cards' (SchoolPass)
+    sidebarCollapsed: false,
     data: loadStoredData(),
     supabaseClient: null,
-    supabaseStatus: 'local', // 'local' | 'connected' | 'error'
-    deferredPrompt: null // For PWA install
+    supabaseStatus: 'local', // 'local' | 'connected' | 'error' | 'schema_needed'
+    deferredPrompt: null
   };
 
   function loadStoredData() {
@@ -82,7 +84,7 @@
   }
 
   // ============================================================================
-  // 2. SUPABASE BACKEND INTEGRATION
+  // 2. SUPABASE BACKEND SYNCHRONIZATION
   // ============================================================================
 
   function initSupabase() {
@@ -93,7 +95,6 @@
         config = JSON.parse(configStr);
       }
       
-      // Fallback to default credentials if not overridden
       const url = (config && config.url) ? config.url : DEFAULT_SUPABASE_CONFIG.url;
       const key = (config && config.key) ? config.key : DEFAULT_SUPABASE_CONFIG.key;
 
@@ -111,7 +112,7 @@
   async function testSupabaseConnection(showToast = true) {
     if (!state.supabaseClient) {
       updateSupabaseStatus('local');
-      if (showToast) notify('Operating in LocalStorage Mode (No Supabase credentials configured)', 'info');
+      if (showToast) notify('Operating in LocalStorage Mode', 'info');
       return false;
     }
 
@@ -123,25 +124,23 @@
         .limit(1);
 
       if (error) {
-        // Table not found means project connection succeeded, but SQL schema hasn't run yet
         if (error.code === 'PGRST205' || error.message?.includes('schema cache') || error.message?.includes('does not exist')) {
           updateSupabaseStatus('schema_needed');
-          if (showToast) notify('Connected to Supabase Project! Please run supabase-schema.sql in Supabase SQL Editor.', 'info');
+          if (showToast) notify('Connected to Supabase Project! Please run supabase-schema.sql in SQL Editor.', 'info');
           return false;
         }
         throw error;
       }
 
       updateSupabaseStatus('connected');
-      if (showToast) notify('Successfully connected to Supabase PostgreSQL Database!', 'success');
+      if (showToast) notify('Connected to Supabase PostgreSQL Database!', 'success');
       
-      // Auto-sync initial data from Supabase
       syncWithSupabase();
       return true;
     } catch (err) {
       console.error('Supabase connection error:', err);
       updateSupabaseStatus('error');
-      if (showToast) notify('Supabase connection failed: ' + (err.message || 'Check URL/Key or schema'), 'error');
+      if (showToast) notify('Supabase connection failed: ' + (err.message || 'Check URL/Key'), 'error');
       return false;
     }
   }
@@ -156,7 +155,6 @@
         .select('*');
 
       if (!err1 && dbStudents && dbStudents.length > 0) {
-        // Merge Supabase students into state
         const localMap = new Map(state.data.students.map(s => [s.id, s]));
         dbStudents.forEach(remoteStudent => {
           localMap.set(remoteStudent.id, remoteStudent);
@@ -223,40 +221,52 @@
   function updateSupabaseStatus(status) {
     state.supabaseStatus = status;
     const dot = document.getElementById('supabase-status-dot');
+    const sidebarDot = document.getElementById('sidebar-db-dot');
+    const sidebarLabel = document.getElementById('sidebar-status-label');
     const indicator = document.getElementById('settings-status-indicator');
     const statusText = document.getElementById('settings-status-text');
 
-    if (!dot || !indicator || !statusText) return;
-
     if (status === 'connected') {
-      dot.className = 'absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-dark-900';
-      dot.title = 'Database Status: Connected to Supabase';
-      indicator.className = 'w-3 h-3 rounded-full bg-emerald-400';
-      statusText.textContent = 'Supabase Cloud: Connected & Syncing';
-      statusText.className = 'text-xs font-bold text-emerald-400';
+      if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400';
+      if (sidebarDot) sidebarDot.className = 'w-2 h-2 rounded-full bg-emerald-400 shrink-0';
+      if (sidebarLabel) sidebarLabel.textContent = 'PostgreSQL Connected';
+      if (indicator) indicator.className = 'w-3 h-3 rounded-full bg-emerald-400';
+      if (statusText) {
+        statusText.textContent = 'Supabase Cloud: Connected & Syncing';
+        statusText.className = 'text-xs font-bold text-emerald-400';
+      }
     } else if (status === 'schema_needed') {
-      dot.className = 'absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping border-2 border-dark-900';
-      dot.title = 'Database Status: Connected to Supabase! Run supabase-schema.sql to initialize tables';
-      indicator.className = 'w-3 h-3 rounded-full bg-cyan-400';
-      statusText.textContent = 'Supabase Connected (Run schema in SQL editor)';
-      statusText.className = 'text-xs font-bold text-cyan-300';
+      if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse';
+      if (sidebarDot) sidebarDot.className = 'w-2 h-2 rounded-full bg-cyan-400 shrink-0';
+      if (sidebarLabel) sidebarLabel.textContent = 'Run Schema in SQL Editor';
+      if (indicator) indicator.className = 'w-3 h-3 rounded-full bg-cyan-400';
+      if (statusText) {
+        statusText.textContent = 'Supabase Connected (Run schema in SQL editor)';
+        statusText.className = 'text-xs font-bold text-cyan-300';
+      }
     } else if (status === 'error') {
-      dot.className = 'absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 border-2 border-dark-900';
-      dot.title = 'Database Status: Supabase Connection Error';
-      indicator.className = 'w-3 h-3 rounded-full bg-rose-500';
-      statusText.textContent = 'Supabase Cloud: Connection Error';
-      statusText.className = 'text-xs font-bold text-rose-400';
+      if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-rose-500';
+      if (sidebarDot) sidebarDot.className = 'w-2 h-2 rounded-full bg-rose-500 shrink-0';
+      if (sidebarLabel) sidebarLabel.textContent = 'Database Error';
+      if (indicator) indicator.className = 'w-3 h-3 rounded-full bg-rose-500';
+      if (statusText) {
+        statusText.textContent = 'Supabase Cloud: Connection Error';
+        statusText.className = 'text-xs font-bold text-rose-400';
+      }
     } else {
-      dot.className = 'absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-dark-900';
-      dot.title = 'Database Status: LocalStorage Mode';
-      indicator.className = 'w-3 h-3 rounded-full bg-amber-400';
-      statusText.textContent = 'LocalStorage Mode (Offline Ready)';
-      statusText.className = 'text-xs font-bold text-amber-400';
+      if (dot) dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400';
+      if (sidebarDot) sidebarDot.className = 'w-2 h-2 rounded-full bg-amber-400 shrink-0';
+      if (sidebarLabel) sidebarLabel.textContent = 'LocalStorage Mode';
+      if (indicator) indicator.className = 'w-3 h-3 rounded-full bg-amber-400';
+      if (statusText) {
+        statusText.textContent = 'LocalStorage Mode (Offline Ready)';
+        statusText.className = 'text-xs font-bold text-amber-400';
+      }
     }
   }
 
   // ============================================================================
-  // 3. DYNAMIC BACKGROUND SLIDESHOW & KEN BURNS EFFECT
+  // 3. DYNAMIC BACKGROUND SLIDESHOW (3-SECOND KEN BURNS CYCLE)
   // ============================================================================
 
   function initBackgroundSlideshow() {
@@ -277,7 +287,6 @@
   // ============================================================================
 
   function initPWA() {
-    // Register Service Worker
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js')
@@ -286,7 +295,6 @@
       });
     }
 
-    // Capture install prompt
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       state.deferredPrompt = e;
@@ -307,7 +315,6 @@
             state.deferredPrompt = null;
           }
         } else {
-          // Fallback guidance for iOS and already-installed browsers
           notify('To install: tap your browser Share button (⎋) and select "Add to Home Screen" 📲', 'info');
         }
       });
@@ -319,7 +326,9 @@
   // ============================================================================
 
   function initLogoCustomizer() {
-    const logoTrigger = document.getElementById('logo-trigger');
+    const logoTriggers = [
+      document.getElementById('sidebar-logo-trigger')
+    ];
     const logoModal = document.getElementById('modal-logo');
     const closeLogoModalBtn = document.getElementById('btn-close-logo-modal');
     const logoFileInput = document.getElementById('input-logo-file');
@@ -328,24 +337,21 @@
     const resetLogoBtn = document.getElementById('btn-reset-logo');
     const academyLogoImg = document.getElementById('academy-logo-img');
 
-    // Load saved custom logo if exists
     const savedLogo = localStorage.getItem(LOGO_STORAGE_KEY);
     if (savedLogo && academyLogoImg) {
       academyLogoImg.src = savedLogo;
       if (logoPreviewImg) logoPreviewImg.src = savedLogo;
     }
 
-    if (logoTrigger && logoModal) {
-      logoTrigger.addEventListener('click', () => {
-        logoModal.classList.remove('hidden');
+    logoTriggers.forEach(trigger => {
+      trigger?.addEventListener('click', () => {
+        logoModal?.classList.remove('hidden');
       });
-    }
+    });
 
-    if (closeLogoModalBtn && logoModal) {
-      closeLogoModalBtn.addEventListener('click', () => {
-        logoModal.classList.add('hidden');
-      });
-    }
+    closeLogoModalBtn?.addEventListener('click', () => {
+      logoModal?.classList.add('hidden');
+    });
 
     let tempLogoData = null;
     if (logoFileInput) {
@@ -362,27 +368,23 @@
       });
     }
 
-    if (saveLogoBtn) {
-      saveLogoBtn.addEventListener('click', () => {
-        if (tempLogoData) {
-          localStorage.setItem(LOGO_STORAGE_KEY, tempLogoData);
-          if (academyLogoImg) academyLogoImg.src = tempLogoData;
-          notify('Custom Academy logo updated successfully!', 'success');
-        }
-        logoModal.classList.add('hidden');
-      });
-    }
+    saveLogoBtn?.addEventListener('click', () => {
+      if (tempLogoData) {
+        localStorage.setItem(LOGO_STORAGE_KEY, tempLogoData);
+        if (academyLogoImg) academyLogoImg.src = tempLogoData;
+        notify('Academy logo updated successfully!', 'success');
+      }
+      logoModal?.classList.add('hidden');
+    });
 
-    if (resetLogoBtn) {
-      resetLogoBtn.addEventListener('click', () => {
-        localStorage.removeItem(LOGO_STORAGE_KEY);
-        if (academyLogoImg) academyLogoImg.src = './icons/icon.svg';
-        if (logoPreviewImg) logoPreviewImg.src = './icons/icon.svg';
-        tempLogoData = null;
-        notify('Reset to official Academy logo icon.', 'info');
-        logoModal.classList.add('hidden');
-      });
-    }
+    resetLogoBtn?.addEventListener('click', () => {
+      localStorage.removeItem(LOGO_STORAGE_KEY);
+      if (academyLogoImg) academyLogoImg.src = './icons/icon.svg';
+      if (logoPreviewImg) logoPreviewImg.src = './icons/icon.svg';
+      tempLogoData = null;
+      notify('Reset to official Academy logo icon.', 'info');
+      logoModal?.classList.add('hidden');
+    });
   }
 
   // ============================================================================
@@ -393,35 +395,56 @@
     renderNavigation();
     renderBranchControls();
     renderManifestTable();
+    updateViewModeUI();
     updateKPIs();
+    updateSidebarBadges();
     if (window.lucide) {
       window.lucide.createIcons();
+    }
+  }
+
+  function updateViewModeUI() {
+    const tableWrapper = document.getElementById('manifest-table-wrapper');
+    const cardsWrapper = document.getElementById('manifest-cards-wrapper');
+    const btnTable = document.getElementById('view-mode-table');
+    const btnCards = document.getElementById('view-mode-cards');
+
+    if (!tableWrapper || !cardsWrapper) return;
+
+    if (state.viewMode === 'table') {
+      tableWrapper.classList.remove('hidden');
+      cardsWrapper.classList.add('hidden');
+
+      btnTable?.classList.add('bg-cyan-500', 'text-dark-950', 'shadow-md');
+      btnTable?.classList.remove('text-slate-300');
+      btnCards?.classList.remove('bg-cyan-500', 'text-dark-950', 'shadow-md');
+      btnCards?.classList.add('text-slate-300');
+    } else {
+      tableWrapper.classList.add('hidden');
+      cardsWrapper.classList.remove('hidden');
+
+      btnCards?.classList.add('bg-cyan-500', 'text-dark-950', 'shadow-md');
+      btnCards?.classList.remove('text-slate-300');
+      btnTable?.classList.remove('bg-cyan-500', 'text-dark-950', 'shadow-md');
+      btnTable?.classList.add('text-slate-300');
     }
   }
 
   function renderNavigation() {
     const isBootcamp = state.activeBranch === 'bootcamp';
 
-    // Desktop branch buttons
+    // Sidebar Campus/Branch Switcher buttons
     const btnBootcamp = document.getElementById('branch-nav-bootcamp');
     const btnRegular = document.getElementById('branch-nav-regular');
-    // Mobile branch buttons
-    const mBtnBootcamp = document.getElementById('mobile-branch-bootcamp');
-    const mBtnRegular = document.getElementById('mobile-branch-regular');
-    // Dock buttons
+    // Mobile dock buttons
     const dockBootcamp = document.getElementById('dock-btn-bootcamp');
     const dockRegular = document.getElementById('dock-btn-regular');
 
     if (isBootcamp) {
       btnBootcamp?.classList.add('bg-gradient-to-r', 'from-cyan-500', 'to-blue-600', 'text-white', 'shadow-md');
-      btnBootcamp?.classList.remove('text-slate-300', 'hover:bg-white/5');
+      btnBootcamp?.classList.remove('text-slate-400');
       btnRegular?.classList.remove('bg-gradient-to-r', 'from-cyan-500', 'to-blue-600', 'text-white', 'shadow-md');
-      btnRegular?.classList.add('text-slate-300', 'hover:bg-white/5');
-
-      mBtnBootcamp?.classList.add('bg-gradient-to-r', 'from-cyan-500', 'to-blue-600', 'text-white');
-      mBtnBootcamp?.classList.remove('text-slate-400');
-      mBtnRegular?.classList.remove('bg-gradient-to-r', 'from-cyan-500', 'to-blue-600', 'text-white');
-      mBtnRegular?.classList.add('text-slate-400');
+      btnRegular?.classList.add('text-slate-400');
 
       dockBootcamp?.classList.add('text-cyan-400');
       dockBootcamp?.classList.remove('text-slate-400');
@@ -429,14 +452,9 @@
       dockRegular?.classList.add('text-slate-400');
     } else {
       btnRegular?.classList.add('bg-gradient-to-r', 'from-purple-600', 'to-indigo-600', 'text-white', 'shadow-md');
-      btnRegular?.classList.remove('text-slate-300', 'hover:bg-white/5');
+      btnRegular?.classList.remove('text-slate-400');
       btnBootcamp?.classList.remove('bg-gradient-to-r', 'from-cyan-500', 'to-blue-600', 'text-white', 'shadow-md');
-      btnBootcamp?.classList.add('text-slate-300', 'hover:bg-white/5');
-
-      mBtnRegular?.classList.add('bg-gradient-to-r', 'from-purple-600', 'to-indigo-600', 'text-white');
-      mBtnRegular?.classList.remove('text-slate-400');
-      mBtnBootcamp?.classList.remove('bg-gradient-to-r', 'from-cyan-500', 'to-blue-600', 'text-white');
-      mBtnBootcamp?.classList.add('text-slate-400');
+      btnBootcamp?.classList.add('text-slate-400');
 
       dockRegular?.classList.add('text-cyan-400');
       dockRegular?.classList.remove('text-slate-400');
@@ -444,185 +462,128 @@
       dockBootcamp?.classList.add('text-slate-400');
     }
 
-    // Toggle control panels
-    const secBootcamp = document.getElementById('section-bootcamp-controls');
-    const secRegular = document.getElementById('section-regular-controls');
-    if (isBootcamp) {
-      secBootcamp?.classList.remove('hidden');
-      secRegular?.classList.add('hidden');
-    } else {
-      secBootcamp?.classList.add('hidden');
-      secRegular?.classList.remove('hidden');
+    // Update Top View Title & Subheading
+    const topTitle = document.getElementById('top-view-title');
+    const topBranchPill = document.getElementById('top-branch-pill');
+
+    if (topBranchPill) {
+      topBranchPill.textContent = isBootcamp ? 'Boot Camp' : 'Regular Programs';
+      topBranchPill.className = isBootcamp
+        ? 'hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'
+        : 'hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-purple-500/10 text-purple-400 border border-purple-500/30';
     }
 
-    // Update banner badge and titles
-    const badgeBranch = document.getElementById('badge-branch-type');
-    const viewTitle = document.getElementById('view-title');
-    const viewSubtitle = document.getElementById('view-subtitle');
-
-    if (isBootcamp) {
-      if (badgeBranch) badgeBranch.textContent = 'Branch A: Kids Seasonal Boot Camp';
-      if (badgeBranch) badgeBranch.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30';
-      if (viewTitle) viewTitle.textContent = 'Daily Logistics & Attendance Operations';
-      if (viewSubtitle) viewSubtitle.textContent = 'Real-time morning bus pickup, evening dropoff & gate registers';
-    } else {
-      if (badgeBranch) badgeBranch.textContent = 'Branch B: Regular Programs (Adults/Youth)';
-      if (badgeBranch) badgeBranch.className = 'px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/30';
-      if (viewTitle) viewTitle.textContent = 'Class Attendance & Academic Register';
-      if (viewSubtitle) viewSubtitle.textContent = 'Year-round career programs attendance roster & compliance';
+    if (topTitle) {
+      if (state.activeManifestType === 'morning_pickup') topTitle.textContent = 'Morning Pick-up Bus Manifest';
+      else if (state.activeManifestType === 'evening_dropoff') topTitle.textContent = 'Evening Drop-off Bus Manifest';
+      else if (state.activeManifestType === 'gate_pickup') topTitle.textContent = 'Gate & Carline Dismissal Register';
+      else topTitle.textContent = 'Class Attendance Register';
     }
 
-    // Active day badge
-    const activeDayText = document.getElementById('active-day-text');
-    if (activeDayText) {
-      const dayName = new Date(state.activeDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-      activeDayText.textContent = dayName;
-    }
+    // Highlight active sidebar navigation item
+    const navItems = [
+      { id: 'tab-logistics-morning', type: 'morning_pickup' },
+      { id: 'tab-logistics-evening', type: 'evening_dropoff' },
+      { id: 'tab-logistics-gate', type: 'gate_pickup' },
+      { id: 'tab-logistics-class', type: 'class_attendance' }
+    ];
+
+    navItems.forEach(item => {
+      const el = document.getElementById(item.id);
+      if (el) {
+        if (state.activeManifestType === item.type) {
+          el.classList.add('active');
+        } else {
+          el.classList.remove('active');
+        }
+      }
+    });
+  }
+
+  function updateSidebarBadges() {
+    const isBootcamp = state.activeBranch === 'bootcamp';
+    const students = state.data.students.filter(s => s.branch === state.activeBranch && (!state.activeCohort || s.cohort === state.activeCohort));
+
+    const morningCount = students.filter(s => s.transport_mode === 'morning_bus' || s.transport_mode === 'both').length;
+    const eveningCount = students.filter(s => s.transport_mode === 'evening_bus' || s.transport_mode === 'both').length;
+    const gateCount = students.filter(s => s.transport_mode === 'parent_pickup' || s.transport_mode === 'self_arrival').length;
+    const classCount = students.length;
+
+    const bMorning = document.getElementById('badge-nav-morning');
+    const bEvening = document.getElementById('badge-nav-evening');
+    const bGate = document.getElementById('badge-nav-gate');
+    const bClass = document.getElementById('badge-nav-class');
+
+    if (bMorning) bMorning.textContent = morningCount;
+    if (bEvening) bEvening.textContent = eveningCount;
+    if (bGate) bGate.textContent = gateCount;
+    if (bClass) bClass.textContent = classCount;
   }
 
   function renderBranchControls() {
     const isBootcamp = state.activeBranch === 'bootcamp';
 
-    if (isBootcamp) {
-      // 1. Boot Camp Cohorts
-      const cohortContainer = document.getElementById('bootcamp-cohort-tabs');
-      if (cohortContainer) {
-        cohortContainer.innerHTML = '';
-        state.data.cohorts.bootcamp.forEach(cohort => {
-          const isActive = state.activeCohort === cohort;
-          const btn = document.createElement('button');
-          btn.className = `touch-btn h-8 px-3 rounded-lg text-xs font-bold transition-all ${
-            isActive
-              ? 'bg-cyan-500 text-dark-950 shadow-md shadow-cyan-500/20'
-              : 'glass-panel-subtle text-slate-300 hover:text-white border border-white/5'
-          }`;
-          btn.textContent = cohort;
-          btn.onclick = () => {
-            state.activeCohort = cohort;
-            renderApp();
-          };
-          cohortContainer.appendChild(btn);
-        });
-      }
-
-      // 2. Boot Camp Tracks
-      const trackContainer = document.getElementById('bootcamp-track-pills');
-      if (trackContainer) {
-        trackContainer.innerHTML = '';
-        // 'All Tracks' pill
-        const allBtn = document.createElement('button');
-        allBtn.className = `touch-btn h-8 px-3 rounded-lg text-xs font-bold transition-all ${
-          state.activeTrack === 'all'
-            ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/20'
+    // 1. Unified Cohort / Stream Switcher Container
+    const cohortContainer = document.getElementById('cohort-switcher-container');
+    if (cohortContainer) {
+      cohortContainer.innerHTML = '';
+      const cohorts = state.data.cohorts[state.activeBranch] || [];
+      cohorts.forEach(cohort => {
+        const isActive = state.activeCohort === cohort;
+        const btn = document.createElement('button');
+        btn.className = `touch-btn h-8 px-3 rounded-lg text-xs font-bold transition-all ${
+          isActive
+            ? (isBootcamp ? 'bg-cyan-500 text-dark-950 shadow-md shadow-cyan-500/20' : 'bg-purple-600 text-white shadow-md shadow-purple-600/20')
             : 'glass-panel-subtle text-slate-300 hover:text-white border border-white/5'
         }`;
-        allBtn.textContent = 'All Tracks';
-        allBtn.onclick = () => {
-          state.activeTrack = 'all';
+        btn.textContent = cohort;
+        btn.onclick = () => {
+          state.activeCohort = cohort;
           renderApp();
         };
-        trackContainer.appendChild(allBtn);
-
-        state.data.tracks.bootcamp.forEach(track => {
-          const isActive = state.activeTrack === track;
-          const btn = document.createElement('button');
-          btn.className = `touch-btn h-8 px-3 rounded-lg text-xs font-bold transition-all ${
-            isActive
-              ? 'bg-indigo-500 text-white shadow-md shadow-indigo-500/20'
-              : 'glass-panel-subtle text-slate-300 hover:text-white border border-white/5'
-          }`;
-          btn.textContent = track;
-          btn.onclick = () => {
-            state.activeTrack = track;
-            renderApp();
-          };
-          trackContainer.appendChild(btn);
-        });
-      }
-
-      // 3. Logistics Sub-Tabs Styling
-      const tabs = [
-        { id: 'tab-logistics-morning', type: 'morning_pickup' },
-        { id: 'tab-logistics-evening', type: 'evening_dropoff' },
-        { id: 'tab-logistics-gate', type: 'gate_pickup' },
-        { id: 'tab-logistics-class', type: 'class_attendance' }
-      ];
-
-      tabs.forEach(t => {
-        const el = document.getElementById(t.id);
-        if (el) {
-          const isActive = state.activeManifestType === t.type;
-          if (isActive) {
-            el.className = 'manifest-tab-btn touch-btn h-12 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-lg shadow-cyan-500/10';
-          } else {
-            el.className = 'manifest-tab-btn touch-btn h-12 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all glass-panel-subtle text-slate-300 hover:text-white border border-white/5';
-          }
-        }
+        cohortContainer.appendChild(btn);
       });
-
-    } else {
-      // Regular Programs Controls
-      // 1. Monthly Intakes
-      const intakeContainer = document.getElementById('regular-intake-tabs');
-      if (intakeContainer) {
-        intakeContainer.innerHTML = '';
-        state.data.cohorts.regular.forEach(intake => {
-          const isActive = state.activeCohort === intake;
-          const btn = document.createElement('button');
-          btn.className = `touch-btn h-8 px-3 rounded-lg text-xs font-bold transition-all ${
-            isActive
-              ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
-              : 'glass-panel-subtle text-slate-300 hover:text-white border border-white/5'
-          }`;
-          btn.textContent = intake;
-          btn.onclick = () => {
-            state.activeCohort = intake;
-            renderApp();
-          };
-          intakeContainer.appendChild(btn);
-        });
-      }
-
-      // 2. Regular Program Tracks
-      const regTrackContainer = document.getElementById('regular-track-pills');
-      if (regTrackContainer) {
-        regTrackContainer.innerHTML = '';
-        const allBtn = document.createElement('button');
-        allBtn.className = `touch-btn h-8 px-3 rounded-lg text-xs font-bold transition-all ${
-          state.activeTrack === 'all'
-            ? 'bg-purple-600 text-white shadow-md'
-            : 'glass-panel-subtle text-slate-300 hover:text-white border border-white/5'
-        }`;
-        allBtn.textContent = 'All Programs';
-        allBtn.onclick = () => {
-          state.activeTrack = 'all';
-          renderApp();
-        };
-        regTrackContainer.appendChild(allBtn);
-
-        state.data.tracks.regular.forEach(track => {
-          const isActive = state.activeTrack === track;
-          const btn = document.createElement('button');
-          btn.className = `touch-btn h-8 px-3 rounded-lg text-xs font-bold transition-all ${
-            isActive
-              ? 'bg-purple-600 text-white shadow-md'
-              : 'glass-panel-subtle text-slate-300 hover:text-white border border-white/5'
-          }`;
-          btn.textContent = track;
-          btn.onclick = () => {
-            state.activeTrack = track;
-            renderApp();
-          };
-          regTrackContainer.appendChild(btn);
-        });
-      }
     }
 
-    // Synchronize Date Inputs
-    const bDateInput = document.getElementById('manifest-date-input');
-    const rDateInput = document.getElementById('regular-date-input');
-    if (bDateInput) bDateInput.value = state.activeDate;
-    if (rDateInput) rDateInput.value = state.activeDate;
+    // 2. Unified Track Pills Container
+    const trackContainer = document.getElementById('track-pills-container');
+    if (trackContainer) {
+      trackContainer.innerHTML = '';
+      
+      const allBtn = document.createElement('button');
+      allBtn.className = `touch-btn h-8 px-3 rounded-lg text-xs font-bold transition-all ${
+        state.activeTrack === 'all'
+          ? (isBootcamp ? 'bg-indigo-500 text-white shadow-md' : 'bg-purple-600 text-white shadow-md')
+          : 'glass-panel-subtle text-slate-300 hover:text-white border border-white/5'
+      }`;
+      allBtn.textContent = 'All Tracks';
+      allBtn.onclick = () => {
+        state.activeTrack = 'all';
+        renderApp();
+      };
+      trackContainer.appendChild(allBtn);
+
+      const tracks = state.data.tracks[state.activeBranch] || [];
+      tracks.forEach(track => {
+        const isActive = state.activeTrack === track;
+        const btn = document.createElement('button');
+        btn.className = `touch-btn h-8 px-3 rounded-lg text-xs font-bold transition-all ${
+          isActive
+            ? (isBootcamp ? 'bg-indigo-500 text-white shadow-md' : 'bg-purple-600 text-white shadow-md')
+            : 'glass-panel-subtle text-slate-300 hover:text-white border border-white/5'
+        }`;
+        btn.textContent = track;
+        btn.onclick = () => {
+          state.activeTrack = track;
+          renderApp();
+        };
+        trackContainer.appendChild(btn);
+      });
+    }
+
+    // Sync Date Input
+    const dateInput = document.getElementById('manifest-date-input');
+    if (dateInput) dateInput.value = state.activeDate;
   }
 
   // Filter students based on branch, cohort, track, manifest type, and search
@@ -631,31 +592,20 @@
 
     return state.data.students
       .filter(s => {
-        // 1. Branch match
         if (s.branch !== state.activeBranch) return false;
-
-        // 2. Cohort match
         if (state.activeCohort && s.cohort !== state.activeCohort) return false;
-
-        // 3. Track match
         if (state.activeTrack !== 'all' && s.track !== state.activeTrack) return false;
 
-        // 4. Manifest Type Filter (Split Daily Logistics for Boot Camp)
         if (isBootcamp) {
           if (state.activeManifestType === 'morning_pickup') {
-            // Bus-assigned morning students
             if (s.transport_mode !== 'morning_bus' && s.transport_mode !== 'both') return false;
           } else if (state.activeManifestType === 'evening_dropoff') {
-            // Bus-assigned evening students
             if (s.transport_mode !== 'evening_bus' && s.transport_mode !== 'both') return false;
           } else if (state.activeManifestType === 'gate_pickup') {
-            // Parent pickup & self arrival
             if (s.transport_mode !== 'parent_pickup' && s.transport_mode !== 'self_arrival') return false;
           }
-          // 'class_attendance' includes all enrolled kids in the cohort
         }
 
-        // 5. Search Query Filter
         if (state.searchQuery.trim()) {
           const q = state.searchQuery.toLowerCase().trim();
           const matchName = s.name.toLowerCase().includes(q);
@@ -667,12 +617,10 @@
 
         return true;
       })
-      // Sorted Alphabetically (A-Z)
       .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
   }
 
   function getStudentStatus(studentId) {
-    const key = `${studentId}_${state.activeDate}_${state.activeManifestType}`;
     const log = state.data.manifestLogs.find(
       l => l.student_id === studentId && l.date === state.activeDate && l.type === state.activeManifestType
     );
@@ -693,7 +641,6 @@
     const isBootcamp = state.activeBranch === 'bootcamp';
     const students = getFilteredStudents();
 
-    // Toggle transport column visibility (Excludes transport fields in Regular mode)
     transportHeaderCols.forEach(col => {
       if (isBootcamp && state.activeManifestType !== 'class_attendance') {
         col.classList.remove('hidden');
@@ -702,33 +649,32 @@
       }
     });
 
-    // Configure titles and action labels
     if (isBootcamp) {
       if (state.activeManifestType === 'morning_pickup') {
-        headingText.textContent = 'Morning Pick-up Manifest';
+        headingText.textContent = 'Morning Pick-up Bus Manifest';
         headingIcon.innerHTML = '<i data-lucide="bus" class="w-5 h-5 text-cyan-400"></i>';
-        subheadingText.textContent = 'Sorted Alphabetically (A–Z) • Filtered for Morning Bus Students';
+        subheadingText.textContent = 'SchoolPass Live Fleet Operations • Sorted Alphabetically (A–Z)';
         if (batchActionLabel) batchActionLabel.textContent = 'Mark All Picked Up';
       } else if (state.activeManifestType === 'evening_dropoff') {
-        headingText.textContent = 'Evening Drop-off Manifest';
+        headingText.textContent = 'Evening Drop-off Bus Manifest';
         headingIcon.innerHTML = '<i data-lucide="bus-front" class="w-5 h-5 text-cyan-400"></i>';
-        subheadingText.textContent = 'Sorted Alphabetically (A–Z) • Filtered for Evening Bus Students';
+        subheadingText.textContent = 'SchoolPass Dismissal Boarding • Sorted Alphabetically (A–Z)';
         if (batchActionLabel) batchActionLabel.textContent = 'Mark All Dropped Off';
       } else if (state.activeManifestType === 'gate_pickup') {
-        headingText.textContent = 'Gate / Parent Pick-up Register';
-        headingIcon.innerHTML = '<i data-lucide="shield-check" class="w-5 h-5 text-cyan-400"></i>';
-        subheadingText.textContent = 'Sorted Alphabetically (A–Z) • Parent Pickup & Self-Arrival Log';
+        headingText.textContent = 'Gate / Parent Carline Register';
+        headingIcon.innerHTML = '<i data-lucide="shield-check" class="w-5 h-5 text-emerald-400"></i>';
+        subheadingText.textContent = 'SchoolPass Carline Queue & Self-Arrival Log • Sorted Alphabetically (A–Z)';
         if (batchActionLabel) batchActionLabel.textContent = 'Mark All Checked In';
       } else {
         headingText.textContent = 'Class Attendance Register (Kids)';
-        headingIcon.innerHTML = '<i data-lucide="clipboard-check" class="w-5 h-5 text-cyan-400"></i>';
-        subheadingText.textContent = 'Sorted Alphabetically (A–Z) • Daily Class Participation';
+        headingIcon.innerHTML = '<i data-lucide="clipboard-check" class="w-5 h-5 text-purple-400"></i>';
+        subheadingText.textContent = 'Cloud School System Daily Class Roster • Sorted Alphabetically (A–Z)';
         if (batchActionLabel) batchActionLabel.textContent = 'Mark All Present';
       }
     } else {
       headingText.textContent = 'Regular Programs Class Register';
       headingIcon.innerHTML = '<i data-lucide="clipboard-check" class="w-5 h-5 text-purple-400"></i>';
-      subheadingText.textContent = 'Sorted Alphabetically (A–Z) • Adult & Youth Year-Round Intakes';
+      subheadingText.textContent = 'Cloud School System Academic Roster • Adult & Youth Intakes';
       if (batchActionLabel) batchActionLabel.textContent = 'Mark All Present';
     }
 
@@ -751,89 +697,89 @@
       const currentStatus = getStudentStatus(student.id);
       const isCompleted = currentStatus !== 'pending' && currentStatus !== 'absent';
 
-      // Determine label & badge classes based on manifest type
       let actionBtnText = '';
-      let activeBadgeClass = '';
-      if (state.activeManifestType === 'morning_pickup') {
-        actionBtnText = isCompleted ? 'Picked Up' : 'Pick Up';
-        activeBadgeClass = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
-      } else if (state.activeManifestType === 'evening_dropoff') {
-        actionBtnText = isCompleted ? 'Dropped Off' : 'Drop Off';
-        activeBadgeClass = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
-      } else if (state.activeManifestType === 'gate_pickup') {
-        actionBtnText = isCompleted ? 'Checked In' : 'Check In';
-        activeBadgeClass = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
-      } else {
-        actionBtnText = isCompleted ? 'Present' : 'Absent';
-        activeBadgeClass = isCompleted
-          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-          : 'bg-rose-500/20 text-rose-300 border-rose-500/40';
+      if (state.activeManifestType === 'morning_pickup') actionBtnText = isCompleted ? 'Picked Up' : 'Pick Up';
+      else if (state.activeManifestType === 'evening_dropoff') actionBtnText = isCompleted ? 'Dropped Off' : 'Drop Off';
+      else if (state.activeManifestType === 'gate_pickup') actionBtnText = isCompleted ? 'Checked In' : 'Check In';
+      else actionBtnText = isCompleted ? 'Present' : 'Absent';
+
+      let transportLabel = 'N/A';
+      let routeCode = 'LOCAL';
+      if (student.transport_mode === 'both') {
+        transportLabel = 'Morning & Evening Bus';
+        routeCode = 'BUS RT-01';
+      } else if (student.transport_mode === 'morning_bus') {
+        transportLabel = 'Morning Bus Only';
+        routeCode = 'BUS AM-01';
+      } else if (student.transport_mode === 'evening_bus') {
+        transportLabel = 'Evening Bus Only';
+        routeCode = 'BUS PM-01';
+      } else if (student.transport_mode === 'parent_pickup') {
+        transportLabel = 'Parent Gate Carline';
+        routeCode = 'CARLINE-GATE';
+      } else if (student.transport_mode === 'self_arrival') {
+        transportLabel = 'Self Arrival / Walker';
+        routeCode = 'WALKER';
       }
 
-      // Friendly transport label
-      let transportLabel = 'N/A';
-      if (student.transport_mode === 'both') transportLabel = '🚌 Morning & Evening Bus';
-      else if (student.transport_mode === 'morning_bus') transportLabel = '🚌 Morning Bus Only';
-      else if (student.transport_mode === 'evening_bus') transportLabel = '🚍 Evening Bus Only';
-      else if (student.transport_mode === 'parent_pickup') transportLabel = '🚗 Parent Pick-up';
-      else if (student.transport_mode === 'self_arrival') transportLabel = '🚶 Self Arrival';
-
-      // 1. Cloud School System: Clean Administrative Table Row (Desktop)
+      // 1. Cloud School System: Clean Administrative Data Table Row
       if (tbody) {
         const tr = document.createElement('tr');
-        tr.className = 'hover:bg-white/[0.035] transition-colors border-b border-white/5';
+        tr.className = 'hover:bg-white/[0.04] transition-colors border-b border-white/5';
         tr.innerHTML = `
-          <td class="py-3.5 px-4 text-center font-mono text-xs text-slate-400 font-semibold">${index + 1}</td>
+          <td class="py-3 px-4 text-center font-mono text-xs text-slate-400 font-bold">${index + 1}</td>
           
-          <td class="py-3.5 px-4">
+          <td class="py-3 px-4">
             <div class="font-bold text-white flex items-center gap-2">
               <span>${escapeHTML(student.name)}</span>
               ${student.notes ? `<span title="${escapeHTML(student.notes)}" class="cursor-help text-cyan-400 text-xs"><i data-lucide="info" class="w-3.5 h-3.5 inline"></i></span>` : ''}
             </div>
-            <div class="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5">
+            <div class="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5 font-medium">
               <span>${escapeHTML(student.cohort)}</span>
             </div>
           </td>
 
-          <td class="py-3.5 px-4">
-            <a href="tel:${escapeHTML(student.phone)}" class="inline-flex items-center gap-1 text-cyan-300 hover:text-cyan-200 font-mono text-xs py-1 px-2.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20 touch-btn" title="Tap to call parent / guardian directly">
-              <i data-lucide="phone" class="w-3.5 h-3.5"></i>
+          <td class="py-3 px-4">
+            <a href="tel:${escapeHTML(student.phone)}" class="inline-flex items-center gap-1.5 text-cyan-300 hover:text-cyan-200 font-mono text-xs py-1 px-2.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20 touch-btn" title="Call Guardian">
+              <i data-lucide="phone" class="w-3 h-3 text-cyan-400"></i>
               <span>${escapeHTML(student.phone)}</span>
             </a>
           </td>
 
-          <td class="py-3.5 px-4 text-xs text-slate-300 font-medium">
+          <td class="py-3 px-4 text-xs text-slate-300 font-medium">
             <span class="inline-flex items-center gap-1.5">
-              <i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-400"></i>
+              <i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-400 shrink-0"></i>
               ${escapeHTML(student.residence)}
             </span>
           </td>
 
-          <td class="py-3.5 px-4">
+          <td class="py-3 px-4">
             <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-white/5 border border-white/10 text-slate-200">
               ${escapeHTML(student.track)}
             </span>
           </td>
 
           ${isBootcamp && state.activeManifestType !== 'class_attendance' ? `
-            <td class="py-3.5 px-4 text-xs text-slate-300 th-transport-col">
-              <span class="text-[11px] font-semibold text-slate-300">${transportLabel}</span>
+            <td class="py-3 px-4 text-xs text-slate-300 th-transport-col">
+              <span class="route-badge bg-cyan-500/10 text-cyan-300 border border-cyan-500/25">
+                ${routeCode}
+              </span>
             </td>
           ` : ''}
 
-          <td class="py-3.5 px-4 text-center">
+          <td class="py-3 px-4 text-center">
             <button data-student-id="${student.id}" class="toggle-status-btn touch-btn h-10 px-4 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 mx-auto ${
               isCompleted
                 ? 'bg-emerald-500 text-dark-950 shadow-md shadow-emerald-500/25'
                 : 'glass-panel-subtle text-slate-300 hover:text-white border border-white/10'
             }">
-              <i data-lucide="${isCompleted ? 'check' : 'circle'}" class="w-4 h-4"></i>
+              <i data-lucide="${isCompleted ? 'check-circle' : 'circle'}" class="w-4 h-4"></i>
               <span>${actionBtnText}</span>
             </button>
           </td>
 
-          <td class="py-3.5 px-4 text-right">
-            <button data-delete-id="${student.id}" class="delete-student-btn touch-btn w-9 h-9 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors inline-flex items-center justify-center" title="Remove student from roster">
+          <td class="py-3 px-4 text-right">
+            <button data-delete-id="${student.id}" class="delete-student-btn touch-btn w-9 h-9 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors inline-flex items-center justify-center" title="Remove student">
               <i data-lucide="trash-2" class="w-4 h-4"></i>
             </button>
           </td>
@@ -841,38 +787,50 @@
         tbody.appendChild(tr);
       }
 
-      // 2. SchoolPass: Rapid-Action Operational Cards Feed (Mobile Viewports)
+      // 2. SchoolPass: Rapid-Action Operational Cards Grid
       if (cardsContainer) {
         const card = document.createElement('div');
         const cardStatusClass = isCompleted ? 'status-completed' : (currentStatus === 'absent' ? 'status-absent' : 'status-pending');
-        card.className = `schoolpass-card ${cardStatusClass} rounded-2xl p-4 space-y-3`;
+        card.className = `schoolpass-card ${cardStatusClass} p-4 sm:p-5 space-y-3.5`;
         
         card.innerHTML = `
-          <div class="flex items-start justify-between gap-2">
-            <div>
-              <div class="flex items-center gap-2">
-                <span class="text-xs font-mono font-bold text-slate-400">#${index + 1}</span>
-                <h4 class="font-extrabold text-base text-white">${escapeHTML(student.name)}</h4>
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-start gap-3">
+              <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 flex items-center justify-center font-bold text-sm text-cyan-300 shrink-0">
+                ${escapeHTML(student.name.charAt(0))}
               </div>
-              <div class="flex flex-wrap items-center gap-1.5 mt-1">
-                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-white/10 text-cyan-300 border border-white/10">${escapeHTML(student.cohort)}</span>
-                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-white/5 text-slate-300 border border-white/5">${escapeHTML(student.track)}</span>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-mono font-bold text-slate-400">#${index + 1}</span>
+                  <h4 class="font-extrabold text-base text-white tracking-tight">${escapeHTML(student.name)}</h4>
+                </div>
+                <div class="flex flex-wrap items-center gap-1.5 mt-1">
+                  <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-white/10 text-cyan-300 border border-white/10">${escapeHTML(student.cohort)}</span>
+                  <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-white/5 text-slate-300 border border-white/5">${escapeHTML(student.track)}</span>
+                </div>
               </div>
             </div>
-            <div class="flex items-center gap-1">
-              <span class="badge-status ${isCompleted ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : (currentStatus === 'absent' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40')}">
-                <span class="pulse-dot ${isCompleted ? 'bg-emerald-400' : (currentStatus === 'absent' ? 'bg-rose-400' : 'bg-amber-400')}"></span>
-                <span>${isCompleted ? actionBtnText.toUpperCase() : (currentStatus === 'absent' ? 'ABSENT' : 'PENDING')}</span>
-              </span>
-              <button data-delete-id="${student.id}" class="delete-student-btn touch-btn w-8 h-8 rounded-lg text-slate-400 hover:text-rose-400 inline-flex items-center justify-center">
-                <i data-lucide="trash-2" class="w-4 h-4"></i>
-              </button>
-            </div>
+
+            <button data-delete-id="${student.id}" class="delete-student-btn touch-btn w-8 h-8 rounded-lg text-slate-400 hover:text-rose-400 inline-flex items-center justify-center shrink-0">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
           </div>
 
-          <div class="grid grid-cols-2 gap-2 text-xs text-slate-300 pt-0.5">
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-white/5">
+            <div class="route-badge bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
+              <i data-lucide="navigation" class="w-3 h-3"></i>
+              <span>${routeCode} &bull; ${transportLabel}</span>
+            </div>
+
+            <span class="badge-status ${isCompleted ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : (currentStatus === 'absent' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40')}">
+              <span class="pulse-dot ${isCompleted ? 'bg-emerald-400' : (currentStatus === 'absent' ? 'bg-rose-400' : 'bg-amber-400')}"></span>
+              <span>${isCompleted ? actionBtnText.toUpperCase() : (currentStatus === 'absent' ? 'ABSENT' : 'PENDING')}</span>
+            </span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2 text-xs text-slate-300">
             <div class="flex items-center gap-1.5 p-2.5 rounded-xl bg-white/5 border border-white/5">
-              <i data-lucide="map-pin" class="w-3.5 h-3.5 text-cyan-400 shrink-0"></i>
+              <i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-400 shrink-0"></i>
               <span class="truncate font-medium">${escapeHTML(student.residence)}</span>
             </div>
             <a href="tel:${escapeHTML(student.phone)}" class="flex items-center justify-center gap-1.5 p-2.5 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-200 font-mono font-bold hover:bg-cyan-500/25 transition-all">
@@ -881,27 +839,21 @@
             </a>
           </div>
 
-          ${isBootcamp && state.activeManifestType !== 'class_attendance' ? `
-            <div class="text-[11px] font-semibold text-slate-300 px-1 flex items-center gap-1.5">
-              <span class="text-slate-400">Transport:</span>
-              <span class="text-cyan-300 font-bold">${transportLabel}</span>
-            </div>
-          ` : ''}
-
           ${student.notes ? `
-            <div class="text-xs text-amber-300/90 bg-amber-950/20 border border-amber-500/20 rounded-xl p-2.5 flex items-start gap-1.5">
+            <div class="text-xs text-amber-300/90 bg-amber-950/25 border border-amber-500/25 rounded-xl p-2.5 flex items-start gap-1.5">
               <i data-lucide="info" class="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5"></i>
               <span>${escapeHTML(student.notes)}</span>
             </div>
           ` : ''}
 
+          <!-- SchoolPass Large Rapid Action Verification Switch -->
           <button data-student-id="${student.id}" class="toggle-status-btn touch-btn w-full h-12 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg ${
             isCompleted
-              ? 'bg-emerald-500 text-dark-950 shadow-emerald-500/25 active:scale-98'
+              ? 'bg-emerald-500 text-dark-950 shadow-emerald-500/30 active:scale-98'
               : 'glass-panel-interactive border-white/15 text-white hover:bg-white/10 active:scale-98'
           }">
             <i data-lucide="${isCompleted ? 'check-circle-2' : 'circle'}" class="w-5 h-5"></i>
-            <span>${isCompleted ? `${actionBtnText} (Tap to Toggle)` : `Tap to Mark ${actionBtnText}`}</span>
+            <span>${isCompleted ? `${actionBtnText} (Verified - Tap to Undo)` : `Tap to Verify ${actionBtnText}`}</span>
           </button>
         `;
         cardsContainer.appendChild(card);
@@ -910,7 +862,7 @@
 
     // Wire status toggles
     document.querySelectorAll('.toggle-status-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', () => {
         const studentId = btn.getAttribute('data-student-id');
         toggleStudentManifestStatus(studentId);
       });
@@ -918,7 +870,7 @@
 
     // Wire delete buttons
     document.querySelectorAll('.delete-student-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', () => {
         const studentId = btn.getAttribute('data-delete-id');
         deleteStudent(studentId);
       });
@@ -926,7 +878,6 @@
   }
 
   function toggleStudentManifestStatus(studentId) {
-    const isBootcamp = state.activeBranch === 'bootcamp';
     const currentStatus = getStudentStatus(studentId);
     let nextStatus = 'pending';
 
@@ -940,7 +891,6 @@
       nextStatus = currentStatus === 'present' ? 'absent' : 'present';
     }
 
-    // Update local state
     const existingIndex = state.data.manifestLogs.findIndex(
       l => l.student_id === studentId && l.date === state.activeDate && l.type === state.activeManifestType
     );
@@ -970,7 +920,7 @@
     const student = state.data.students.find(s => s.id === studentId);
     if (!student) return;
 
-    if (confirm(`Are you sure you want to remove "${student.name}" from the academy roster?`)) {
+    if (confirm(`Remove "${student.name}" from the academy roster?`)) {
       state.data.students = state.data.students.filter(s => s.id !== studentId);
       state.data.manifestLogs = state.data.manifestLogs.filter(l => l.student_id !== studentId);
       saveStoredData();
@@ -991,9 +941,7 @@
 
     students.forEach(s => {
       const st = getStudentStatus(s.id);
-      if (st !== 'pending' && st !== 'absent') {
-        completed++;
-      }
+      if (st !== 'pending' && st !== 'absent') completed++;
     });
 
     const pending = total - completed;
@@ -1004,13 +952,14 @@
     const elCompletedLabel = document.getElementById('kpi-completed-label');
     const elPending = document.getElementById('kpi-pending');
     const elRate = document.getElementById('kpi-rate');
+    const elCohortLabel = document.getElementById('kpi-cohort-label');
 
     if (elTotal) elTotal.textContent = total;
     if (elCompleted) elCompleted.textContent = completed;
     if (elPending) elPending.textContent = pending;
     if (elRate) elRate.textContent = `${rate}%`;
+    if (elCohortLabel) elCohortLabel.textContent = `${state.activeCohort} Roster`;
 
-    // Dynamic completed label
     if (elCompletedLabel) {
       if (state.activeManifestType === 'morning_pickup') elCompletedLabel.textContent = 'Picked Up';
       else if (state.activeManifestType === 'evening_dropoff') elCompletedLabel.textContent = 'Dropped Off';
@@ -1025,9 +974,12 @@
 
   function initOnboarding() {
     const modal = document.getElementById('modal-onboarding');
-    const openBtn = document.getElementById('btn-open-onboarding');
-    const emptyOnboardBtn = document.getElementById('btn-empty-onboard');
-    const dockAddBtn = document.getElementById('dock-btn-add');
+    const openBtns = [
+      document.getElementById('btn-open-onboarding'),
+      document.getElementById('header-btn-onboard'),
+      document.getElementById('btn-empty-onboard'),
+      document.getElementById('dock-btn-add')
+    ];
     const closeBtn = document.getElementById('btn-close-onboarding');
     const form = document.getElementById('student-onboarding-form');
     const branchRadios = document.querySelectorAll('input[name="onboard-branch"]');
@@ -1049,7 +1001,6 @@
     function populateOnboardingDropdowns() {
       const selectedBranch = document.querySelector('input[name="onboard-branch"]:checked')?.value || 'bootcamp';
       
-      // Populate cohorts
       if (cohortSelect) {
         cohortSelect.innerHTML = '';
         state.data.cohorts[selectedBranch].forEach(c => {
@@ -1060,7 +1011,6 @@
         });
       }
 
-      // Populate tracks
       if (trackSelect) {
         trackSelect.innerHTML = '';
         state.data.tracks[selectedBranch].forEach(t => {
@@ -1071,7 +1021,6 @@
         });
       }
 
-      // Toggle transport group: only relevant for Boot Camp
       if (transportGroup) {
         if (selectedBranch === 'bootcamp') {
           transportGroup.classList.remove('hidden');
@@ -1081,9 +1030,7 @@
       }
     }
 
-    openBtn?.addEventListener('click', openModal);
-    emptyOnboardBtn?.addEventListener('click', openModal);
-    dockAddBtn?.addEventListener('click', openModal);
+    openBtns.forEach(btn => btn?.addEventListener('click', openModal));
     closeBtn?.addEventListener('click', closeModal);
 
     branchRadios.forEach(radio => {
@@ -1121,26 +1068,74 @@
         updated_at: new Date().toISOString()
       };
 
-      // Add to state and save
       state.data.students.push(newStudent);
       saveStoredData();
 
-      // Persist to Supabase in real-time
       persistStudentToSupabase(newStudent);
 
-      // Auto-switch view to match student so admin sees it instantly
       state.activeBranch = branch;
       state.activeCohort = cohort;
       state.activeTrack = 'all';
 
       closeModal();
       renderApp();
-      notify(`Student "${name}" registered & propagated in real-time!`, 'success');
+      notify(`Student "${name}" registered & propagated!`, 'success');
+    });
+
+    // Demo Data Loader (Allows immediate preview of SchoolPass cards & Cloud School table)
+    document.getElementById('btn-load-demo-data')?.addEventListener('click', () => {
+      const demoStudents = [
+        {
+          id: 'demo_1',
+          name: 'Zawadi Mwangi',
+          phone: '+254 712 345 678',
+          residence: 'Kilimani, Nairobi',
+          branch: 'bootcamp',
+          cohort: 'August Intake',
+          track: 'Junior Robotics',
+          transport_mode: 'both',
+          notes: 'Authorized carline pickup: Mother (Jane)',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        },
+        {
+          id: 'demo_2',
+          name: 'Liam Otieno',
+          phone: '+254 722 987 654',
+          residence: 'Westlands, Nairobi',
+          branch: 'bootcamp',
+          cohort: 'August Intake',
+          track: 'Advanced Robotics',
+          transport_mode: 'morning_bus',
+          notes: 'Drop off at Gate 2',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        },
+        {
+          id: 'demo_3',
+          name: 'Amina Hassan',
+          phone: '+254 733 112 233',
+          residence: 'Karen, Nairobi',
+          branch: 'bootcamp',
+          cohort: 'August Intake',
+          track: 'Web Development',
+          transport_mode: 'parent_pickup',
+          notes: 'Parent Carline tag: #CP-88',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }
+      ];
+
+      state.data.students = demoStudents;
+      saveStoredData();
+      demoStudents.forEach(persistStudentToSupabase);
+      renderApp();
+      notify('Demo roster loaded! Explore both Table View and SchoolPass Cards.', 'success');
     });
   }
 
   // ============================================================================
-  // 8. DYNAMIC COHORT & TRACK CREATION ENGINE
+  // 8. DYNAMIC COHORT & TRACK CREATOR
   // ============================================================================
 
   function initDynamicItemCreator() {
@@ -1152,14 +1147,14 @@
     const cancelBtn = document.getElementById('btn-cancel-add-item');
     const confirmBtn = document.getElementById('btn-confirm-add-item');
 
-    let currentMode = 'track'; // 'track' | 'cohort'
+    let currentMode = 'track';
 
     function openModal(mode) {
       currentMode = mode;
       if (mode === 'track') {
         modalTitle.textContent = `Add Track to ${state.activeBranch === 'bootcamp' ? 'Boot Camp' : 'Regular Programs'}`;
-        modalLabel.textContent = 'Track / Program Name';
-        inputName.placeholder = 'e.g. Generative AI & Prompt Engineering';
+        modalLabel.textContent = 'Curriculum Track Name';
+        inputName.placeholder = 'e.g. AI & Robotics Advanced';
       } else {
         modalTitle.textContent = `Add Intake Cohort to ${state.activeBranch === 'bootcamp' ? 'Boot Camp' : 'Regular Programs'}`;
         modalLabel.textContent = 'Intake Name';
@@ -1174,10 +1169,8 @@
       modal.classList.add('hidden');
     }
 
-    document.getElementById('btn-add-track-bootcamp')?.addEventListener('click', () => openModal('track'));
-    document.getElementById('btn-add-track-regular')?.addEventListener('click', () => openModal('track'));
-    document.getElementById('btn-add-cohort-bootcamp')?.addEventListener('click', () => openModal('cohort'));
-    document.getElementById('btn-add-intake-regular')?.addEventListener('click', () => openModal('cohort'));
+    document.getElementById('btn-add-track-trigger')?.addEventListener('click', () => openModal('track'));
+    document.getElementById('btn-add-cohort-trigger')?.addEventListener('click', () => openModal('cohort'));
 
     closeBtn?.addEventListener('click', closeModal);
     cancelBtn?.addEventListener('click', closeModal);
@@ -1191,14 +1184,14 @@
         if (!state.data.tracks[branch].includes(name)) {
           state.data.tracks[branch].push(name);
           saveStoredData();
-          notify(`New track "${name}" created!`, 'success');
+          notify(`New track "${name}" added!`, 'success');
         }
       } else {
         if (!state.data.cohorts[branch].includes(name)) {
           state.data.cohorts[branch].push(name);
           state.activeCohort = name;
           saveStoredData();
-          notify(`New cohort "${name}" created!`, 'success');
+          notify(`New cohort "${name}" added!`, 'success');
         }
       }
       closeModal();
@@ -1207,19 +1200,20 @@
   }
 
   // ============================================================================
-  // 9. UNIVERSAL EXPORT & PRINT ENGINE (FULLY WIRED)
+  // 9. UNIVERSAL EXPORT & PRINT ENGINE
   // ============================================================================
 
   function initExportEngine() {
-    // 1. 🖨️ Native Print Engine
-    const printBtn = document.getElementById('btn-trigger-print');
-    const dockPrintBtn = document.getElementById('dock-btn-print');
+    const printBtns = [
+      document.getElementById('toolbar-btn-print'),
+      document.getElementById('btn-trigger-print'),
+      document.getElementById('dock-btn-print')
+    ];
 
     function triggerPrint() {
       const students = getFilteredStudents();
       const isBootcamp = state.activeBranch === 'bootcamp';
 
-      // Populate dedicated #print-document container
       document.getElementById('print-doc-date').textContent = 'Date: ' + state.activeDate;
       document.getElementById('print-doc-timestamp').textContent = 'Generated: ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -1227,7 +1221,7 @@
       if (isBootcamp) {
         if (state.activeManifestType === 'morning_pickup') manifestTitle = 'Morning Pick-up Bus Manifest';
         else if (state.activeManifestType === 'evening_dropoff') manifestTitle = 'Evening Drop-off Bus Manifest';
-        else if (state.activeManifestType === 'gate_pickup') manifestTitle = 'Gate & Parent Pick-up Register';
+        else if (state.activeManifestType === 'gate_pickup') manifestTitle = 'Gate & Carline Dismissal Register';
       }
       document.getElementById('print-doc-manifest').textContent = manifestTitle;
       document.getElementById('print-doc-branch').textContent = isBootcamp ? 'Kids Boot Camp (Seasonal)' : 'Regular Programs (Adults/Youth)';
@@ -1277,185 +1271,194 @@
       window.print();
     }
 
-    printBtn?.addEventListener('click', triggerPrint);
-    dockPrintBtn?.addEventListener('click', triggerPrint);
+    printBtns.forEach(btn => btn?.addEventListener('click', triggerPrint));
 
-    // 2. 📊 CSV / Excel Export Engine
-    const csvBtn = document.getElementById('btn-export-csv');
-    csvBtn?.addEventListener('click', () => {
-      const students = getFilteredStudents();
-      if (students.length === 0) {
-        notify('No students to export in current manifest.', 'info');
-        return;
-      }
+    // CSV / Excel Export
+    const csvBtns = [
+      document.getElementById('toolbar-btn-csv'),
+      document.getElementById('btn-export-csv')
+    ];
 
-      const isBootcamp = state.activeBranch === 'bootcamp';
-      let manifestName = 'Class_Register';
-      if (isBootcamp) {
-        if (state.activeManifestType === 'morning_pickup') manifestName = 'Morning_Pickup_Manifest';
-        else if (state.activeManifestType === 'evening_dropoff') manifestName = 'Evening_Dropoff_Manifest';
-        else if (state.activeManifestType === 'gate_pickup') manifestName = 'Gate_Parent_Pickup_Register';
-      }
-
-      const headers = ['Serial', 'Student Name', 'Parent Phone', 'Residence', 'Branch', 'Cohort', 'Track', 'Transport Mode', 'Daily Status', 'Date', 'Notes'];
-      const rows = students.map((s, idx) => {
-        const status = getStudentStatus(s.id);
-        return [
-          idx + 1,
-          `"${s.name.replace(/"/g, '""')}"`,
-          `"${s.phone.replace(/"/g, '""')}"`,
-          `"${s.residence.replace(/"/g, '""')}"`,
-          s.branch,
-          `"${s.cohort.replace(/"/g, '""')}"`,
-          `"${s.track.replace(/"/g, '""')}"`,
-          s.transport_mode,
-          status,
-          state.activeDate,
-          `"${(s.notes || '').replace(/"/g, '""')}"`
-        ];
-      });
-
-      const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Tech_AI_Academy_${manifestName}_${state.activeDate}.csv`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      notify('Excel / CSV spreadsheet downloaded successfully!', 'success');
-    });
-
-    // 3. 📄 Official PDF Export Engine
-    const pdfBtn = document.getElementById('btn-export-pdf');
-    pdfBtn?.addEventListener('click', () => {
-      const students = getFilteredStudents();
-      if (students.length === 0) {
-        notify('No students to export in current manifest.', 'info');
-        return;
-      }
-
-      if (!window.jspdf || !window.jspdf.jsPDF) {
-        notify('PDF engine initializing, please retry in 2 seconds...', 'info');
-        return;
-      }
-
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF('p', 'mm', 'a4');
-      const isBootcamp = state.activeBranch === 'bootcamp';
-
-      let manifestTitle = 'Daily Class Attendance Register';
-      if (isBootcamp) {
-        if (state.activeManifestType === 'morning_pickup') manifestTitle = 'Morning Pick-up Bus Manifest';
-        else if (state.activeManifestType === 'evening_dropoff') manifestTitle = 'Evening Drop-off Bus Manifest';
-        else if (state.activeManifestType === 'gate_pickup') manifestTitle = 'Gate & Parent Pick-up Register';
-      }
-
-      // Executive Header Bar
-      doc.setFillColor(15, 23, 42); // #0f172a
-      doc.rect(0, 0, 210, 24, 'F');
-
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(14);
-      doc.setTextColor(255, 255, 255);
-      doc.text('TECH & AI ACADEMY', 14, 11);
-
-      doc.setFontSize(8.5);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(56, 189, 248); // #38bdf8
-      doc.text('DAILY OPERATIONS & LOGISTICS PORTAL', 14, 17);
-
-      doc.setFontSize(8.5);
-      doc.setTextColor(203, 213, 225);
-      doc.text(`Date: ${state.activeDate} | Generated: ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`, 196, 15, { align: 'right' });
-
-      // Title & Metadata
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(13);
-      doc.setTextColor(15, 23, 42);
-      doc.text(manifestTitle.toUpperCase(), 14, 34);
-
-      // Metadata Box
-      doc.setFillColor(248, 250, 252);
-      doc.setDrawColor(203, 213, 225);
-      doc.roundedRect(14, 38, 182, 16, 2, 2, 'FD');
-
-      doc.setFontSize(9);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(71, 85, 105);
-      doc.text(`Branch: ${isBootcamp ? 'Boot Camp (Kids)' : 'Regular Programs'}`, 18, 44);
-      doc.text(`Cohort: ${state.activeCohort}`, 80, 44);
-      doc.text(`Track: ${state.activeTrack === 'all' ? 'All Tracks' : state.activeTrack}`, 140, 44);
-
-      let completed = 0;
-      students.forEach(s => {
-        const st = getStudentStatus(s.id);
-        if (st !== 'pending' && st !== 'absent') completed++;
-      });
-      const rate = students.length > 0 ? Math.round((completed / students.length) * 100) : 0;
-      doc.text(`Total Roster: ${students.length}`, 18, 50);
-      doc.text(`Verified: ${completed} (${rate}%)`, 80, 50);
-      doc.text(`Pending: ${students.length - completed}`, 140, 50);
-
-      // Table Generation via autoTable
-      const tableRows = students.map((s, idx) => {
-        const status = getStudentStatus(s.id);
-        const isDone = status !== 'pending' && status !== 'absent';
-        return [
-          idx + 1,
-          s.name,
-          s.phone,
-          s.residence,
-          s.track,
-          isDone ? status.toUpperCase().replace('_', ' ') : 'PENDING',
-          '' // Empty for signature
-        ];
-      });
-
-      doc.autoTable({
-        startY: 58,
-        head: [['#', 'Student Name', 'Parent Phone', 'Residence', 'Track', 'Status', 'Sign-off']],
-        body: tableRows,
-        theme: 'striped',
-        headStyles: {
-          fillColor: [15, 23, 42],
-          textColor: [255, 255, 255],
-          fontSize: 9,
-          fontStyle: 'bold'
-        },
-        bodyStyles: {
-          fontSize: 8.5,
-          textColor: [30, 41, 59]
-        },
-        columnStyles: {
-          0: { cellWidth: 10, halign: 'center' },
-          1: { cellWidth: 42, fontStyle: 'bold' },
-          2: { cellWidth: 32 },
-          3: { cellWidth: 30 },
-          4: { cellWidth: 32 },
-          5: { cellWidth: 20, halign: 'center' },
-          6: { cellWidth: 16 }
-        },
-        margin: { left: 14, right: 14 },
-        didDrawPage: (data) => {
-          // Footer
-          doc.setFontSize(8);
-          doc.setTextColor(148, 163, 184);
-          doc.text(
-            `Official Record of Tech & AI Academy - Operations Portal &bull; Page ${data.pageNumber}`,
-            14,
-            290
-          );
+    csvBtns.forEach(btn => {
+      btn?.addEventListener('click', () => {
+        const students = getFilteredStudents();
+        if (students.length === 0) {
+          notify('No students to export in current manifest.', 'info');
+          return;
         }
-      });
 
-      doc.save(`Tech_AI_Academy_${manifestTitle.replace(/\s+/g, '_')}_${state.activeDate}.pdf`);
-      notify('Official PDF manifest generated & downloaded!', 'success');
+        const isBootcamp = state.activeBranch === 'bootcamp';
+        let manifestName = 'Class_Register';
+        if (isBootcamp) {
+          if (state.activeManifestType === 'morning_pickup') manifestName = 'Morning_Pickup_Manifest';
+          else if (state.activeManifestType === 'evening_dropoff') manifestName = 'Evening_Dropoff_Manifest';
+          else if (state.activeManifestType === 'gate_pickup') manifestName = 'Gate_Carline_Register';
+        }
+
+        const headers = ['Serial', 'Student Name', 'Parent Phone', 'Residence', 'Branch', 'Cohort', 'Track', 'Transport Mode', 'Daily Status', 'Date', 'Notes'];
+        const rows = students.map((s, idx) => {
+          const status = getStudentStatus(s.id);
+          return [
+            idx + 1,
+            `"${s.name.replace(/"/g, '""')}"`,
+            `"${s.phone.replace(/"/g, '""')}"`,
+            `"${s.residence.replace(/"/g, '""')}"`,
+            s.branch,
+            `"${s.cohort.replace(/"/g, '""')}"`,
+            `"${s.track.replace(/"/g, '""')}"`,
+            s.transport_mode,
+            status,
+            state.activeDate,
+            `"${(s.notes || '').replace(/"/g, '""')}"`
+          ];
+        });
+
+        const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `Tech_AI_Academy_${manifestName}_${state.activeDate}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        notify('Excel / CSV spreadsheet downloaded successfully!', 'success');
+      });
     });
 
-    // 4. Batch Actions Engine
+    // Official PDF Export
+    const pdfBtns = [
+      document.getElementById('toolbar-btn-pdf'),
+      document.getElementById('btn-export-pdf')
+    ];
+
+    pdfBtns.forEach(btn => {
+      btn?.addEventListener('click', () => {
+        const students = getFilteredStudents();
+        if (students.length === 0) {
+          notify('No students to export in current manifest.', 'info');
+          return;
+        }
+
+        if (!window.jspdf || !window.jspdf.jsPDF) {
+          notify('PDF engine initializing, please retry...', 'info');
+          return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const isBootcamp = state.activeBranch === 'bootcamp';
+
+        let manifestTitle = 'Daily Class Attendance Register';
+        if (isBootcamp) {
+          if (state.activeManifestType === 'morning_pickup') manifestTitle = 'Morning Pick-up Bus Manifest';
+          else if (state.activeManifestType === 'evening_dropoff') manifestTitle = 'Evening Drop-off Bus Manifest';
+          else if (state.activeManifestType === 'gate_pickup') manifestTitle = 'Gate & Carline Dismissal Register';
+        }
+
+        // Header Banner
+        doc.setFillColor(15, 23, 42);
+        doc.rect(0, 0, 210, 24, 'F');
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.setTextColor(255, 255, 255);
+        doc.text('TECH & AI ACADEMY', 14, 11);
+
+        doc.setFontSize(8.5);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(56, 189, 248);
+        doc.text('OPERATIONS & FLEET LOGISTICS PORTAL', 14, 17);
+
+        doc.setFontSize(8.5);
+        doc.setTextColor(203, 213, 225);
+        doc.text(`Date: ${state.activeDate} | Generated: ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`, 196, 15, { align: 'right' });
+
+        // Title
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(13);
+        doc.setTextColor(15, 23, 42);
+        doc.text(manifestTitle.toUpperCase(), 14, 34);
+
+        // Metadata box
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(203, 213, 225);
+        doc.roundedRect(14, 38, 182, 16, 2, 2, 'FD');
+
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(71, 85, 105);
+        doc.text(`Branch: ${isBootcamp ? 'Boot Camp (Kids)' : 'Regular Programs'}`, 18, 44);
+        doc.text(`Cohort: ${state.activeCohort}`, 80, 44);
+        doc.text(`Track: ${state.activeTrack === 'all' ? 'All Tracks' : state.activeTrack}`, 140, 44);
+
+        let completed = 0;
+        students.forEach(s => {
+          const st = getStudentStatus(s.id);
+          if (st !== 'pending' && st !== 'absent') completed++;
+        });
+        const rate = students.length > 0 ? Math.round((completed / students.length) * 100) : 0;
+        doc.text(`Total Roster: ${students.length}`, 18, 50);
+        doc.text(`Verified: ${completed} (${rate}%)`, 80, 50);
+        doc.text(`Pending: ${students.length - completed}`, 140, 50);
+
+        const tableRows = students.map((s, idx) => {
+          const status = getStudentStatus(s.id);
+          const isDone = status !== 'pending' && status !== 'absent';
+          return [
+            idx + 1,
+            s.name,
+            s.phone,
+            s.residence,
+            s.track,
+            isDone ? status.toUpperCase().replace('_', ' ') : 'PENDING',
+            ''
+          ];
+        });
+
+        doc.autoTable({
+          startY: 58,
+          head: [['#', 'Student Full Name', 'Contact Phone', 'Residence', 'Track', 'Status', 'Sign-off']],
+          body: tableRows,
+          theme: 'striped',
+          headStyles: {
+            fillColor: [15, 23, 42],
+            textColor: [255, 255, 255],
+            fontSize: 9,
+            fontStyle: 'bold'
+          },
+          bodyStyles: {
+            fontSize: 8.5,
+            textColor: [30, 41, 59]
+          },
+          columnStyles: {
+            0: { cellWidth: 10, halign: 'center' },
+            1: { cellWidth: 42, fontStyle: 'bold' },
+            2: { cellWidth: 32 },
+            3: { cellWidth: 30 },
+            4: { cellWidth: 32 },
+            5: { cellWidth: 20, halign: 'center' },
+            6: { cellWidth: 16 }
+          },
+          margin: { left: 14, right: 14 },
+          didDrawPage: (data) => {
+            doc.setFontSize(8);
+            doc.setTextColor(148, 163, 184);
+            doc.text(
+              `Official Record of Tech & AI Academy - Operations Portal &bull; Page ${data.pageNumber}`,
+              14,
+              290
+            );
+          }
+        });
+
+        doc.save(`Tech_AI_Academy_${manifestTitle.replace(/\s+/g, '_')}_${state.activeDate}.pdf`);
+        notify('Official PDF manifest generated & downloaded!', 'success');
+      });
+    });
+
+    // Batch Actions
     const batchBtn = document.getElementById('btn-batch-action');
     batchBtn?.addEventListener('click', () => {
       const students = getFilteredStudents();
@@ -1492,7 +1495,7 @@
       notify(`All ${students.length} students marked ${targetStatus.replace('_', ' ')}!`, 'success');
     });
 
-    // 5. Reset Current Manifest
+    // Reset Manifest
     const resetBtn = document.getElementById('btn-reset-manifest');
     resetBtn?.addEventListener('click', () => {
       const students = getFilteredStudents();
@@ -1511,11 +1514,10 @@
   }
 
   // ============================================================================
-  // 10. SEARCH & DATE CONTROLS
+  // 10. SEARCH, DATE CONTROLS & VIEW TOGGLE
   // ============================================================================
 
   function initSearchAndDateControls() {
-    // Search input
     const searchInput = document.getElementById('manifest-search-input');
     if (searchInput) {
       searchInput.addEventListener('input', (e) => {
@@ -1526,7 +1528,6 @@
       });
     }
 
-    // Day buttons (Mon-Fri)
     const dayBtns = document.querySelectorAll('.day-selector-btn');
     const dayMap = { 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5 };
 
@@ -1535,9 +1536,8 @@
         const dayStr = btn.getAttribute('data-day');
         const targetWeekday = dayMap[dayStr];
         
-        // Calculate date of current week's target weekday
         const now = new Date();
-        const currentWeekday = now.getDay(); // 0 is Sunday, 1 is Monday...
+        const currentWeekday = now.getDay();
         const diff = targetWeekday - (currentWeekday === 0 ? 7 : currentWeekday);
         const targetDate = new Date(now);
         targetDate.setDate(now.getDate() + diff);
@@ -1551,28 +1551,72 @@
       });
     });
 
-    // Date inputs
-    const bDateInput = document.getElementById('manifest-date-input');
-    const rDateInput = document.getElementById('regular-date-input');
+    const dateInput = document.getElementById('manifest-date-input');
+    dateInput?.addEventListener('change', (e) => {
+      if (e.target.value) {
+        state.activeDate = e.target.value;
+        renderApp();
+      }
+    });
 
-    [bDateInput, rDateInput].forEach(inp => {
-      inp?.addEventListener('change', (e) => {
-        if (e.target.value) {
-          state.activeDate = e.target.value;
-          renderApp();
-        }
-      });
+    // View Switcher: Cloud School Table vs SchoolPass Cards
+    document.getElementById('view-mode-table')?.addEventListener('click', () => {
+      state.viewMode = 'table';
+      updateViewModeUI();
+    });
+
+    document.getElementById('view-mode-cards')?.addEventListener('click', () => {
+      state.viewMode = 'cards';
+      updateViewModeUI();
     });
   }
 
   // ============================================================================
-  // 11. SUPABASE SETTINGS & BACKUP ENGINE
+  // 11. SIDEBAR & OFF-CANVAS DRAWER
+  // ============================================================================
+
+  function initSidebar() {
+    const sidebar = document.getElementById('app-sidebar');
+    const toggleBtn = document.getElementById('btn-toggle-sidebar');
+    const closeMobileBtn = document.getElementById('btn-close-sidebar-mobile');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    const syncNowBtn = document.getElementById('sidebar-sync-now');
+
+    toggleBtn?.addEventListener('click', () => {
+      if (window.innerWidth < 1025) {
+        sidebar?.classList.toggle('mobile-open');
+        backdrop?.classList.toggle('hidden');
+      } else {
+        sidebar?.classList.toggle('collapsed');
+      }
+    });
+
+    closeMobileBtn?.addEventListener('click', () => {
+      sidebar?.classList.remove('mobile-open');
+      backdrop?.classList.add('hidden');
+    });
+
+    backdrop?.addEventListener('click', () => {
+      sidebar?.classList.remove('mobile-open');
+      backdrop?.classList.add('hidden');
+    });
+
+    syncNowBtn?.addEventListener('click', () => {
+      syncWithSupabase();
+      notify('Synchronizing with Supabase Cloud...', 'info');
+    });
+  }
+
+  // ============================================================================
+  // 12. SUPABASE SETTINGS & BACKUP ENGINE
   // ============================================================================
 
   function initSettingsModal() {
     const modal = document.getElementById('modal-settings');
-    const openBtn = document.getElementById('btn-open-settings');
-    const dockBtn = document.getElementById('dock-btn-settings');
+    const openBtns = [
+      document.getElementById('btn-open-settings'),
+      document.getElementById('dock-btn-settings')
+    ];
     const closeBtn = document.getElementById('btn-close-settings');
     const saveBtn = document.getElementById('btn-save-settings');
     const testBtn = document.getElementById('btn-test-supabase');
@@ -1581,7 +1625,6 @@
     const exportBackupBtn = document.getElementById('btn-export-backup-json');
     const clearDataBtn = document.getElementById('btn-clear-all-data');
 
-    // Load saved or default settings
     try {
       const cfg = JSON.parse(localStorage.getItem(SUPABASE_CONFIG_KEY) || '{}');
       if (urlInput) urlInput.value = cfg.url || DEFAULT_SUPABASE_CONFIG.url;
@@ -1599,8 +1642,7 @@
       modal?.classList.add('hidden');
     }
 
-    openBtn?.addEventListener('click', openModal);
-    dockBtn?.addEventListener('click', openModal);
+    openBtns.forEach(b => b?.addEventListener('click', openModal));
     closeBtn?.addEventListener('click', closeModal);
 
     saveBtn?.addEventListener('click', () => {
@@ -1632,7 +1674,6 @@
       }
     });
 
-    // Backup JSON download
     exportBackupBtn?.addEventListener('click', () => {
       const jsonStr = JSON.stringify(state.data, null, 2);
       const blob = new Blob([jsonStr], { type: 'application/json' });
@@ -1645,24 +1686,22 @@
       notify('JSON Backup downloaded!', 'success');
     });
 
-    // Clear all data
     clearDataBtn?.addEventListener('click', () => {
-      if (confirm('Are you sure you want to clear all local roster data? This resets all students and manifest logs.')) {
+      if (confirm('Clear local cache? This resets all students and manifest logs to clean state.')) {
         state.data = JSON.parse(JSON.stringify(DEFAULT_STATE));
         saveStoredData();
         renderApp();
-        notify('All local data cleared to clean state.', 'info');
+        notify('Local cache cleared to clean state.', 'info');
         closeModal();
       }
     });
   }
 
   // ============================================================================
-  // 12. BRANCH SWITCHING & LOGISTICS TABS
+  // 13. BRANCH SWITCHING & LOGISTICS TABS
   // ============================================================================
 
   function initBranchAndTabListeners() {
-    // Desktop Branch Switchers
     document.getElementById('branch-nav-bootcamp')?.addEventListener('click', () => {
       state.activeBranch = 'bootcamp';
       state.activeCohort = state.data.cohorts.bootcamp[0] || 'August Intake';
@@ -1679,24 +1718,6 @@
       renderApp();
     });
 
-    // Mobile Branch Switchers
-    document.getElementById('mobile-branch-bootcamp')?.addEventListener('click', () => {
-      state.activeBranch = 'bootcamp';
-      state.activeCohort = state.data.cohorts.bootcamp[0] || 'August Intake';
-      state.activeTrack = 'all';
-      state.activeManifestType = 'morning_pickup';
-      renderApp();
-    });
-
-    document.getElementById('mobile-branch-regular')?.addEventListener('click', () => {
-      state.activeBranch = 'regular';
-      state.activeCohort = state.data.cohorts.regular[0] || 'January Intake';
-      state.activeTrack = 'all';
-      state.activeManifestType = 'class_attendance';
-      renderApp();
-    });
-
-    // Dock Switchers
     document.getElementById('dock-btn-bootcamp')?.addEventListener('click', () => {
       state.activeBranch = 'bootcamp';
       state.activeCohort = state.data.cohorts.bootcamp[0] || 'August Intake';
@@ -1713,30 +1734,46 @@
       renderApp();
     });
 
-    // Boot Camp Logistics Sub-Tabs
+    // Sidebar Logistics Tabs
     document.getElementById('tab-logistics-morning')?.addEventListener('click', () => {
       state.activeManifestType = 'morning_pickup';
       renderApp();
+      if (window.innerWidth < 1025) {
+        document.getElementById('app-sidebar')?.classList.remove('mobile-open');
+        document.getElementById('sidebar-backdrop')?.classList.add('hidden');
+      }
     });
 
     document.getElementById('tab-logistics-evening')?.addEventListener('click', () => {
       state.activeManifestType = 'evening_dropoff';
       renderApp();
+      if (window.innerWidth < 1025) {
+        document.getElementById('app-sidebar')?.classList.remove('mobile-open');
+        document.getElementById('sidebar-backdrop')?.classList.add('hidden');
+      }
     });
 
     document.getElementById('tab-logistics-gate')?.addEventListener('click', () => {
       state.activeManifestType = 'gate_pickup';
       renderApp();
+      if (window.innerWidth < 1025) {
+        document.getElementById('app-sidebar')?.classList.remove('mobile-open');
+        document.getElementById('sidebar-backdrop')?.classList.add('hidden');
+      }
     });
 
     document.getElementById('tab-logistics-class')?.addEventListener('click', () => {
       state.activeManifestType = 'class_attendance';
       renderApp();
+      if (window.innerWidth < 1025) {
+        document.getElementById('app-sidebar')?.classList.remove('mobile-open');
+        document.getElementById('sidebar-backdrop')?.classList.add('hidden');
+      }
     });
   }
 
   // ============================================================================
-  // 13. TOAST NOTIFICATION UTILITY
+  // 14. TOAST NOTIFICATIONS & UTILITIES
   // ============================================================================
 
   function notify(message, type = 'info') {
@@ -1749,10 +1786,10 @@
 
     toast.className = `p-3.5 px-4 rounded-xl text-xs font-bold shadow-2xl flex items-center gap-2.5 max-w-sm pointer-events-auto transition-all transform duration-300 translate-y-2 opacity-0 ${
       isSuccess
-        ? 'bg-emerald-950/90 text-emerald-200 border border-emerald-500/40'
+        ? 'bg-emerald-950/95 text-emerald-200 border border-emerald-500/40'
         : isError
-        ? 'bg-rose-950/90 text-rose-200 border border-rose-500/40'
-        : 'bg-dark-900/90 text-cyan-200 border border-cyan-500/40'
+        ? 'bg-rose-950/95 text-rose-200 border border-rose-500/40'
+        : 'bg-dark-900/95 text-cyan-200 border border-cyan-500/40'
     }`;
 
     const iconName = isSuccess ? 'check-circle' : isError ? 'alert-triangle' : 'info';
@@ -1764,7 +1801,6 @@
     container.appendChild(toast);
     if (window.lucide) window.lucide.createIcons();
 
-    // Trigger animation
     requestAnimationFrame(() => {
       toast.classList.remove('translate-y-2', 'opacity-0');
     });
@@ -1786,12 +1822,13 @@
   }
 
   // ============================================================================
-  // 14. APPLICATION BOOTSTRAP
+  // 15. BOOTSTRAP INITIALIZATION
   // ============================================================================
 
   document.addEventListener('DOMContentLoaded', () => {
     initBackgroundSlideshow();
     initPWA();
+    initSidebar();
     initLogoCustomizer();
     initBranchAndTabListeners();
     initSearchAndDateControls();
