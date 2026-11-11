@@ -1,27 +1,33 @@
 /* ==============================================================================
    Tech & AI Academy - Operations & Fleet Management System
-   Hybrid Visual Architecture: SchoolPass (Dismissal/Carline) x Cloud School System
+   Authentic Hybrid: SchoolPass (Light Dismissal/Carline) x Cloud School System (Light ERP)
    ============================================================================== */
 
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root {
-  --primary-glow: rgba(14, 165, 233, 0.25);
-  --accent-cyan: #06b6d4;
-  --accent-blue: #3b82f6;
-  --accent-purple: #8b5cf6;
+  --primary-blue: #0284c7;
+  --primary-navy: #0f172a;
+  --accent-cyan: #0ea5e9;
   --accent-emerald: #10b981;
-  --accent-rose: #f43f5e;
   --accent-amber: #f59e0b;
-  
-  /* Enterprise SaaS Palette (Cloud School System x SchoolPass) */
-  --surface-base: #070b14;
-  --surface-sidebar: rgba(11, 15, 25, 0.94);
-  --surface-card: rgba(15, 23, 42, 0.82);
-  --surface-card-subtle: rgba(15, 23, 42, 0.60);
-  --surface-border: rgba(255, 255, 255, 0.09);
-  --surface-border-hover: rgba(56, 189, 248, 0.35);
-  
+  --accent-rose: #ef4444;
+  --accent-purple: #7c3aed;
+
+  /* Authentic Light SaaS Theme (SchoolPass x Cloud School System) */
+  --bg-canvas: #f8fafc;
+  --surface-sidebar: #ffffff;
+  --surface-card: #ffffff;
+  --surface-card-subtle: #f8fafc;
+  --surface-border: #e2e8f0;
+  --surface-border-subtle: #edf2f7;
+  --surface-border-hover: #cbd5e1;
+
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-subtle: #94a3b8;
+
   --sidebar-width: 270px;
   --sidebar-width-collapsed: 76px;
   --header-height: 64px;
@@ -36,8 +42,8 @@
 
 body {
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background-color: transparent;
-  color: #f8fafc;
+  background-color: var(--bg-canvas);
+  color: var(--text-primary);
   min-height: 100vh;
   overflow-x: hidden;
   position: relative;
@@ -45,14 +51,14 @@ body {
 }
 
 /* ==============================================================================
-   1. Dynamic Background Slideshow (3-Second Looping Cycle)
+   1. Dynamic Background Slideshow with Light Frosted Ambient Overlay (3s Loop)
    ============================================================================== */
 .slideshow-container {
   position: fixed;
   inset: 0;
   z-index: 0;
   overflow: hidden;
-  background-color: #070b14;
+  background-color: #f1f5f9;
 }
 
 .slide-item {
@@ -68,7 +74,7 @@ body {
 }
 
 .slide-item.active {
-  opacity: 1;
+  opacity: 0.85;
   transform: scale(1.08) translate3d(-0.8%, -0.8%, 0);
 }
 
@@ -82,18 +88,18 @@ body {
   transform: scale(1.09) translate3d(0.8%, 0.8%, 0);
 }
 
-/* Vignette Overlay (Guarantees Enterprise SaaS Readability) */
+/* Light Frosted Ambient Overlay (Clean Daylight Legibility) */
 .vignette-overlay {
   position: fixed;
   inset: 0;
   z-index: 1;
   background: 
-    radial-gradient(circle at 50% 20%, rgba(15, 23, 42, 0.60) 0%, rgba(7, 11, 20, 0.86) 100%),
-    linear-gradient(180deg, rgba(15, 23, 42, 0.76) 0%, rgba(15, 23, 42, 0.68) 45%, rgba(7, 11, 20, 0.92) 100%);
+    radial-gradient(circle at 50% 15%, rgba(248, 250, 252, 0.80) 0%, rgba(241, 245, 249, 0.92) 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.85) 0%, rgba(248, 250, 252, 0.88) 45%, rgba(241, 245, 249, 0.95) 100%);
   pointer-events: none;
 }
 
-/* Main UI Shell positioning above background */
+/* App Shell positioning above slideshow */
 .app-shell {
   position: relative;
   z-index: 10;
@@ -102,14 +108,13 @@ body {
 }
 
 /* ==============================================================================
-   2. Cloud School System: Collapsible Enterprise Navigation Sidebar
+   2. Cloud School System: Clean Institutional Navigation Sidebar
    ============================================================================== */
 .app-sidebar {
   width: var(--sidebar-width);
-  background: var(--surface-sidebar);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  background: #ffffff;
   border-right: 1px solid var(--surface-border);
+  box-shadow: 2px 0 16px rgba(15, 23, 42, 0.04);
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -129,10 +134,6 @@ body {
   display: none !important;
 }
 
-.app-sidebar.collapsed .sidebar-brand-compact {
-  display: flex !important;
-}
-
 .app-sidebar.collapsed .sidebar-nav-item {
   justify-content: center;
   padding-left: 0;
@@ -143,7 +144,7 @@ body {
 @media (max-width: 1024px) {
   .app-sidebar {
     transform: translateX(-100%);
-    box-shadow: 10px 0 40px rgba(0, 0, 0, 0.6);
+    box-shadow: 10px 0 40px rgba(15, 23, 42, 0.2);
   }
   
   .app-sidebar.mobile-open {
@@ -153,49 +154,46 @@ body {
   .sidebar-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.7);
+    background: rgba(15, 23, 42, 0.5);
     backdrop-filter: blur(4px);
     z-index: 40;
   }
 }
 
-/* Sidebar navigation link item */
+/* Sidebar navigation link item (Cloud School System Clean Navigation) */
 .sidebar-nav-item {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   padding: 0.75rem 1rem;
-  border-radius: 0.75rem;
-  color: #94a3b8;
+  border-radius: 0.625rem;
+  color: var(--text-secondary);
   font-size: 0.8125rem;
   font-weight: 600;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   user-select: none;
   cursor: pointer;
   position: relative;
+  background: transparent;
 }
 
 .sidebar-nav-item:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.05);
+  color: var(--primary-navy);
+  background: #f1f5f9;
 }
 
 .sidebar-nav-item.active {
   color: #ffffff;
-  background: linear-gradient(90deg, rgba(6, 182, 212, 0.2) 0%, rgba(59, 130, 246, 0.1) 100%);
-  border: 1px solid rgba(6, 182, 212, 0.35);
-  box-shadow: 0 4px 15px rgba(6, 182, 212, 0.15);
+  background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.28);
 }
 
-.sidebar-nav-item.active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 15%;
-  bottom: 15%;
-  width: 3.5px;
-  border-radius: 0 4px 4px 0;
-  background: var(--accent-cyan);
+.sidebar-nav-item.active i {
+  color: #ffffff !important;
+}
+
+.sidebar-nav-item.active span {
+  color: #ffffff !important;
 }
 
 /* Main content wrapper shifted by sidebar width on desktop */
@@ -218,81 +216,77 @@ body {
 }
 
 /* ==============================================================================
-   3. Glassmorphic Surface System
+   3. Card & Panel Design System (Clean White SaaS Surfaces)
    ============================================================================== */
 .glass-panel {
-  background: var(--surface-card);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: #ffffff;
   border: 1px solid var(--surface-border);
-  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.03);
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.03);
 }
 
 .glass-panel-subtle {
-  background: var(--surface-card-subtle);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: #f8fafc;
   border: 1px solid var(--surface-border);
 }
 
 .glass-panel-interactive {
-  background: var(--surface-card);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: #ffffff;
   border: 1px solid var(--surface-border);
-  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.04);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .glass-panel-interactive:hover {
-  border-color: var(--surface-border-hover);
-  box-shadow: 0 12px 35px -5px rgba(6, 182, 212, 0.18);
-  transform: translateY(-2px);
+  border-color: #cbd5e1;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
 }
 
 .glass-input {
-  background: rgba(11, 15, 25, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #f8fafc;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: var(--text-primary);
   transition: all 0.2s ease;
   min-height: 48px;
 }
 
 .glass-input:focus {
   outline: none;
-  border-color: var(--accent-cyan);
-  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.22);
-  background: rgba(15, 23, 42, 0.95);
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+  background: #ffffff;
 }
 
 /* ==============================================================================
-   4. SchoolPass: Rapid-Action Operational Cards (Carline & Bus Boarding)
+   4. SchoolPass: Rapid-Action Operational Cards (Clean Light Mode)
    ============================================================================== */
 .schoolpass-card {
-  background: rgba(15, 23, 42, 0.86);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  border: 1px solid rgba(255, 255, 255, 0.10);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-left-width: 6px;
   border-radius: 1rem;
-  box-shadow: 0 6px 24px -2px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .schoolpass-card:hover {
-  box-shadow: 0 10px 30px -4px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 8px 24px -2px rgba(15, 23, 42, 0.10);
 }
 
-/* Status left-stripe indicators (SchoolPass pattern) */
+/* Status left-stripe indicators (SchoolPass High-Visibility Status) */
 .schoolpass-card.status-completed {
   border-left-color: #10b981; /* Emerald Verified / Boarded */
+  background: linear-gradient(to right, #f0fdf4 0%, #ffffff 40%);
 }
 
 .schoolpass-card.status-pending {
-  border-left-color: #f59e0b; /* Amber In-transit / Queue */
+  border-left-color: #f59e0b; /* Amber Queue / In-Transit */
+  background: linear-gradient(to right, #fffbeb 0%, #ffffff 40%);
 }
 
 .schoolpass-card.status-absent {
-  border-left-color: #f43f5e; /* Rose Absent / Unaccounted */
+  border-left-color: #ef4444; /* Rose Absent */
+  background: linear-gradient(to right, #fef2f2 0%, #ffffff 40%);
 }
 
 /* High-contrast route badge */
@@ -309,7 +303,7 @@ body {
   text-transform: uppercase;
 }
 
-/* Large 48px tactile thumb buttons */
+/* Touch-friendly buttons */
 .touch-btn {
   min-height: 48px;
   display: inline-flex;
@@ -326,18 +320,19 @@ body {
 }
 
 /* ==============================================================================
-   5. Cloud School System: Clean Administrative Data Tables
+   5. Cloud School System: Clean Administrative Data Tables (Light ERP)
    ============================================================================== */
 .cloudschool-table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
+  background: #ffffff;
 }
 
 .cloudschool-table thead th {
-  background: rgba(11, 15, 25, 0.96);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  color: #94a3b8;
+  background: #f8fafc;
+  border-bottom: 2px solid #e2e8f0;
+  color: #475569;
   font-size: 0.6875rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -347,21 +342,22 @@ body {
 }
 
 .cloudschool-table tbody tr {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid #f1f5f9;
   transition: background-color 0.15s ease;
 }
 
 .cloudschool-table tbody tr:hover {
-  background-color: rgba(255, 255, 255, 0.04);
+  background-color: #f8fafc;
 }
 
 .cloudschool-table tbody td {
-  padding: 12px 16px;
+  padding: 13px 16px;
   vertical-align: middle;
+  color: #1e293b;
 }
 
 /* ==============================================================================
-   6. Status Micro-Badges & Pulsing Dots
+   6. Status Badges & Glow Dots
    ============================================================================== */
 .badge-status {
   display: inline-flex;
@@ -400,9 +396,10 @@ body {
     right: 0;
     z-index: 50;
     padding-bottom: env(safe-area-inset-bottom, 8px);
-    background: rgba(11, 15, 25, 0.94);
+    background: rgba(255, 255, 255, 0.96);
     backdrop-filter: blur(20px);
-    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    border-top: 1px solid #e2e8f0;
+    box-shadow: 0 -4px 20px rgba(15, 23, 42, 0.06);
   }
 
   body {
@@ -418,20 +415,18 @@ body {
 
 /* Custom Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
 }
 ::-webkit-scrollbar-track {
-  background: rgba(11, 15, 25, 0.6);
+  background: #f1f5f9;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.16);
+  background: #cbd5e1;
   border-radius: 9999px;
-  border: 2px solid transparent;
-  background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background-color: var(--accent-cyan);
+  background-color: #94a3b8;
 }
 
 /* ==============================================================================
@@ -500,7 +495,7 @@ body {
 
   .print-table th,
   .print-table td {
-    border: 1px solid #94a3b8;
+    border: 1px solid #cbd5e1;
     padding: 7px 10px;
     text-align: left;
     color: #0f172a !important;

@@ -415,18 +415,18 @@
       tableWrapper.classList.remove('hidden');
       cardsWrapper.classList.add('hidden');
 
-      btnTable?.classList.add('bg-cyan-500', 'text-dark-950', 'shadow-md');
-      btnTable?.classList.remove('text-slate-300');
-      btnCards?.classList.remove('bg-cyan-500', 'text-dark-950', 'shadow-md');
-      btnCards?.classList.add('text-slate-300');
+      btnTable?.classList.add('bg-white', 'text-slate-900', 'shadow-sm', 'border', 'border-slate-200');
+      btnTable?.classList.remove('text-slate-600');
+      btnCards?.classList.remove('bg-white', 'text-slate-900', 'shadow-sm', 'border', 'border-slate-200');
+      btnCards?.classList.add('text-slate-600');
     } else {
       tableWrapper.classList.add('hidden');
       cardsWrapper.classList.remove('hidden');
 
-      btnCards?.classList.add('bg-cyan-500', 'text-dark-950', 'shadow-md');
-      btnCards?.classList.remove('text-slate-300');
-      btnTable?.classList.remove('bg-cyan-500', 'text-dark-950', 'shadow-md');
-      btnTable?.classList.add('text-slate-300');
+      btnCards?.classList.add('bg-white', 'text-slate-900', 'shadow-sm', 'border', 'border-slate-200');
+      btnCards?.classList.remove('text-slate-600');
+      btnTable?.classList.remove('bg-white', 'text-slate-900', 'shadow-sm', 'border', 'border-slate-200');
+      btnTable?.classList.add('text-slate-600');
     }
   }
 
@@ -533,8 +533,8 @@
         const btn = document.createElement('button');
         btn.className = `touch-btn h-8 px-3 rounded-lg text-xs font-bold transition-all ${
           isActive
-            ? (isBootcamp ? 'bg-cyan-500 text-dark-950 shadow-md shadow-cyan-500/20' : 'bg-purple-600 text-white shadow-md shadow-purple-600/20')
-            : 'glass-panel-subtle text-slate-300 hover:text-white border border-white/5'
+            ? (isBootcamp ? 'bg-sky-600 text-white shadow-sm' : 'bg-indigo-600 text-white shadow-sm')
+            : 'bg-slate-100 text-slate-700 hover:text-slate-900 hover:bg-slate-200 border border-slate-200'
         }`;
         btn.textContent = cohort;
         btn.onclick = () => {
@@ -553,8 +553,8 @@
       const allBtn = document.createElement('button');
       allBtn.className = `touch-btn h-8 px-3 rounded-lg text-xs font-bold transition-all ${
         state.activeTrack === 'all'
-          ? (isBootcamp ? 'bg-indigo-500 text-white shadow-md' : 'bg-purple-600 text-white shadow-md')
-          : 'glass-panel-subtle text-slate-300 hover:text-white border border-white/5'
+          ? (isBootcamp ? 'bg-indigo-600 text-white shadow-sm' : 'bg-purple-600 text-white shadow-sm')
+          : 'bg-slate-100 text-slate-700 hover:text-slate-900 hover:bg-slate-200 border border-slate-200'
       }`;
       allBtn.textContent = 'All Tracks';
       allBtn.onclick = () => {
@@ -569,8 +569,8 @@
         const btn = document.createElement('button');
         btn.className = `touch-btn h-8 px-3 rounded-lg text-xs font-bold transition-all ${
           isActive
-            ? (isBootcamp ? 'bg-indigo-500 text-white shadow-md' : 'bg-purple-600 text-white shadow-md')
-            : 'glass-panel-subtle text-slate-300 hover:text-white border border-white/5'
+            ? (isBootcamp ? 'bg-indigo-600 text-white shadow-sm' : 'bg-purple-600 text-white shadow-sm')
+            : 'bg-slate-100 text-slate-700 hover:text-slate-900 hover:bg-slate-200 border border-slate-200'
         }`;
         btn.textContent = track;
         btn.onclick = () => {
@@ -725,61 +725,61 @@
       // 1. Cloud School System: Clean Administrative Data Table Row
       if (tbody) {
         const tr = document.createElement('tr');
-        tr.className = 'hover:bg-white/[0.04] transition-colors border-b border-white/5';
+        tr.className = 'hover:bg-slate-50 transition-colors border-b border-slate-100';
         tr.innerHTML = `
-          <td class="py-3 px-4 text-center font-mono text-xs text-slate-400 font-bold">${index + 1}</td>
+          <td class="py-3.5 px-4 text-center font-mono text-xs text-slate-400 font-bold">${index + 1}</td>
           
-          <td class="py-3 px-4">
-            <div class="font-bold text-white flex items-center gap-2">
+          <td class="py-3.5 px-4">
+            <div class="font-extrabold text-slate-900 flex items-center gap-2">
               <span>${escapeHTML(student.name)}</span>
-              ${student.notes ? `<span title="${escapeHTML(student.notes)}" class="cursor-help text-cyan-400 text-xs"><i data-lucide="info" class="w-3.5 h-3.5 inline"></i></span>` : ''}
+              ${student.notes ? `<span title="${escapeHTML(student.notes)}" class="cursor-help text-sky-600 text-xs"><i data-lucide="info" class="w-3.5 h-3.5 inline"></i></span>` : ''}
             </div>
-            <div class="text-[11px] text-slate-400 flex items-center gap-1.5 mt-0.5 font-medium">
+            <div class="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5 font-semibold">
               <span>${escapeHTML(student.cohort)}</span>
             </div>
           </td>
 
-          <td class="py-3 px-4">
-            <a href="tel:${escapeHTML(student.phone)}" class="inline-flex items-center gap-1.5 text-cyan-300 hover:text-cyan-200 font-mono text-xs py-1 px-2.5 rounded-lg bg-cyan-500/10 border border-cyan-500/20 touch-btn" title="Call Guardian">
-              <i data-lucide="phone" class="w-3 h-3 text-cyan-400"></i>
+          <td class="py-3.5 px-4">
+            <a href="tel:${escapeHTML(student.phone)}" class="inline-flex items-center gap-1.5 text-sky-700 hover:text-sky-800 font-mono text-xs py-1 px-2.5 rounded-lg bg-sky-50 border border-sky-200 touch-btn font-semibold hover:bg-sky-100 transition-colors" title="Call Guardian">
+              <i data-lucide="phone" class="w-3 h-3 text-sky-600"></i>
               <span>${escapeHTML(student.phone)}</span>
             </a>
           </td>
 
-          <td class="py-3 px-4 text-xs text-slate-300 font-medium">
+          <td class="py-3.5 px-4 text-xs text-slate-600 font-medium">
             <span class="inline-flex items-center gap-1.5">
               <i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-400 shrink-0"></i>
               ${escapeHTML(student.residence)}
             </span>
           </td>
 
-          <td class="py-3 px-4">
-            <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-white/5 border border-white/10 text-slate-200">
+          <td class="py-3.5 px-4">
+            <span class="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 border border-slate-200 text-slate-700">
               ${escapeHTML(student.track)}
             </span>
           </td>
 
           ${isBootcamp && state.activeManifestType !== 'class_attendance' ? `
-            <td class="py-3 px-4 text-xs text-slate-300 th-transport-col">
-              <span class="route-badge bg-cyan-500/10 text-cyan-300 border border-cyan-500/25">
+            <td class="py-3.5 px-4 text-xs text-slate-700 th-transport-col">
+              <span class="route-badge bg-sky-50 text-sky-700 border border-sky-200">
                 ${routeCode}
               </span>
             </td>
           ` : ''}
 
-          <td class="py-3 px-4 text-center">
+          <td class="py-3.5 px-4 text-center">
             <button data-student-id="${student.id}" class="toggle-status-btn touch-btn h-10 px-4 rounded-xl text-xs font-extrabold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 mx-auto ${
               isCompleted
-                ? 'bg-emerald-500 text-dark-950 shadow-md shadow-emerald-500/25'
-                : 'glass-panel-subtle text-slate-300 hover:text-white border border-white/10'
+                ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
+                : 'bg-white hover:bg-slate-50 text-slate-700 border-2 border-slate-200 shadow-sm'
             }">
               <i data-lucide="${isCompleted ? 'check-circle' : 'circle'}" class="w-4 h-4"></i>
               <span>${actionBtnText}</span>
             </button>
           </td>
 
-          <td class="py-3 px-4 text-right">
-            <button data-delete-id="${student.id}" class="delete-student-btn touch-btn w-9 h-9 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors inline-flex items-center justify-center" title="Remove student">
+          <td class="py-3.5 px-4 text-right">
+            <button data-delete-id="${student.id}" class="delete-student-btn touch-btn w-9 h-9 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors inline-flex items-center justify-center" title="Remove student">
               <i data-lucide="trash-2" class="w-4 h-4"></i>
             </button>
           </td>
@@ -796,61 +796,61 @@
         card.innerHTML = `
           <div class="flex items-start justify-between gap-3">
             <div class="flex items-start gap-3">
-              <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 border border-white/10 flex items-center justify-center font-bold text-sm text-cyan-300 shrink-0">
+              <div class="w-10 h-10 rounded-xl bg-sky-50 border border-sky-200 flex items-center justify-center font-bold text-sm text-sky-700 shrink-0">
                 ${escapeHTML(student.name.charAt(0))}
               </div>
               <div>
                 <div class="flex items-center gap-2">
                   <span class="text-xs font-mono font-bold text-slate-400">#${index + 1}</span>
-                  <h4 class="font-extrabold text-base text-white tracking-tight">${escapeHTML(student.name)}</h4>
+                  <h4 class="font-extrabold text-base text-slate-900 tracking-tight">${escapeHTML(student.name)}</h4>
                 </div>
                 <div class="flex flex-wrap items-center gap-1.5 mt-1">
-                  <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-white/10 text-cyan-300 border border-white/10">${escapeHTML(student.cohort)}</span>
-                  <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-white/5 text-slate-300 border border-white/5">${escapeHTML(student.track)}</span>
+                  <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200">${escapeHTML(student.cohort)}</span>
+                  <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">${escapeHTML(student.track)}</span>
                 </div>
               </div>
             </div>
 
-            <button data-delete-id="${student.id}" class="delete-student-btn touch-btn w-8 h-8 rounded-lg text-slate-400 hover:text-rose-400 inline-flex items-center justify-center shrink-0">
+            <button data-delete-id="${student.id}" class="delete-student-btn touch-btn w-8 h-8 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 inline-flex items-center justify-center shrink-0">
               <i data-lucide="trash-2" class="w-4 h-4"></i>
             </button>
           </div>
 
-          <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-white/5">
-            <div class="route-badge bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
-              <i data-lucide="navigation" class="w-3 h-3"></i>
+          <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100">
+            <div class="route-badge bg-sky-50 text-sky-700 border border-sky-200">
+              <i data-lucide="navigation" class="w-3 h-3 text-sky-600"></i>
               <span>${routeCode} &bull; ${transportLabel}</span>
             </div>
 
-            <span class="badge-status ${isCompleted ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' : (currentStatus === 'absent' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/40' : 'bg-amber-500/20 text-amber-300 border border-amber-500/40')}">
-              <span class="pulse-dot ${isCompleted ? 'bg-emerald-400' : (currentStatus === 'absent' ? 'bg-rose-400' : 'bg-amber-400')}"></span>
+            <span class="badge-status ${isCompleted ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : (currentStatus === 'absent' ? 'bg-rose-100 text-rose-800 border border-rose-300' : 'bg-amber-100 text-amber-800 border border-amber-300')}">
+              <span class="pulse-dot ${isCompleted ? 'bg-emerald-500' : (currentStatus === 'absent' ? 'bg-rose-500' : 'bg-amber-500')}"></span>
               <span>${isCompleted ? actionBtnText.toUpperCase() : (currentStatus === 'absent' ? 'ABSENT' : 'PENDING')}</span>
             </span>
           </div>
 
-          <div class="grid grid-cols-2 gap-2 text-xs text-slate-300">
-            <div class="flex items-center gap-1.5 p-2.5 rounded-xl bg-white/5 border border-white/5">
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div class="flex items-center gap-1.5 p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-700">
               <i data-lucide="map-pin" class="w-3.5 h-3.5 text-slate-400 shrink-0"></i>
               <span class="truncate font-medium">${escapeHTML(student.residence)}</span>
             </div>
-            <a href="tel:${escapeHTML(student.phone)}" class="flex items-center justify-center gap-1.5 p-2.5 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-200 font-mono font-bold hover:bg-cyan-500/25 transition-all">
-              <i data-lucide="phone" class="w-3.5 h-3.5"></i>
+            <a href="tel:${escapeHTML(student.phone)}" class="flex items-center justify-center gap-1.5 p-2.5 rounded-xl bg-sky-50 border border-sky-200 text-sky-800 font-mono font-bold hover:bg-sky-100 transition-all">
+              <i data-lucide="phone" class="w-3.5 h-3.5 text-sky-600"></i>
               <span class="truncate">${escapeHTML(student.phone)}</span>
             </a>
           </div>
 
           ${student.notes ? `
-            <div class="text-xs text-amber-300/90 bg-amber-950/25 border border-amber-500/25 rounded-xl p-2.5 flex items-start gap-1.5">
-              <i data-lucide="info" class="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5"></i>
+            <div class="text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-xl p-2.5 flex items-start gap-1.5 font-medium">
+              <i data-lucide="info" class="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5"></i>
               <span>${escapeHTML(student.notes)}</span>
             </div>
           ` : ''}
 
           <!-- SchoolPass Large Rapid Action Verification Switch -->
-          <button data-student-id="${student.id}" class="toggle-status-btn touch-btn w-full h-12 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg ${
+          <button data-student-id="${student.id}" class="toggle-status-btn touch-btn w-full h-12 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-sm ${
             isCompleted
-              ? 'bg-emerald-500 text-dark-950 shadow-emerald-500/30 active:scale-98'
-              : 'glass-panel-interactive border-white/15 text-white hover:bg-white/10 active:scale-98'
+              ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20 active:scale-98'
+              : 'bg-white hover:bg-slate-50 border-2 border-slate-300 text-slate-800 active:scale-98'
           }">
             <i data-lucide="${isCompleted ? 'check-circle-2' : 'circle'}" class="w-5 h-5"></i>
             <span>${isCompleted ? `${actionBtnText} (Verified - Tap to Undo)` : `Tap to Verify ${actionBtnText}`}</span>
@@ -1544,8 +1544,8 @@
 
         state.activeDate = targetDate.toISOString().split('T')[0];
         
-        dayBtns.forEach(b => b.classList.remove('bg-cyan-500', 'text-dark-950'));
-        btn.classList.add('bg-cyan-500', 'text-dark-950');
+        dayBtns.forEach(b => b.classList.remove('bg-white', 'text-sky-700', 'shadow-sm', 'border', 'border-slate-200'));
+        btn.classList.add('bg-white', 'text-sky-700', 'shadow-sm', 'border', 'border-slate-200');
 
         renderApp();
       });
@@ -1786,10 +1786,10 @@
 
     toast.className = `p-3.5 px-4 rounded-xl text-xs font-bold shadow-2xl flex items-center gap-2.5 max-w-sm pointer-events-auto transition-all transform duration-300 translate-y-2 opacity-0 ${
       isSuccess
-        ? 'bg-emerald-950/95 text-emerald-200 border border-emerald-500/40'
+        ? 'bg-emerald-600 text-white shadow-emerald-600/30'
         : isError
-        ? 'bg-rose-950/95 text-rose-200 border border-rose-500/40'
-        : 'bg-dark-900/95 text-cyan-200 border border-cyan-500/40'
+        ? 'bg-rose-600 text-white shadow-rose-600/30'
+        : 'bg-slate-900 text-white shadow-slate-900/30'
     }`;
 
     const iconName = isSuccess ? 'check-circle' : isError ? 'alert-triangle' : 'info';

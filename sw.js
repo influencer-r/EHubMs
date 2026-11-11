@@ -1,10 +1,10 @@
-// Service Worker for Tech & AI Academy Portal (Cache v5)
-const CACHE_NAME = 'tech-ai-academy-v5';
+// Service Worker for Tech & AI Academy Portal (Cache v7)
+const CACHE_NAME = 'tech-ai-academy-v7';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './style.css?v=5',
-  './app.js?v=5',
+  './style.css?v=7',
+  './app.js?v=7',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',
