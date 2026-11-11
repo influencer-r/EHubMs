@@ -24,10 +24,10 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
   // 1. GLOBAL STATE & INSTITUTIONAL CONFIGURATION
   // ============================================================================
 
-  const STORAGE_KEY = 'tech_ai_academy_state_v9';
-  const AUTH_STORAGE_KEY = 'eldohub_auth_session_v9';
-  const SUPABASE_CONFIG_KEY = 'tech_ai_academy_supabase_config_v9';
-  const LOGO_STORAGE_KEY = 'tech_ai_academy_custom_logo_v9';
+  const STORAGE_KEY = 'tech_ai_academy_state_v10';
+  const AUTH_STORAGE_KEY = 'eldohub_auth_session_v10';
+  const SUPABASE_CONFIG_KEY = 'tech_ai_academy_supabase_config_v10';
+  const LOGO_STORAGE_KEY = 'tech_ai_academy_custom_logo_v10';
 
   const DEFAULT_SUPABASE_CONFIG = {
     url: 'https://sopqoumqblhtguprgtwx.supabase.co',
@@ -37,44 +37,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
   const DEFAULT_STATE = {
     students: [],
     manifestLogs: [],
-    staff: [
-      {
-        id: 'usr_admin_01',
-        email: 'admin@eldohub.co.ke',
-        full_name: 'Dr. Magdaline Chepkemoi',
-        role: 'super_admin',
-        assigned_tracks: [],
-        is_active: true,
-        created_at: new Date().toISOString()
-      },
-      {
-        id: 'usr_inst_01',
-        email: 'instructor@eldohub.co.ke',
-        full_name: 'David Kiprono',
-        role: 'instructor',
-        assigned_tracks: ['Junior Robotics', 'Advanced Robotics'],
-        is_active: true,
-        created_at: new Date().toISOString()
-      },
-      {
-        id: 'usr_recep_01',
-        email: 'reception@eldohub.co.ke',
-        full_name: 'Faith Jelagat',
-        role: 'receptionist',
-        assigned_tracks: [],
-        is_active: true,
-        created_at: new Date().toISOString()
-      },
-      {
-        id: 'usr_trans_01',
-        email: 'transport@eldohub.co.ke',
-        full_name: 'Samuel Mwangi',
-        role: 'transport_officer',
-        assigned_tracks: [],
-        is_active: true,
-        created_at: new Date().toISOString()
-      }
-    ],
+    staff: [],
     auditLogs: [],
     cohorts: {
       bootcamp: ['August Intake', 'November Intake'],
@@ -120,7 +83,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         return {
           students: Array.isArray(parsed.students) ? parsed.students : [],
           manifestLogs: Array.isArray(parsed.manifestLogs) ? parsed.manifestLogs : [],
-          staff: Array.isArray(parsed.staff) && parsed.staff.length > 0 ? parsed.staff : DEFAULT_STATE.staff,
+          staff: Array.isArray(parsed.staff) ? parsed.staff : [],
           auditLogs: Array.isArray(parsed.auditLogs) ? parsed.auditLogs : [],
           cohorts: parsed.cohorts || DEFAULT_STATE.cohorts,
           tracks: parsed.tracks || DEFAULT_STATE.tracks
@@ -527,28 +490,6 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       }
       notify(`Password reset link dispatched to ${resetEmail}.`, 'info');
       tabSignIn.click();
-    });
-
-    // Quick demo role buttons
-    document.querySelectorAll('.btn-demo-role').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const role = btn.getAttribute('data-role');
-        const sampleStaff = state.data.staff.find(s => s.role === role) || {
-          id: 'usr_' + role,
-          email: `${role}@eldohub.co.ke`,
-          full_name: formatRoleName(role) + ' Officer',
-          role: role,
-          assigned_tracks: role === 'instructor' ? ['Junior Robotics'] : [],
-          is_active: true
-        };
-
-        state.currentUser = sampleStaff;
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(sampleStaff));
-        logAuditAction('DEMO_ROLE_SWITCH', 'auth', sampleStaff.id, { role: role });
-        notify(`Signed in as ${sampleStaff.full_name} (${formatRoleName(sampleStaff.role)})`, 'success');
-        applyRolePermissions();
-        renderApp();
-      });
     });
 
     // Sign out handlers
@@ -2323,11 +2264,6 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         renderApp();
       }
     });
-
-    // Demo Data Loader
-    document.getElementById('btn-load-demo-data')?.addEventListener('click', () => {
-      loadDemoData();
-    });
   }
 
   function initSettingsModal() {
@@ -2372,6 +2308,45 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       a.click();
       URL.revokeObjectURL(url);
       notify('JSON Backup downloaded!', 'success');
+    });
+
+    // --- Logo Upload & Reset ---
+    const logoInput = document.getElementById('input-custom-logo');
+    const logoPreview = document.getElementById('settings-logo-preview');
+    const resetLogoBtn = document.getElementById('btn-reset-default-logo');
+    const DEFAULT_LOGO_SRC = './images/eldohub-academy-logo.png';
+
+    function applyLogo(src) {
+      document.querySelectorAll('#academy-logo-img, .app-brand-logo, #print-document img[alt]').forEach(img => img.src = src);
+      if (logoPreview) logoPreview.src = src;
+    }
+
+    // Restore saved logo on load
+    const savedLogo = localStorage.getItem(LOGO_STORAGE_KEY);
+    if (savedLogo) applyLogo(savedLogo);
+
+    logoInput?.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (!file.type.startsWith('image/')) {
+        notify('Please select a valid image file (PNG, JPG, SVG).', 'error');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const dataUrl = ev.target.result;
+        localStorage.setItem(LOGO_STORAGE_KEY, dataUrl);
+        applyLogo(dataUrl);
+        notify('Institution logo updated successfully!', 'success');
+      };
+      reader.readAsDataURL(file);
+      e.target.value = '';
+    });
+
+    resetLogoBtn?.addEventListener('click', () => {
+      localStorage.removeItem(LOGO_STORAGE_KEY);
+      applyLogo(DEFAULT_LOGO_SRC);
+      notify('Logo restored to default.', 'info');
     });
   }
 
@@ -2435,59 +2410,6 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     });
   }
 
-  function loadDemoData() {
-    const demoStudents = [
-      {
-        id: 'std_demo_01',
-        name: 'Brian Kipchumba',
-        phone: '+254 712 345 678',
-        residence: 'Elgon View, Eldoret',
-        branch: 'bootcamp',
-        cohort: 'August Intake',
-        track: 'Junior Robotics',
-        transport_mode: 'both',
-        notes: 'Authorized for Route 1 bus pickup; allergic to dust',
-        created_at: new Date().toISOString()
-      },
-      {
-        id: 'std_demo_02',
-        name: 'Faith Chebet',
-        phone: '+254 723 456 789',
-        residence: 'Kapsoya, Eldoret',
-        branch: 'bootcamp',
-        cohort: 'August Intake',
-        track: 'Advanced Robotics',
-        transport_mode: 'morning_bus',
-        notes: 'Parent picks up in evening (carline)',
-        created_at: new Date().toISOString()
-      },
-      {
-        id: 'std_demo_03',
-        name: 'Kevin Omondi',
-        phone: '+254 734 567 890',
-        residence: 'West Indies, Eldoret',
-        branch: 'bootcamp',
-        cohort: 'August Intake',
-        track: 'Web Development',
-        transport_mode: 'parent_pickup',
-        notes: 'Gate carline pickup badge #42',
-        created_at: new Date().toISOString()
-      }
-    ];
-
-    state.data.students = demoStudents;
-    saveStoredData();
-
-    if (state.supabaseClient) {
-      demoStudents.forEach(st => {
-        state.supabaseClient.from('students').upsert([st]).then(() => {});
-      });
-    }
-
-    logAuditAction('LOAD_DEMO_DATA', 'system', '3_records', {});
-    notify('Demo roster loaded successfully!', 'success');
-    renderApp();
-  }
 
   function notify(message, type = 'info') {
     const container = document.getElementById('toast-container');
@@ -2540,6 +2462,20 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
   // 12. BOOTSTRAP INITIALIZATION
   // ============================================================================
 
+  // PWA Install Prompt
+  let deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    const btn = document.getElementById('btn-install-pwa');
+    if (btn) btn.classList.remove('hidden');
+  });
+  window.addEventListener('appinstalled', () => {
+    deferredPrompt = null;
+    const btn = document.getElementById('btn-install-pwa');
+    if (btn) btn.classList.add('hidden');
+  });
+
   document.addEventListener('DOMContentLoaded', () => {
     initBackgroundSlideshow();
     initGeneralListeners();
@@ -2551,6 +2487,16 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     initSupabase();
     initAuthSystem();
     initPasswordToggles();
+
+    // Wire PWA install button
+    document.getElementById('btn-install-pwa')?.addEventListener('click', async () => {
+      if (!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') notify('Application installed successfully!', 'success');
+      deferredPrompt = null;
+      document.getElementById('btn-install-pwa')?.classList.add('hidden');
+    });
 
     applyRolePermissions();
     renderApp();

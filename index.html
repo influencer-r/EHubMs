@@ -52,7 +52,7 @@
   <script src="https://unpkg.com/lucide@latest"></script>
 
   <!-- Custom Stylesheet with cache busting -->
-  <link rel="stylesheet" href="./style.css?v=14">
+  <link rel="stylesheet" href="./style.css?v=15">
 </head>
 <body class="text-slate-900 min-h-screen flex flex-col antialiased selection:bg-sky-500 selection:text-white">
 
@@ -180,31 +180,6 @@
           <span>Save Password & Enter Academy</span>
         </button>
       </form>
-
-      <!-- Institutional RBAC Quick Role Selector (For testing & evaluation) -->
-      <div id="auth-role-simulator" class="pt-3 border-t border-slate-100 space-y-2">
-        <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider block text-center">
-          Institutional Role Simulator (Quick Test)
-        </span>
-        <div class="grid grid-cols-2 gap-2 text-xs">
-          <button type="button" class="btn-demo-role touch-btn h-9 px-2 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 font-bold hover:bg-indigo-100 flex items-center justify-center gap-1" data-role="super_admin">
-            <i data-lucide="shield" class="w-3.5 h-3.5"></i>
-            <span>Super Admin</span>
-          </button>
-          <button type="button" class="btn-demo-role touch-btn h-9 px-2 rounded-lg bg-purple-50 border border-purple-200 text-purple-700 font-bold hover:bg-purple-100 flex items-center justify-center gap-1" data-role="instructor">
-            <i data-lucide="user-check" class="w-3.5 h-3.5"></i>
-            <span>Instructor</span>
-          </button>
-          <button type="button" class="btn-demo-role touch-btn h-9 px-2 rounded-lg bg-sky-50 border border-sky-200 text-sky-700 font-bold hover:bg-sky-100 flex items-center justify-center gap-1" data-role="receptionist">
-            <i data-lucide="clipboard-list" class="w-3.5 h-3.5"></i>
-            <span>Receptionist</span>
-          </button>
-          <button type="button" class="btn-demo-role touch-btn h-9 px-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-700 font-bold hover:bg-amber-100 flex items-center justify-center gap-1" data-role="transport_officer">
-            <i data-lucide="bus" class="w-3.5 h-3.5"></i>
-            <span>Transport</span>
-          </button>
-        </div>
-      </div>
 
     </div>
   </div>
@@ -415,6 +390,12 @@
               <span class="hidden md:inline">Sign Out</span>
             </button>
 
+            <!-- PWA Install Button (shown only when installable) -->
+            <button id="btn-install-pwa" class="touch-btn h-10 px-3 rounded-xl text-xs font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 flex items-center gap-1.5 transition-colors hidden" title="Install App">
+              <i data-lucide="download" class="w-4 h-4"></i>
+              <span class="hidden md:inline">Install App</span>
+            </button>
+
             <!-- Quick Add Student Admission Button -->
             <button id="header-btn-onboard" class="touch-btn h-10 px-3.5 sm:px-4 rounded-xl text-xs font-extrabold bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 text-white shadow-md shadow-sky-600/20 flex items-center gap-1.5 hover:opacity-95">
               <i data-lucide="plus" class="w-4 h-4"></i>
@@ -612,17 +593,13 @@
               <div class="max-w-md">
                 <h4 class="text-lg font-bold text-slate-900">No Students in this Manifest</h4>
                 <p class="text-xs sm:text-sm text-slate-500 mt-1">
-                  All rosters start in a completely clean state. Use the Admission Desk to register a student or load sample demo records.
+                  All rosters start completely clean. Use the Admission Desk to register the first student.
                 </p>
               </div>
               <div class="flex flex-wrap items-center justify-center gap-3">
                 <button id="btn-empty-onboard" class="touch-btn h-11 px-5 rounded-xl text-xs sm:text-sm font-bold bg-gradient-to-r from-sky-600 to-blue-600 text-white shadow-sm flex items-center gap-2">
                   <i data-lucide="user-plus" class="w-4 h-4"></i>
                   <span>Add First Student</span>
-                </button>
-                <button id="btn-load-demo-data" class="touch-btn h-11 px-4 rounded-xl text-xs font-bold bg-white border border-slate-200 text-sky-700 hover:bg-sky-50 shadow-sm flex items-center gap-1.5" title="Preview the UI with 3 demo records">
-                  <i data-lucide="sparkles" class="w-4 h-4 text-sky-600"></i>
-                  <span>Load Demo Roster</span>
                 </button>
               </div>
             </div>
@@ -929,7 +906,7 @@
           </label>
           <div class="relative">
             <i data-lucide="lock" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
-            <input type="password" id="staff-password" required value="EldoHub2026!" class="w-full glass-input rounded-xl pl-10 pr-11 text-sm font-medium">
+            <input type="password" id="staff-password" required placeholder="Enter initial password (e.g. EldoPass2026!)" class="w-full glass-input rounded-xl pl-10 pr-11 text-sm font-medium">
             <button type="button" class="btn-toggle-password absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1" data-target="staff-password" aria-label="Toggle password visibility">
               <i data-lucide="eye" class="w-4 h-4"></i>
             </button>
@@ -947,42 +924,6 @@
     </div>
   </div>
 
-  <!-- ==============================================================================
-       7. PERMANENT PASSWORD ACTIVATION MODAL (ON EMAIL LINK CLICK)
-       ============================================================================== -->
-  <div id="modal-set-password" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md hidden transition-opacity">
-    <div class="bg-white w-full max-w-md rounded-2xl border border-slate-200 shadow-2xl overflow-hidden p-6 space-y-4">
-      <div class="text-center space-y-2">
-        <div class="w-12 h-12 rounded-2xl bg-sky-50 border border-sky-200 text-sky-600 flex items-center justify-center mx-auto">
-          <i data-lucide="key" class="w-6 h-6"></i>
-        </div>
-        <h3 class="text-lg font-extrabold text-slate-900">Set Your Permanent Password</h3>
-        <p class="text-xs text-slate-500">Welcome to EldoHub Tech & AI Academy. Please create your secure password to complete account activation.</p>
-      </div>
-
-      <form id="form-set-password" class="space-y-4 pt-2">
-        <div>
-          <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="new-permanent-password">
-            New Password <span class="text-sky-600">*</span>
-          </label>
-          <input type="password" id="new-permanent-password" required minlength="6" placeholder="At least 6 characters" class="w-full glass-input rounded-xl px-4 text-sm font-medium">
-        </div>
-
-        <div>
-          <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="confirm-permanent-password">
-            Confirm Password <span class="text-sky-600">*</span>
-          </label>
-          <input type="password" id="confirm-permanent-password" required minlength="6" placeholder="Repeat your new password" class="w-full glass-input rounded-xl px-4 text-sm font-medium">
-        </div>
-
-        <button type="submit" id="btn-submit-new-password" class="touch-btn w-full h-11 rounded-xl text-xs font-extrabold bg-sky-600 hover:bg-sky-700 text-white shadow-sm flex items-center justify-center gap-2">
-          <i data-lucide="check-circle-2" class="w-4 h-4"></i>
-          <span>Save Password & Enter Academy</span>
-        </button>
-      </form>
-    </div>
-  </div>
-  </div>
 
   <!-- ==============================================================================
        7. CLEAN USER-FRIENDLY CLOUD SYNC & SYSTEM STATUS MODAL
@@ -1025,6 +966,29 @@
             <i data-lucide="download" class="w-3.5 h-3.5 text-slate-600"></i>
             <span>Download Backup (JSON)</span>
           </button>
+        </div>
+
+        <!-- Institutional Logo Customization -->
+        <div class="border-t border-slate-100 pt-4 space-y-3">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-600 flex items-center gap-2">
+            <i data-lucide="image" class="w-3.5 h-3.5"></i>
+            Institutional Logo
+          </h4>
+          <div class="flex items-center gap-4">
+            <img id="settings-logo-preview" src="./images/eldohub-academy-logo.png" alt="Current Logo" class="h-12 w-auto max-w-[100px] object-contain rounded-lg border border-slate-200 bg-slate-50 p-1">
+            <div class="flex flex-col gap-2 flex-1">
+              <label for="input-custom-logo" class="touch-btn h-9 px-3 rounded-lg text-xs font-bold bg-slate-100 border border-slate-200 text-slate-700 hover:bg-slate-200 flex items-center justify-center gap-1.5 cursor-pointer">
+                <i data-lucide="upload" class="w-3.5 h-3.5"></i>
+                <span>Upload Logo</span>
+              </label>
+              <input type="file" id="input-custom-logo" accept="image/*" class="hidden">
+              <button id="btn-reset-default-logo" class="h-8 px-3 rounded-lg text-[11px] font-bold bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 flex items-center justify-center gap-1">
+                <i data-lucide="rotate-ccw" class="w-3 h-3"></i>
+                <span>Reset to Default</span>
+              </button>
+            </div>
+          </div>
+          <p class="text-[11px] text-slate-400">PNG, JPG or SVG. Recommended: 300×80px. Applies across all reports and PDF exports.</p>
         </div>
       </div>
     </div>
@@ -1124,6 +1088,6 @@
   <div id="toast-container" class="fixed bottom-20 sm:bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
   <!-- Application Logic with cache busting -->
-  <script src="./app.js?v=14"></script>
+  <script src="./app.js?v=15"></script>
 </body>
 </html>
