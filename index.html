@@ -52,7 +52,7 @@
   <script src="https://unpkg.com/lucide@latest"></script>
 
   <!-- Custom Stylesheet with cache busting -->
-  <link rel="stylesheet" href="./style.css?v=10">
+  <link rel="stylesheet" href="./style.css?v=11">
 </head>
 <body class="text-slate-900 min-h-screen flex flex-col antialiased selection:bg-sky-500 selection:text-white">
 
@@ -878,18 +878,18 @@
           </div>
         </div>
 
-        <div class="p-3 rounded-xl bg-sky-50 border border-sky-100 flex items-start gap-2.5 text-xs text-sky-800">
-          <i data-lucide="mail-check" class="w-4 h-4 text-sky-600 shrink-0 mt-0.5"></i>
-          <div>
-            <p class="font-bold">Automated Email Setup Link</p>
-            <p class="text-[11px] text-sky-700">Supabase will automatically email this staff member a secure link to set their own password.</p>
-          </div>
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="staff-password">
+            Direct Access Password <span class="text-sky-600">*</span>
+          </label>
+          <input type="text" id="staff-password" required value="EldoHub2026!" class="w-full glass-input rounded-xl px-4 text-sm font-medium">
+          <p class="text-[11px] text-slate-500 mt-1">Staff can log in with this password immediately, or reset it anytime via email.</p>
         </div>
 
         <div class="pt-2">
           <button type="submit" id="btn-submit-staff" class="touch-btn w-full h-11 rounded-xl text-xs font-extrabold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm flex items-center justify-center gap-2">
-            <i data-lucide="send" class="w-4 h-4"></i>
-            <span>Send Email Invitation & Setup Link</span>
+            <i data-lucide="user-check" class="w-4 h-4"></i>
+            <span>Create & Authorize Staff Member</span>
           </button>
         </div>
       </form>
@@ -1073,6 +1073,6 @@
   <div id="toast-container" class="fixed bottom-20 sm:bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
   <!-- Application Logic with cache busting -->
-  <script src="./app.js?v=10"></script>
+  <script src="./app.js?v=11"></script>
 </body>
 </html>

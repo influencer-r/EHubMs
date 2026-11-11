@@ -359,7 +359,16 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
             password: password
           });
 
-          if (!error && data?.user) {
+          if (error) {
+            console.warn('Supabase login error:', error);
+            notify(`Supabase Login Failed: ${error.message}`, 'error');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i data-lucide="log-in" class="w-4 h-4"></i><span>Sign In to Academy System</span>';
+            if (window.lucide) window.lucide.createIcons();
+            return;
+          }
+
+          if (data?.user) {
             // Find or fetch profile
             const { data: prof } = await state.supabaseClient
               .from('profiles')
@@ -382,23 +391,11 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
           }
         } catch (err) {
           console.warn('Supabase auth check:', err);
-        }
-      }
-
-      // 2. Fallback / institutional profile match
-      if (!authenticatedStaff) {
-        const found = state.data.staff.find(s => s.email.toLowerCase() === email.toLowerCase());
-        if (found) {
-          authenticatedStaff = found;
-        } else if (email.includes('admin') || state.data.staff.length === 0) {
-          authenticatedStaff = state.data.staff[0] || {
-            id: 'usr_admin_default',
-            email: email,
-            full_name: 'Academy Administrator',
-            role: 'super_admin',
-            assigned_tracks: [],
-            is_active: true
-          };
+          notify(`Authentication Error: ${err.message || 'Check network connection'}`, 'error');
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = '<i data-lucide="log-in" class="w-4 h-4"></i><span>Sign In to Academy System</span>';
+          if (window.lucide) window.lucide.createIcons();
+          return;
         }
       }
 
@@ -1467,6 +1464,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       const name = document.getElementById('staff-name').value.trim();
       const email = document.getElementById('staff-email').value.trim();
       const role = document.getElementById('staff-role').value;
+      const initialPassword = document.getElementById('staff-password')?.value.trim() || 'EldoHub2026!';
       const submitBtn = document.getElementById('btn-submit-staff');
 
       const checkedTracks = [];
@@ -1475,17 +1473,16 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       });
 
       submitBtn.disabled = true;
-      submitBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Inviting Staff...</span>';
+      submitBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Creating Account...</span>';
       if (window.lucide) window.lucide.createIcons();
 
       let createdAuthUserId = null;
       let emailDispatched = false;
+      let signUpErrorMessage = null;
 
-      // 1. Provision Auth user and dispatch password setup email via Supabase
+      // 1. Provision Auth user in Supabase
       if (state.supabaseClient) {
         try {
-          const tempSecret = 'Eldo!' + Math.random().toString(36).substring(2, 10) + 'A' + Date.now().toString(36);
-
           // Use isolated client so Super Admin's active session is never disturbed
           const clientConfig = {
             url: state.supabaseClient.supabaseUrl || DEFAULT_SUPABASE_CONFIG.url,
@@ -1497,7 +1494,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
           const { data: signUpData, error: signUpError } = await tempClient.auth.signUp({
             email: email,
-            password: tempSecret,
+            password: initialPassword,
             options: {
               data: {
                 full_name: name,
@@ -1506,20 +1503,24 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
             }
           });
 
+          if (signUpError) {
+            console.warn('Supabase signUp notice:', signUpError);
+            if (!signUpError.message?.includes('already registered')) {
+              signUpErrorMessage = signUpError.message;
+            }
+          }
+
           if (signUpData?.user) {
             createdAuthUserId = signUpData.user.id;
           }
 
-          // Trigger automated password setup / recovery email
-          const { error: resetErr } = await state.supabaseClient.auth.resetPasswordForEmail(email, {
-            redirectTo: window.location.origin
-          });
-
-          if (!resetErr) {
-            emailDispatched = true;
-          } else {
-            console.warn('Password reset dispatch notice:', resetErr);
-          }
+          // Also attempt email recovery dispatch (if email limits allow)
+          try {
+            const { error: resetErr } = await state.supabaseClient.auth.resetPasswordForEmail(email, {
+              redirectTo: window.location.origin
+            });
+            if (!resetErr) emailDispatched = true;
+          } catch (mErr) {}
         } catch (err) {
           console.warn('Staff auth dispatch notice:', err);
         }
@@ -1569,15 +1570,15 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       });
 
       if (emailDispatched) {
-        notify(`Invitation sent! Supabase dispatched a password setup link to ${email}.`, 'success');
+        notify(`Staff account created & email dispatched to ${email}!`, 'success');
       } else {
-        notify(`Staff account registered for ${name}. Click "Email Link" anytime to send setup link.`, 'info');
+        notify(`Staff account registered for ${name}! Password: ${initialPassword}`, 'success');
       }
 
       modalAddStaff?.classList.add('hidden');
       formAddStaff.reset();
       submitBtn.disabled = false;
-      submitBtn.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i><span>Send Email Invitation & Setup Link</span>';
+      submitBtn.innerHTML = '<i data-lucide="user-check" class="w-4 h-4"></i><span>Create & Authorize Staff Member</span>';
       if (window.lucide) window.lucide.createIcons();
       renderStaffTable();
     });
