@@ -16,6 +16,12 @@
   const LOGO_STORAGE_KEY = 'tech_ai_academy_logo_v1';
   const SUPABASE_CONFIG_KEY = 'tech_ai_academy_supabase_cfg_v1';
 
+  // Default Academy Supabase Configuration
+  const DEFAULT_SUPABASE_CONFIG = {
+    url: 'https://sopqoumqblhtguprgtwx.supabase.co',
+    key: 'sb_publishable_zPJ4Fguz3X4SnLavQpurRg_lUMxf_BO'
+  };
+
   // Default initial tracks & cohorts (Clean state: 0 students)
   const DEFAULT_STATE = {
     students: [], // Clean state: zero hardcoded dummy names
@@ -81,14 +87,20 @@
 
   function initSupabase() {
     try {
+      let config = null;
       const configStr = localStorage.getItem(SUPABASE_CONFIG_KEY);
       if (configStr) {
-        const config = JSON.parse(configStr);
-        if (config.url && config.key && window.supabase) {
-          state.supabaseClient = window.supabase.createClient(config.url, config.key);
-          testSupabaseConnection(false);
-          return;
-        }
+        config = JSON.parse(configStr);
+      }
+      
+      // Fallback to default credentials if not overridden
+      const url = (config && config.url) ? config.url : DEFAULT_SUPABASE_CONFIG.url;
+      const key = (config && config.key) ? config.key : DEFAULT_SUPABASE_CONFIG.key;
+
+      if (url && key && window.supabase) {
+        state.supabaseClient = window.supabase.createClient(url, key);
+        testSupabaseConnection(false);
+        return;
       }
     } catch (e) {
       console.warn('Supabase initialization deferred:', e);
@@ -110,7 +122,15 @@
         .select('id')
         .limit(1);
 
-      if (error) throw error;
+      if (error) {
+        // Table not found means project connection succeeded, but SQL schema hasn't run yet
+        if (error.code === 'PGRST205' || error.message?.includes('schema cache') || error.message?.includes('does not exist')) {
+          updateSupabaseStatus('schema_needed');
+          if (showToast) notify('Connected to Supabase Project! Please run supabase-schema.sql in Supabase SQL Editor.', 'info');
+          return false;
+        }
+        throw error;
+      }
 
       updateSupabaseStatus('connected');
       if (showToast) notify('Successfully connected to Supabase PostgreSQL Database!', 'success');
@@ -214,6 +234,12 @@
       indicator.className = 'w-3 h-3 rounded-full bg-emerald-400';
       statusText.textContent = 'Supabase Cloud: Connected & Syncing';
       statusText.className = 'text-xs font-bold text-emerald-400';
+    } else if (status === 'schema_needed') {
+      dot.className = 'absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping border-2 border-dark-900';
+      dot.title = 'Database Status: Connected to Supabase! Run supabase-schema.sql to initialize tables';
+      indicator.className = 'w-3 h-3 rounded-full bg-cyan-400';
+      statusText.textContent = 'Supabase Connected (Run schema in SQL editor)';
+      statusText.className = 'text-xs font-bold text-cyan-300';
     } else if (status === 'error') {
       dot.className = 'absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-rose-500 border-2 border-dark-900';
       dot.title = 'Database Status: Supabase Connection Error';
@@ -1485,12 +1511,15 @@
     const exportBackupBtn = document.getElementById('btn-export-backup-json');
     const clearDataBtn = document.getElementById('btn-clear-all-data');
 
-    // Load saved settings
+    // Load saved or default settings
     try {
       const cfg = JSON.parse(localStorage.getItem(SUPABASE_CONFIG_KEY) || '{}');
-      if (cfg.url && urlInput) urlInput.value = cfg.url;
-      if (cfg.key && keyInput) keyInput.value = cfg.key;
-    } catch (e) {}
+      if (urlInput) urlInput.value = cfg.url || DEFAULT_SUPABASE_CONFIG.url;
+      if (keyInput) keyInput.value = cfg.key || DEFAULT_SUPABASE_CONFIG.key;
+    } catch (e) {
+      if (urlInput) urlInput.value = DEFAULT_SUPABASE_CONFIG.url;
+      if (keyInput) keyInput.value = DEFAULT_SUPABASE_CONFIG.key;
+    }
 
     function openModal() {
       modal?.classList.remove('hidden');
