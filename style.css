@@ -42,7 +42,7 @@
 
 body {
   font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background-color: var(--bg-canvas);
+  background-color: transparent !important;
   color: var(--text-primary);
   min-height: 100vh;
   overflow-x: hidden;
@@ -51,14 +51,15 @@ body {
 }
 
 /* ==============================================================================
-   1. Dynamic Background Slideshow with Light Frosted Ambient Overlay (3s Loop)
+   1. Dynamic Background Slideshow (Prominently Visible with Light Frosted Blur)
    ============================================================================== */
 .slideshow-container {
   position: fixed;
   inset: 0;
   z-index: 0;
   overflow: hidden;
-  background-color: #f1f5f9;
+  background-color: transparent;
+  pointer-events: none;
 }
 
 .slide-item {
@@ -69,33 +70,35 @@ body {
   background-repeat: no-repeat;
   opacity: 0;
   transform: scale(1) translate3d(0, 0, 0);
-  transition: opacity 0.85s cubic-bezier(0.4, 0, 0.2, 1), transform 3.6s cubic-bezier(0.25, 1, 0.5, 1);
+  transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1), transform 5s cubic-bezier(0.25, 1, 0.5, 1);
   will-change: transform, opacity;
 }
 
 .slide-item.active {
-  opacity: 0.85;
-  transform: scale(1.08) translate3d(-0.8%, -0.8%, 0);
+  opacity: 1;
+  transform: scale(1.08) translate3d(-0.6%, -0.6%, 0);
 }
 
 .slide-item:nth-child(2).active {
-  transform: scale(1.09) translate3d(0.8%, -0.8%, 0);
+  transform: scale(1.09) translate3d(0.6%, -0.6%, 0);
 }
 .slide-item:nth-child(3).active {
-  transform: scale(1.08) translate3d(-0.8%, 0.8%, 0);
+  transform: scale(1.08) translate3d(-0.6%, 0.6%, 0);
 }
 .slide-item:nth-child(4).active {
-  transform: scale(1.09) translate3d(0.8%, 0.8%, 0);
+  transform: scale(1.09) translate3d(0.6%, 0.6%, 0);
 }
 
-/* Light Frosted Ambient Overlay (Clean Daylight Legibility) */
+/* Light Translucent Ambient Vignette (Keeps Photos Vibrant & Cards Crisp) */
 .vignette-overlay {
   position: fixed;
   inset: 0;
   z-index: 1;
   background: 
-    radial-gradient(circle at 50% 15%, rgba(248, 250, 252, 0.80) 0%, rgba(241, 245, 249, 0.92) 100%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.85) 0%, rgba(248, 250, 252, 0.88) 45%, rgba(241, 245, 249, 0.95) 100%);
+    radial-gradient(circle at 50% 15%, rgba(248, 250, 252, 0.35) 0%, rgba(241, 245, 249, 0.60) 100%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.40) 0%, rgba(248, 250, 252, 0.50) 45%, rgba(241, 245, 249, 0.65) 100%);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
   pointer-events: none;
 }
 
@@ -562,4 +565,79 @@ body {
     font-size: 9pt;
     font-weight: 600;
   }
+}
+
+/* ==============================================================================
+   9. Authentication Gateway & Institutional Access Control Styles
+   ============================================================================== */
+.auth-gateway-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 440px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1.25rem;
+  box-shadow: 0 20px 45px -10px rgba(15, 23, 42, 0.15), 0 0 0 1px rgba(15, 23, 42, 0.05);
+  overflow: hidden;
+  animation: authCardEnter 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes authCardEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-width: 1px;
+}
+
+.role-badge.super_admin {
+  background: #eef2ff;
+  color: #4338ca;
+  border-color: #c7d2fe;
+}
+
+.role-badge.instructor {
+  background: #faf5ff;
+  color: #7e22ce;
+  border-color: #e9d5ff;
+}
+
+.role-badge.receptionist {
+  background: #f0f9ff;
+  color: #0369a1;
+  border-color: #bae6fd;
+}
+
+.role-badge.transport_officer {
+  background: #fffbeb;
+  color: #b45309;
+  border-color: #fde68a;
 }
