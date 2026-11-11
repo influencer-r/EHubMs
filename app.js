@@ -311,9 +311,24 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     const resetForm = document.getElementById('auth-reset-form');
     const tabSignIn = document.getElementById('auth-tab-signin');
     const tabReset = document.getElementById('auth-tab-reset');
+    const tabsBar = document.getElementById('auth-tabs-bar');
+    const updatePasswordForm = document.getElementById('auth-update-password-form');
+    const roleSimulator = document.getElementById('auth-role-simulator');
     const btnSignoutHeader = document.getElementById('btn-header-signout');
     const btnSignoutSidebar = document.getElementById('btn-sidebar-signout');
     const btnSignoutDock = document.getElementById('dock-btn-signout');
+
+    // Display password setup form when arriving from email invitation/recovery
+    function showPasswordRecoveryMode() {
+      state.isPasswordRecoveryActive = true;
+      if (authGateway) authGateway.classList.remove('hidden');
+      if (tabsBar) tabsBar.classList.add('hidden');
+      if (loginForm) loginForm.classList.add('hidden');
+      if (resetForm) resetForm.classList.add('hidden');
+      if (roleSimulator) roleSimulator.classList.add('hidden');
+      if (updatePasswordForm) updatePasswordForm.classList.remove('hidden');
+      if (window.lucide) window.lucide.createIcons();
+    }
 
     // Tab switcher
     tabSignIn?.addEventListener('click', () => {
@@ -321,6 +336,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       tabReset.className = 'flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900';
       loginForm?.classList.remove('hidden');
       resetForm?.classList.add('hidden');
+      updatePasswordForm?.classList.add('hidden');
     });
 
     tabReset?.addEventListener('click', () => {
@@ -328,7 +344,21 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       tabSignIn.className = 'flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900';
       resetForm?.classList.remove('hidden');
       loginForm?.classList.add('hidden');
+      updatePasswordForm?.classList.add('hidden');
     });
+
+    // Check URL parameters for recovery/invitation link immediately
+    const hashStr = window.location.hash || '';
+    const searchStr = window.location.search || '';
+    if (
+      hashStr.includes('type=recovery') || 
+      searchStr.includes('type=recovery') || 
+      hashStr.includes('access_token=') || 
+      hashStr.includes('type=invite') ||
+      searchStr.includes('code=')
+    ) {
+      showPasswordRecoveryMode();
+    }
 
     // Check existing stored session
     try {
@@ -479,25 +509,16 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     btnSignoutSidebar?.addEventListener('click', handleSignOut);
     btnSignoutDock?.addEventListener('click', handleSignOut);
 
-    // Automated Password Setup Modal Handler (triggered when user clicks invitation link in their email)
+    // Automated Password Setup Handler (when user clicks invitation link in email)
     if (state.supabaseClient) {
       state.supabaseClient.auth.onAuthStateChange((event, session) => {
         if (event === 'PASSWORD_RECOVERY') {
-          const modalSet = document.getElementById('modal-set-password');
-          modalSet?.classList.remove('hidden');
-          if (window.lucide) window.lucide.createIcons();
+          showPasswordRecoveryMode();
         }
       });
     }
 
-    if (window.location.hash.includes('type=recovery') || window.location.search.includes('type=recovery')) {
-      const modalSet = document.getElementById('modal-set-password');
-      modalSet?.classList.remove('hidden');
-      if (window.lucide) window.lucide.createIcons();
-    }
-
-    const formSetPassword = document.getElementById('form-set-password');
-    formSetPassword?.addEventListener('submit', async (e) => {
+    updatePasswordForm?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const p1 = document.getElementById('new-permanent-password').value;
       const p2 = document.getElementById('confirm-permanent-password').value;
@@ -518,16 +539,16 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
       try {
         if (state.supabaseClient) {
-          const { error } = await state.supabaseClient.auth.updateUser({ password: p1 });
+          const { data, error } = await state.supabaseClient.auth.updateUser({ password: p1 });
           if (error) throw error;
-        }
 
-        notify('Password successfully created! Welcome to EldoHub Academy.', 'success');
-        document.getElementById('modal-set-password')?.classList.add('hidden');
+          // Clear recovery tokens from the URL
+          if (window.history && window.history.replaceState) {
+            window.history.replaceState(null, document.title, window.location.pathname);
+          }
 
-        // Fetch user profile and enter system
-        if (state.supabaseClient) {
-          const { data: { user } } = await state.supabaseClient.auth.getUser();
+          const user = data.user;
+          let userProfile = null;
           if (user) {
             const { data: prof } = await state.supabaseClient
               .from('profiles')
@@ -535,7 +556,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
               .eq('id', user.id)
               .single();
 
-            state.currentUser = prof || {
+            userProfile = prof || {
               id: user.id,
               email: user.email,
               full_name: user.user_metadata?.full_name || user.email.split('@')[0],
@@ -543,10 +564,14 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
               assigned_tracks: [],
               is_active: true
             };
-            localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(state.currentUser));
-            applyRolePermissions();
-            renderApp();
           }
+
+          state.isPasswordRecoveryActive = false;
+          state.currentUser = userProfile;
+          localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(userProfile));
+          notify('Password successfully created! Welcome to EldoHub Academy.', 'success');
+          applyRolePermissions();
+          renderApp();
         }
       } catch (err) {
         notify(`Password setup notice: ${err.message || 'Please retry'}`, 'error');
