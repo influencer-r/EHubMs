@@ -1,0 +1,319 @@
+/* ==============================================================================
+   Tech & AI Academy - Stylesheet & Glassmorphic Design System
+   ============================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --primary-glow: rgba(14, 165, 233, 0.25);
+  --accent-cyan: #06b6d4;
+  --accent-blue: #3b82f6;
+  --accent-purple: #8b5cf6;
+  --accent-emerald: #10b981;
+  --accent-rose: #f43f5e;
+  --accent-amber: #f59e0b;
+  --glass-bg: rgba(15, 23, 42, 0.72);
+  --glass-bg-subtle: rgba(15, 23, 42, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-border-hover: rgba(56, 189, 248, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #0b0f19;
+  color: #f8fafc;
+  min-height: 100vh;
+  overflow-x: hidden;
+  position: relative;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ==============================================================================
+   1. Dynamic Background Slideshow & Ken Burns Animations
+   ============================================================================== */
+.slideshow-container {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  overflow: hidden;
+  background-color: #0b0f19;
+}
+
+.slide-item {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+  opacity: 0;
+  transform: scale(1) translate3d(0, 0, 0);
+  transition: opacity 1.8s cubic-bezier(0.4, 0, 0.2, 1), transform 8.2s cubic-bezier(0.25, 1, 0.5, 1);
+  will-change: transform, opacity;
+}
+
+.slide-item.active {
+  opacity: 1;
+  transform: scale(1.08) translate3d(-1%, -1%, 0);
+}
+
+/* Alternate Ken Burns directions for different slides */
+.slide-item:nth-child(2).active {
+  transform: scale(1.09) translate3d(1%, -1%, 0);
+}
+.slide-item:nth-child(3).active {
+  transform: scale(1.08) translate3d(-1%, 1%, 0);
+}
+.slide-item:nth-child(4).active {
+  transform: scale(1.09) translate3d(1%, 1%, 0);
+}
+
+/* Dark Gradient Vignette Overlay */
+.vignette-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: 
+    radial-gradient(circle at 50% 20%, rgba(15, 23, 42, 0.68) 0%, rgba(11, 15, 25, 0.88) 100%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.82) 0%, rgba(15, 23, 42, 0.75) 45%, rgba(11, 15, 25, 0.94) 100%);
+  pointer-events: none;
+}
+
+/* ==============================================================================
+   2. Glassmorphic Surface System
+   ============================================================================== */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+.glass-panel-subtle {
+  background: var(--glass-bg-subtle);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--glass-border);
+}
+
+.glass-panel-interactive {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--glass-border);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-panel-interactive:hover {
+  border-color: var(--glass-border-hover);
+  box-shadow: 0 12px 35px -5px rgba(6, 182, 212, 0.15), 0 0 0 1px rgba(56, 189, 248, 0.2);
+  transform: translateY(-2px);
+}
+
+.glass-input {
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #f8fafc;
+  transition: all 0.2s ease;
+  min-height: 48px;
+}
+
+.glass-input:focus {
+  outline: none;
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 0 3px rgba(6, 182, 212, 0.22);
+  background: rgba(15, 23, 42, 0.9);
+}
+
+/* Minimum 48px touch friendly buttons */
+.touch-btn {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+  touch-action: manipulation;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.touch-btn:active {
+  transform: scale(0.97);
+}
+
+/* ==============================================================================
+   3. Custom Modern Scrollbar
+   ============================================================================== */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.6);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--accent-cyan);
+}
+
+/* ==============================================================================
+   4. Status Badges & Glows
+   ============================================================================== */
+.badge-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  transition: all 0.2s ease;
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: pulse-animation 2s infinite;
+}
+
+@keyframes pulse-animation {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 7px rgba(16, 185, 129, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+
+/* ==============================================================================
+   5. Mobile Bottom Sheet & Drawer
+   ============================================================================== */
+@media (max-width: 768px) {
+  .desktop-nav {
+    display: none !important;
+  }
+  
+  .mobile-bottom-bar {
+    display: flex !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    padding-bottom: env(safe-area-inset-bottom, 8px);
+    background: rgba(11, 15, 25, 0.92);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  body {
+    padding-bottom: 80px; /* Space for bottom nav */
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-bottom-bar {
+    display: none !important;
+  }
+}
+
+/* ==============================================================================
+   6. Universal Print View Engine Styles
+   ============================================================================== */
+#print-document {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  /* Hide everything on screen */
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .slideshow-container,
+  .vignette-overlay,
+  header,
+  nav,
+  .mobile-bottom-bar,
+  .no-print,
+  #modal-container,
+  #toast-container,
+  .action-controls,
+  button:not(.print-include) {
+    display: none !important;
+  }
+
+  #app-content {
+    display: none !important;
+  }
+
+  /* Show dedicated print document */
+  #print-document {
+    display: block !important;
+    width: 100% !important;
+    color: #0f172a !important;
+    background: #ffffff !important;
+  }
+
+  .print-page-break {
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .print-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 14px;
+    font-size: 11pt;
+  }
+
+  .print-table th,
+  .print-table td {
+    border: 1px solid #94a3b8;
+    padding: 7px 10px;
+    text-align: left;
+    color: #0f172a !important;
+  }
+
+  .print-table th {
+    background-color: #f1f5f9 !important;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 9.5pt;
+    letter-spacing: 0.05em;
+  }
+
+  .print-table tr:nth-child(even) td {
+    background-color: #f8fafc !important;
+  }
+
+  .print-badge {
+    border: 1px solid #475569;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 9pt;
+    font-weight: 600;
+  }
+}

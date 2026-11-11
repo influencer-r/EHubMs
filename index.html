@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0ea5e9">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Tech & AI Academy">
+  <meta name="description" content="Production Operations, Daily Bus Logistics, Class Attendance & Onboarding Portal for Tech & AI Academy.">
+
+  <title>Tech & AI Academy | Operations & Logistics Portal</title>
+
+  <!-- PWA Manifest & Favicon -->
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" type="image/svg+xml" href="./icons/favicon.svg">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              400: '#38bdf8',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+              800: '#075985',
+              900: '#0c4a6e',
+            },
+            dark: {
+              800: '#1e293b',
+              900: '#0f172a',
+              950: '#0b0f19',
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- External Libraries: Supabase JS, jsPDF & autoTable, Lucide Icons -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body class="bg-dark-950 text-slate-100 min-h-screen flex flex-col antialiased selection:bg-cyan-500 selection:text-white">
+
+  <!-- ==============================================================================
+       1. DYNAMIC BACKGROUND SLIDESHOW & VIGNETTE OVERLAY
+       ============================================================================== -->
+  <div class="slideshow-container" id="slideshow-container" aria-hidden="true">
+    <div class="slide-item active" style="background-image: url('./images/bg1.jpg');"></div>
+    <div class="slide-item" style="background-image: url('./images/bg2.jpg');"></div>
+    <div class="slide-item" style="background-image: url('./images/bg3.jpg');"></div>
+    <div class="slide-item" style="background-image: url('./images/bg4.jpg');"></div>
+  </div>
+  <div class="vignette-overlay" aria-hidden="true"></div>
+
+  <!-- ==============================================================================
+       2. TOP BRANDING & NAVIGATION HEADER
+       ============================================================================== -->
+  <header class="sticky top-0 z-40 w-full glass-panel border-b border-white/10 px-4 lg:px-8 py-3 transition-all duration-200">
+    <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
+      
+      <!-- Brand & Interactive Logo Upload -->
+      <div class="flex items-center gap-3.5 group">
+        <div class="relative cursor-pointer" id="logo-trigger" title="Click to change or customize Academy Logo">
+          <div class="w-12 h-12 rounded-xl overflow-hidden glass-panel flex items-center justify-center p-1 border border-cyan-500/40 shadow-lg shadow-cyan-500/20 group-hover:border-cyan-400 transition-all">
+            <img id="academy-logo-img" src="./icons/icon.svg" alt="Tech & AI Academy Logo" class="w-full h-full object-contain">
+          </div>
+          <div class="absolute -bottom-1 -right-1 bg-cyan-500 text-dark-950 rounded-full p-1 shadow-md opacity-80 group-hover:opacity-100 transition-opacity" title="Upload custom logo">
+            <i data-lucide="camera" class="w-2.5 h-2.5"></i>
+          </div>
+        </div>
+
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-extrabold text-lg sm:text-xl tracking-tight bg-gradient-to-r from-white via-slate-100 to-cyan-300 bg-clip-text text-transparent">
+              Tech & AI Academy
+            </h1>
+            <span class="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">
+              Operations
+            </span>
+          </div>
+          <p class="text-xs text-slate-400 font-medium">Daily Logistics, Attendance & Onboarding Engine</p>
+        </div>
+      </div>
+
+      <!-- Center Desktop Branch Switcher -->
+      <div class="hidden md:flex items-center glass-panel-subtle rounded-xl p-1 border border-white/10">
+        <button id="branch-nav-bootcamp" class="touch-btn h-10 px-5 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center gap-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md shadow-cyan-500/25">
+          <i data-lucide="rocket" class="w-4 h-4"></i>
+          <span>Boot Camp (Kids)</span>
+        </button>
+        <button id="branch-nav-regular" class="touch-btn h-10 px-5 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center gap-2 text-slate-300 hover:text-white hover:bg-white/5">
+          <i data-lucide="graduation-cap" class="w-4 h-4"></i>
+          <span>Regular Programs (Adults/Youth)</span>
+        </button>
+      </div>
+
+      <!-- Right Action Controls -->
+      <div class="flex items-center gap-2 sm:gap-3">
+        
+        <!-- PWA Install Button (Always visible / interactive) -->
+        <button id="pwa-install-btn" class="touch-btn h-11 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold glass-panel-interactive border-cyan-500/40 text-cyan-300 flex items-center gap-1.5 hover:bg-cyan-500/15" title="Install App to Home Screen">
+          <i data-lucide="download" class="w-4 h-4 animate-bounce"></i>
+          <span class="hidden sm:inline">Install App</span>
+          <span class="sm:hidden">Install</span>
+        </button>
+
+        <!-- Quick Single-Entry Onboarding Button -->
+        <button id="btn-open-onboarding" class="touch-btn h-11 px-3.5 sm:px-5 rounded-xl text-xs sm:text-sm font-bold bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-600 text-white shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 flex items-center gap-2 transition-all">
+          <i data-lucide="user-plus" class="w-4 h-4"></i>
+          <span class="hidden xs:inline">New Student</span>
+        </button>
+
+        <!-- Supabase / Database Status Button -->
+        <button id="btn-open-settings" class="touch-btn w-11 h-11 rounded-xl glass-panel-interactive border-white/10 flex items-center justify-center text-slate-300 hover:text-cyan-300" title="Supabase Database Settings & Sync">
+          <div class="relative">
+            <i data-lucide="database" class="w-5 h-5"></i>
+            <span id="supabase-status-dot" class="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-dark-900" title="Storage Status: Local Storage Mode"></span>
+          </div>
+        </button>
+
+      </div>
+    </div>
+
+    <!-- Mobile Branch Switcher (Below header on small devices) -->
+    <div class="flex md:hidden mt-2.5 p-1 glass-panel-subtle rounded-xl border border-white/10">
+      <button id="mobile-branch-bootcamp" class="touch-btn flex-1 h-10 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow">
+        <i data-lucide="rocket" class="w-3.5 h-3.5"></i>
+        <span>Boot Camp (Kids)</span>
+      </button>
+      <button id="mobile-branch-regular" class="touch-btn flex-1 h-10 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-slate-400 hover:text-white">
+        <i data-lucide="graduation-cap" class="w-3.5 h-3.5"></i>
+        <span>Regular Programs</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ==============================================================================
+       3. MAIN OPERATIONS WORKSPACE
+       ============================================================================== -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6" id="app-content">
+
+    <!-- Active Branch Banner & Overview Metrics -->
+    <section class="glass-panel rounded-2xl p-4 sm:p-6 border border-white/10 relative overflow-hidden">
+      <!-- Glow ambient background -->
+      <div class="absolute -right-20 -top-20 w-72 h-72 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
+      
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span id="badge-branch-type" class="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+              Branch A: Seasonal Boot Camp
+            </span>
+            <span id="active-day-badge" class="px-2.5 py-0.5 rounded-full text-xs font-bold text-slate-300 bg-white/5 border border-white/10 flex items-center gap-1">
+              <i data-lucide="calendar" class="w-3 h-3 text-cyan-400"></i>
+              <span id="active-day-text">Today</span>
+            </span>
+          </div>
+          <h2 id="view-title" class="text-xl sm:text-2xl font-black tracking-tight text-white">
+            Daily Logistics & Attendance Operations
+          </h2>
+          <p id="view-subtitle" class="text-xs sm:text-sm text-slate-400">
+            Real-time student transport tracking and class check-in manifests
+          </p>
+        </div>
+
+        <!-- KPI Statistic Cards -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 w-full lg:w-auto">
+          <div class="glass-panel-subtle rounded-xl p-3 border border-white/5 flex flex-col">
+            <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Total Active</span>
+            <span id="kpi-total" class="text-xl sm:text-2xl font-black text-white mt-1">0</span>
+          </div>
+
+          <div class="glass-panel-subtle rounded-xl p-3 border border-emerald-500/20 bg-emerald-950/20 flex flex-col">
+            <span id="kpi-completed-label" class="text-[11px] font-semibold text-emerald-400 uppercase tracking-wider">Picked Up</span>
+            <span id="kpi-completed" class="text-xl sm:text-2xl font-black text-emerald-300 mt-1">0</span>
+          </div>
+
+          <div class="glass-panel-subtle rounded-xl p-3 border border-amber-500/20 bg-amber-950/20 flex flex-col">
+            <span class="text-[11px] font-semibold text-amber-400 uppercase tracking-wider">Pending</span>
+            <span id="kpi-pending" class="text-xl sm:text-2xl font-black text-amber-300 mt-1">0</span>
+          </div>
+
+          <div class="glass-panel-subtle rounded-xl p-3 border border-cyan-500/20 bg-cyan-950/20 flex flex-col">
+            <span class="text-[11px] font-semibold text-cyan-400 uppercase tracking-wider">Completion</span>
+            <span id="kpi-rate" class="text-xl sm:text-2xl font-black text-cyan-300 mt-1">0%</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Branch A: Boot Camp Module Controls (Cohorts, Tracks, Logistics Tabs) -->
+    <div id="section-bootcamp-controls" class="space-y-4">
+      
+      <!-- Cohort Switcher & Track Filter -->
+      <div class="glass-panel rounded-2xl p-4 border border-white/10 space-y-4">
+        
+        <!-- Cohorts row -->
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <i data-lucide="layers" class="w-4 h-4 text-cyan-400"></i>
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Intake Cohort:</span>
+            <div id="bootcamp-cohort-tabs" class="flex flex-wrap items-center gap-1.5">
+              <!-- Dynamically populated, e.g. August Intake, November Intake -->
+            </div>
+            <button id="btn-add-cohort-bootcamp" class="touch-btn h-8 px-2.5 rounded-lg text-xs font-semibold glass-panel-interactive border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10 flex items-center gap-1" title="Add a custom intake cohort">
+              <i data-lucide="plus" class="w-3 h-3"></i>
+              <span>Add Cohort</span>
+            </button>
+          </div>
+
+          <!-- Day of Week Selector (Mon-Fri) -->
+          <div class="flex items-center gap-1.5 glass-panel-subtle rounded-xl p-1 border border-white/5">
+            <span class="text-xs font-semibold text-slate-400 px-2 hidden sm:inline">Day:</span>
+            <button class="day-selector-btn touch-btn h-8 px-2.5 rounded-lg text-xs font-bold text-slate-300 hover:text-white" data-day="Mon">Mon</button>
+            <button class="day-selector-btn touch-btn h-8 px-2.5 rounded-lg text-xs font-bold text-slate-300 hover:text-white" data-day="Tue">Tue</button>
+            <button class="day-selector-btn touch-btn h-8 px-2.5 rounded-lg text-xs font-bold text-slate-300 hover:text-white" data-day="Wed">Wed</button>
+            <button class="day-selector-btn touch-btn h-8 px-2.5 rounded-lg text-xs font-bold text-slate-300 hover:text-white" data-day="Thu">Thu</button>
+            <button class="day-selector-btn touch-btn h-8 px-2.5 rounded-lg text-xs font-bold text-slate-300 hover:text-white" data-day="Fri">Fri</button>
+            <input type="date" id="manifest-date-input" class="bg-dark-900 border border-white/10 rounded-lg text-xs px-2 h-8 text-cyan-300 focus:outline-none focus:border-cyan-400">
+          </div>
+        </div>
+
+        <div class="h-px bg-white/5"></div>
+
+        <!-- Tracks Filter row -->
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <i data-lucide="cpu" class="w-4 h-4 text-indigo-400"></i>
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Track:</span>
+            <div id="bootcamp-track-pills" class="flex flex-wrap items-center gap-1.5">
+              <!-- Dynamic track filter pills -->
+            </div>
+            <button id="btn-add-track-bootcamp" class="touch-btn h-8 px-2.5 rounded-lg text-xs font-semibold glass-panel-interactive border-indigo-500/30 text-indigo-300 hover:bg-indigo-500/10 flex items-center gap-1" title="Add a custom curriculum track">
+              <i data-lucide="plus" class="w-3 h-3"></i>
+              <span>Add Track</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="h-px bg-white/5"></div>
+
+        <!-- Split Daily Logistics Sub-Navigation Module (4 Manifests) -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-2 pt-1">
+          <button id="tab-logistics-morning" class="manifest-tab-btn touch-btn h-12 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-lg shadow-cyan-500/10">
+            <i data-lucide="bus" class="w-4 h-4"></i>
+            <span>1. Morning Pick-up</span>
+          </button>
+          <button id="tab-logistics-evening" class="manifest-tab-btn touch-btn h-12 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all glass-panel-subtle text-slate-300 hover:text-white border border-white/5">
+            <i data-lucide="bus-front" class="w-4 h-4"></i>
+            <span>2. Evening Drop-off</span>
+          </button>
+          <button id="tab-logistics-gate" class="manifest-tab-btn touch-btn h-12 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all glass-panel-subtle text-slate-300 hover:text-white border border-white/5">
+            <i data-lucide="shield-check" class="w-4 h-4"></i>
+            <span>3. Gate / Parent Pick-up</span>
+          </button>
+          <button id="tab-logistics-class" class="manifest-tab-btn touch-btn h-12 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all glass-panel-subtle text-slate-300 hover:text-white border border-white/5">
+            <i data-lucide="clipboard-check" class="w-4 h-4"></i>
+            <span>4. Class Register</span>
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Branch B: Regular Programs Module Controls (Intakes, Tracks, Register) -->
+    <div id="section-regular-controls" class="space-y-4 hidden">
+      <div class="glass-panel rounded-2xl p-4 border border-white/10 space-y-4">
+        
+        <!-- Monthly Intake Switcher -->
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <i data-lucide="calendar-days" class="w-4 h-4 text-cyan-400"></i>
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Intake Month:</span>
+            <div id="regular-intake-tabs" class="flex flex-wrap items-center gap-1.5">
+              <!-- Dynamically populated monthly intakes -->
+            </div>
+            <button id="btn-add-intake-regular" class="touch-btn h-8 px-2.5 rounded-lg text-xs font-semibold glass-panel-interactive border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10 flex items-center gap-1">
+              <i data-lucide="plus" class="w-3 h-3"></i>
+              <span>Add Intake</span>
+            </button>
+          </div>
+
+          <!-- Date Selector -->
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-semibold text-slate-400">Date:</span>
+            <input type="date" id="regular-date-input" class="bg-dark-900 border border-white/10 rounded-lg text-xs px-2.5 h-8 text-cyan-300 focus:outline-none focus:border-cyan-400">
+          </div>
+        </div>
+
+        <div class="h-px bg-white/5"></div>
+
+        <!-- Program/Track Filter -->
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <i data-lucide="terminal" class="w-4 h-4 text-purple-400"></i>
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-300">Program Track:</span>
+            <div id="regular-track-pills" class="flex flex-wrap items-center gap-1.5">
+              <!-- Dynamic program tracks -->
+            </div>
+            <button id="btn-add-track-regular" class="touch-btn h-8 px-2.5 rounded-lg text-xs font-semibold glass-panel-interactive border-purple-500/30 text-purple-300 hover:bg-purple-500/10 flex items-center gap-1">
+              <i data-lucide="plus" class="w-3 h-3"></i>
+              <span>Add Program</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="h-px bg-white/5"></div>
+
+        <!-- Regular Sub Tab (Class Register) -->
+        <div class="flex items-center gap-2 pt-1">
+          <button class="touch-btn h-11 px-5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-lg shadow-purple-600/20">
+            <i data-lucide="clipboard-check" class="w-4 h-4"></i>
+            <span>Class Attendance Register</span>
+          </button>
+          <span class="text-xs text-slate-400 ml-2 hidden sm:inline">(Excludes transport fields)</span>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ==============================================================================
+         4. TOOLBAR & UNIVERSAL EXPORT & PRINT CONTROLS
+         ============================================================================== -->
+    <div class="glass-panel rounded-2xl p-3.5 sm:p-4 border border-white/10 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+      
+      <!-- Live Search Box -->
+      <div class="relative flex-1 max-w-md">
+        <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+        <input type="text" id="manifest-search-input" placeholder="Search by student name, phone, residence, track..." class="w-full glass-input rounded-xl pl-10 pr-4 text-sm placeholder:text-slate-500">
+      </div>
+
+      <!-- Action & Export Suite -->
+      <div class="flex flex-wrap items-center gap-2">
+        
+        <!-- Batch Mark Action Button -->
+        <button id="btn-batch-action" class="touch-btn h-11 px-4 rounded-xl text-xs sm:text-sm font-bold glass-panel-interactive border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/15 flex items-center gap-2">
+          <i data-lucide="check-check" class="w-4 h-4"></i>
+          <span id="batch-action-label">Mark All Picked Up</span>
+        </button>
+
+        <!-- Reset Button -->
+        <button id="btn-reset-manifest" class="touch-btn h-11 px-3.5 rounded-xl text-xs sm:text-sm font-semibold glass-panel-interactive border-white/10 text-slate-400 hover:text-white" title="Reset status for current manifest today">
+          <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+        </button>
+
+        <div class="h-6 w-px bg-white/10 hidden sm:block"></div>
+
+        <!-- 🖨️ Universal Print Trigger -->
+        <button id="btn-trigger-print" class="touch-btn h-11 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-bold glass-panel-interactive border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/15 flex items-center gap-2" title="Print official formatted manifest">
+          <i data-lucide="printer" class="w-4 h-4"></i>
+          <span>Print</span>
+        </button>
+
+        <!-- 📊 Excel / CSV Export -->
+        <button id="btn-export-csv" class="touch-btn h-11 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-bold glass-panel-interactive border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/15 flex items-center gap-2" title="Download Excel/CSV Spreadsheet">
+          <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+          <span>Excel/CSV</span>
+        </button>
+
+        <!-- 📄 PDF Export -->
+        <button id="btn-export-pdf" class="touch-btn h-11 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-bold glass-panel-interactive border-rose-500/40 text-rose-300 hover:bg-rose-500/15 flex items-center gap-2" title="Download Official PDF Document">
+          <i data-lucide="file-text" class="w-4 h-4"></i>
+          <span>PDF</span>
+        </button>
+
+      </div>
+    </div>
+
+    <!-- ==============================================================================
+         5. MANIFEST DATA TABLE & ROSTER CONTAINER
+         ============================================================================== -->
+    <div class="glass-panel rounded-2xl border border-white/10 overflow-hidden shadow-2xl relative min-h-[360px]">
+      
+      <!-- Table Header & Subtitle -->
+      <div class="p-4 sm:p-5 border-b border-white/5 flex items-center justify-between">
+        <div>
+          <h3 id="manifest-table-heading" class="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+            <span id="heading-icon"><i data-lucide="bus" class="w-5 h-5 text-cyan-400"></i></span>
+            <span id="heading-text">Morning Pick-up Manifest</span>
+          </h3>
+          <p id="manifest-table-subheading" class="text-xs text-slate-400 mt-0.5">
+            Sorted Alphabetically (A–Z) &bull; Filtered for Morning Bus transport
+          </p>
+        </div>
+
+        <span id="manifest-count-pill" class="px-3 py-1 rounded-full text-xs font-bold bg-white/5 border border-white/10 text-cyan-400">
+          0 Students
+        </span>
+      </div>
+
+      <!-- Responsive Table View (Desktop & Tablet) -->
+      <div class="overflow-x-auto w-full" id="manifest-table-wrapper">
+        <table class="w-full text-left border-collapse text-sm">
+          <thead>
+            <tr class="bg-dark-900/80 border-b border-white/10 text-[11px] font-bold uppercase tracking-wider text-slate-400 select-none">
+              <th class="py-3.5 px-4 w-12 text-center">#</th>
+              <th class="py-3.5 px-4 cursor-pointer hover:text-white" id="th-sort-name">
+                Student Name <span class="text-cyan-400">&darr; A-Z</span>
+              </th>
+              <th class="py-3.5 px-4">Parent Phone</th>
+              <th class="py-3.5 px-4">Residence</th>
+              <th class="py-3.5 px-4">Track</th>
+              <th class="py-3.5 px-4 th-transport-col">Transport</th>
+              <th class="py-3.5 px-4 text-center">Action Toggle</th>
+              <th class="py-3.5 px-4 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="manifest-table-body" class="divide-y divide-white/5">
+            <!-- Populated via JavaScript -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Clean State Indicator (When 0 students exist) -->
+      <div id="manifest-empty-state" class="p-12 text-center flex flex-col items-center justify-center space-y-4">
+        <div class="w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
+          <i data-lucide="users" class="w-8 h-8"></i>
+        </div>
+        <div class="max-w-md">
+          <h4 class="text-lg font-bold text-white">No Students in this Manifest</h4>
+          <p class="text-xs sm:text-sm text-slate-400 mt-1">
+            There are currently no students registered matching this cohort, track, or transport filter.
+          </p>
+        </div>
+        <button id="btn-empty-onboard" class="touch-btn h-11 px-5 rounded-xl text-xs sm:text-sm font-bold bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-cyan-500/25 flex items-center gap-2">
+          <i data-lucide="user-plus" class="w-4 h-4"></i>
+          <span>Add First Student</span>
+        </button>
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- ==============================================================================
+       6. MOBILE BOTTOM NAVIGATION DOCK
+       ============================================================================== -->
+  <div class="mobile-bottom-bar flex items-center justify-around px-2 py-2 glass-panel border-t border-white/10">
+    <button id="dock-btn-bootcamp" class="flex flex-col items-center justify-center text-cyan-400 text-[10px] font-bold py-1 px-3">
+      <i data-lucide="rocket" class="w-5 h-5 mb-0.5"></i>
+      <span>Boot Camp</span>
+    </button>
+    <button id="dock-btn-regular" class="flex flex-col items-center justify-center text-slate-400 hover:text-white text-[10px] font-bold py-1 px-3">
+      <i data-lucide="graduation-cap" class="w-5 h-5 mb-0.5"></i>
+      <span>Regular</span>
+    </button>
+    <button id="dock-btn-add" class="flex flex-col items-center justify-center text-white text-[10px] font-bold py-1 px-3 -mt-4">
+      <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/40 border-2 border-dark-950">
+        <i data-lucide="plus" class="w-6 h-6"></i>
+      </div>
+      <span class="mt-0.5">Add</span>
+    </button>
+    <button id="dock-btn-print" class="flex flex-col items-center justify-center text-slate-400 hover:text-white text-[10px] font-bold py-1 px-3">
+      <i data-lucide="printer" class="w-5 h-5 mb-0.5"></i>
+      <span>Print</span>
+    </button>
+    <button id="dock-btn-settings" class="flex flex-col items-center justify-center text-slate-400 hover:text-white text-[10px] font-bold py-1 px-3">
+      <i data-lucide="settings" class="w-5 h-5 mb-0.5"></i>
+      <span>Settings</span>
+    </button>
+  </div>
+
+  <!-- ==============================================================================
+       7. SINGLE-ENTRY ONBOARDING MODAL (RECEPTION DESK)
+       ============================================================================== -->
+  <div id="modal-onboarding" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-dark-950/80 backdrop-blur-md hidden transition-opacity">
+    <div class="glass-panel w-full max-w-xl rounded-2xl border border-white/15 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-150">
+      
+      <!-- Header -->
+      <div class="p-5 border-b border-white/10 flex items-center justify-between bg-dark-900/60">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-400 flex items-center justify-center">
+            <i data-lucide="user-check" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-base sm:text-lg font-bold text-white">Student Onboarding Desk</h3>
+            <p class="text-xs text-slate-400">Single entry updates database, class roster & bus manifests</p>
+          </div>
+        </div>
+        <button id="btn-close-onboarding" class="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-white/5">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Form Body -->
+      <form id="student-onboarding-form" class="p-5 space-y-4 overflow-y-auto flex-1">
+        
+        <!-- Student Full Name -->
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5" for="onboard-name">
+            Student Full Name <span class="text-cyan-400">*</span>
+          </label>
+          <input type="text" id="onboard-name" required placeholder="e.g. Alex Kamau" class="w-full glass-input rounded-xl px-4 text-sm font-medium">
+        </div>
+
+        <!-- Phone & Residence -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5" for="onboard-phone">
+              Parent / Student Phone <span class="text-cyan-400">*</span>
+            </label>
+            <input type="tel" id="onboard-phone" required placeholder="e.g. +254 712 345 678" class="w-full glass-input rounded-xl px-4 text-sm font-medium">
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5" for="onboard-residence">
+              Residence / Neighborhood <span class="text-cyan-400">*</span>
+            </label>
+            <input type="text" id="onboard-residence" required placeholder="e.g. Westlands, Kilimani, Karen" class="w-full glass-input rounded-xl px-4 text-sm font-medium">
+          </div>
+        </div>
+
+        <!-- Academy Branch -->
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+            Academy Branch <span class="text-cyan-400">*</span>
+          </label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="glass-panel-subtle p-3 rounded-xl border border-white/10 flex items-center gap-2 cursor-pointer has-[:checked]:border-cyan-400 has-[:checked]:bg-cyan-500/10 transition-all">
+              <input type="radio" name="onboard-branch" value="bootcamp" checked class="text-cyan-500 focus:ring-0">
+              <span class="text-xs font-bold text-white">Boot Camp (Kids)</span>
+            </label>
+            <label class="glass-panel-subtle p-3 rounded-xl border border-white/10 flex items-center gap-2 cursor-pointer has-[:checked]:border-cyan-400 has-[:checked]:bg-cyan-500/10 transition-all">
+              <input type="radio" name="onboard-branch" value="regular" class="text-cyan-500 focus:ring-0">
+              <span class="text-xs font-bold text-white">Regular Programs</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Cohort & Track -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5" for="onboard-cohort">
+              Intake / Cohort <span class="text-cyan-400">*</span>
+            </label>
+            <select id="onboard-cohort" required class="w-full glass-input rounded-xl px-3 text-sm font-medium bg-dark-900">
+              <!-- Dynamically populated based on branch -->
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5" for="onboard-track">
+              Track / Program <span class="text-cyan-400">*</span>
+            </label>
+            <select id="onboard-track" required class="w-full glass-input rounded-xl px-3 text-sm font-medium bg-dark-900">
+              <!-- Dynamically populated based on branch -->
+            </select>
+          </div>
+        </div>
+
+        <!-- Transport Preference (Dynamic based on Branch) -->
+        <div id="onboard-transport-group">
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5" for="onboard-transport">
+            Transport Preference (Boot Camp Daily Logistics)
+          </label>
+          <select id="onboard-transport" class="w-full glass-input rounded-xl px-3 text-sm font-medium bg-dark-900">
+            <option value="both">Both Morning Pick-up & Evening Drop-off (Bus)</option>
+            <option value="morning_bus">Morning Bus Pick-up Only</option>
+            <option value="evening_bus">Evening Bus Drop-off Only</option>
+            <option value="parent_pickup">Parent Pick-up & Drop-off (Gate)</option>
+            <option value="self_arrival">Self Arrival / Walking</option>
+          </select>
+        </div>
+
+        <!-- Notes / Special Instructions -->
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5" for="onboard-notes">
+            Special Notes (Emergency contact, allergies, gate authorization)
+          </label>
+          <textarea id="onboard-notes" rows="2" placeholder="e.g. Picked up by aunt Jane; allergic to peanuts" class="w-full glass-input rounded-xl p-3 text-xs sm:text-sm font-medium"></textarea>
+        </div>
+
+        <!-- Submit Button -->
+        <div class="pt-2">
+          <button type="submit" id="btn-submit-onboard" class="touch-btn w-full h-12 rounded-xl text-sm font-extrabold bg-gradient-to-r from-cyan-500 via-blue-500 to-indigo-600 text-white shadow-lg shadow-cyan-500/30 hover:shadow-cyan-500/50 flex items-center justify-center gap-2">
+            <i data-lucide="check" class="w-5 h-5"></i>
+            <span>Register & Propagate to Manifests</span>
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- ==============================================================================
+       8. SUPABASE BACKEND & SETTINGS MODAL
+       ============================================================================== -->
+  <div id="modal-settings" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-dark-950/80 backdrop-blur-md hidden transition-opacity">
+    <div class="glass-panel w-full max-w-lg rounded-2xl border border-white/15 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      
+      <div class="p-5 border-b border-white/10 flex items-center justify-between bg-dark-900/60">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-cyan-500/20 border border-cyan-500/40 text-cyan-400 flex items-center justify-center">
+            <i data-lucide="database" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-base sm:text-lg font-bold text-white">Supabase Backend Configuration</h3>
+            <p class="text-xs text-slate-400">PostgreSQL Cloud Persistence & Realtime Sync</p>
+          </div>
+        </div>
+        <button id="btn-close-settings" class="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-white/5">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-5 space-y-4 overflow-y-auto">
+        <div class="p-3 rounded-xl bg-cyan-500/10 border border-cyan-500/20 text-xs text-cyan-300">
+          <strong>Seamless Dual-Storage Mode:</strong> If Supabase credentials are not entered yet, the app safely operates with full functionality using browser LocalStorage. Enter your Supabase credentials anytime to enable persistent PostgreSQL cloud sync.
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1" for="setting-supabase-url">
+            Supabase Project URL
+          </label>
+          <input type="url" id="setting-supabase-url" placeholder="https://your-project.supabase.co" class="w-full glass-input rounded-xl px-4 text-sm font-mono">
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1" for="setting-supabase-key">
+            Supabase Anon Public API Key
+          </label>
+          <input type="password" id="setting-supabase-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6..." class="w-full glass-input rounded-xl px-4 text-sm font-mono">
+        </div>
+
+        <div class="flex items-center justify-between p-3 rounded-xl glass-panel-subtle border border-white/10">
+          <div class="flex items-center gap-2">
+            <span id="settings-status-indicator" class="w-3 h-3 rounded-full bg-amber-400"></span>
+            <span id="settings-status-text" class="text-xs font-bold text-slate-300">LocalStorage Mode</span>
+          </div>
+          <button id="btn-test-supabase" class="touch-btn h-9 px-3 rounded-lg text-xs font-bold glass-panel-interactive border-cyan-500/40 text-cyan-300">
+            Test & Connect
+          </button>
+        </div>
+
+        <div class="h-px bg-white/10"></div>
+
+        <!-- Local Cache Utilities -->
+        <div class="space-y-2">
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-400">Data Management:</span>
+          <div class="grid grid-cols-2 gap-2">
+            <button id="btn-export-backup-json" class="touch-btn h-10 px-3 rounded-xl text-xs font-semibold glass-panel-subtle border border-white/10 text-slate-300 hover:text-white flex items-center justify-center gap-1.5">
+              <i data-lucide="download" class="w-3.5 h-3.5"></i>
+              <span>Backup JSON</span>
+            </button>
+            <button id="btn-clear-all-data" class="touch-btn h-10 px-3 rounded-xl text-xs font-semibold glass-panel-subtle border border-rose-500/20 text-rose-400 hover:bg-rose-500/10 flex items-center justify-center gap-1.5">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+              <span>Clear All Data</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="pt-2">
+          <button id="btn-save-settings" class="touch-btn w-full h-11 rounded-xl text-sm font-bold bg-cyan-500 hover:bg-cyan-400 text-dark-950 flex items-center justify-center gap-2">
+            <i data-lucide="save" class="w-4 h-4"></i>
+            <span>Save Settings</span>
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ==============================================================================
+       9. BRANDING LOGO CUSTOMIZER MODAL
+       ============================================================================== -->
+  <div id="modal-logo" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-dark-950/80 backdrop-blur-md hidden transition-opacity">
+    <div class="glass-panel w-full max-w-md rounded-2xl border border-white/15 shadow-2xl overflow-hidden p-6 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-base font-bold text-white">Customize Academy Logo</h3>
+        <button id="btn-close-logo-modal" class="text-slate-400 hover:text-white p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="flex flex-col items-center justify-center p-4 rounded-xl glass-panel-subtle border border-white/10">
+        <div class="w-20 h-20 rounded-2xl overflow-hidden glass-panel border-2 border-cyan-400 p-2 mb-3">
+          <img id="logo-preview-img" src="./icons/icon.svg" alt="Preview Logo" class="w-full h-full object-contain">
+        </div>
+        <p class="text-xs text-slate-400">Current Logo Preview</p>
+      </div>
+
+      <div>
+        <label class="block text-xs font-bold text-slate-300 mb-1.5" for="input-logo-file">
+          Upload New Image (PNG, JPG, SVG)
+        </label>
+        <input type="file" id="input-logo-file" accept="image/*" class="w-full text-xs text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-cyan-500/20 file:text-cyan-300 hover:file:bg-cyan-500/30">
+      </div>
+
+      <div class="flex items-center gap-2 pt-2">
+        <button id="btn-reset-logo" class="touch-btn flex-1 h-11 rounded-xl text-xs font-bold glass-panel-subtle border border-white/10 text-slate-400 hover:text-white">
+          Reset Default
+        </button>
+        <button id="btn-save-logo" class="touch-btn flex-1 h-11 rounded-xl text-xs font-bold bg-cyan-500 text-dark-950 hover:bg-cyan-400">
+          Apply Logo
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==============================================================================
+       10. ADD TRACK & ADD COHORT MODALS
+       ============================================================================== -->
+  <div id="modal-add-item" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-dark-950/80 backdrop-blur-md hidden transition-opacity">
+    <div class="glass-panel w-full max-w-md rounded-2xl border border-white/15 shadow-2xl overflow-hidden p-6 space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 id="modal-add-item-title" class="text-base font-bold text-white">Add New Track</h3>
+        <button id="btn-close-add-item" class="text-slate-400 hover:text-white p-1">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div>
+        <label id="modal-add-item-label" class="block text-xs font-bold text-slate-300 mb-1.5" for="input-new-item-name">
+          Track Name
+        </label>
+        <input type="text" id="input-new-item-name" placeholder="e.g. AI & Robotics Advanced" class="w-full glass-input rounded-xl px-4 text-sm font-medium">
+      </div>
+
+      <div class="flex items-center gap-2 pt-2">
+        <button id="btn-cancel-add-item" class="touch-btn flex-1 h-11 rounded-xl text-xs font-bold glass-panel-subtle border border-white/10 text-slate-400 hover:text-white">
+          Cancel
+        </button>
+        <button id="btn-confirm-add-item" class="touch-btn flex-1 h-11 rounded-xl text-xs font-bold bg-cyan-500 text-dark-950 hover:bg-cyan-400">
+          Add Now
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==============================================================================
+       11. DEDICATED OFFICIAL PRINT TEMPLATE (Hidden on screen, revealed by @media print)
+       ============================================================================== -->
+  <div id="print-document" aria-hidden="true">
+    <div style="border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 16px;">
+      <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <h1 style="font-size: 20pt; font-weight: 800; color: #0f172a; margin: 0; letter-spacing: -0.5px;">TECH & AI ACADEMY</h1>
+          <p style="font-size: 10pt; color: #475569; margin: 2px 0 0 0;">OPERATIONS & LOGISTICS DIVISION &bull; OFFICIAL DAILY MANIFEST</p>
+        </div>
+        <div style="text-align: right;">
+          <div style="font-size: 11pt; font-weight: 700; color: #0f172a;" id="print-doc-date">Date: 2026-11-11</div>
+          <div style="font-size: 9pt; color: #64748b;" id="print-doc-timestamp">Generated: 16:00</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Metadata Banner -->
+    <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; font-size: 10pt;">
+      <div style="display: flex; justify-content: space-between;">
+        <div><strong>Manifest:</strong> <span id="print-doc-manifest">Morning Pick-up Manifest</span></div>
+        <div><strong>Branch:</strong> <span id="print-doc-branch">Boot Camp (Kids)</span></div>
+        <div><strong>Cohort:</strong> <span id="print-doc-cohort">August Intake</span></div>
+        <div><strong>Track:</strong> <span id="print-doc-track">All Tracks</span></div>
+      </div>
+      <div style="display: flex; justify-content: space-between; margin-top: 6px; border-top: 1px dashed #cbd5e1; padding-top: 6px;">
+        <div><strong>Total Enrolled:</strong> <span id="print-doc-total">0</span></div>
+        <div><strong>Completed / Checked:</strong> <span id="print-doc-completed">0</span></div>
+        <div><strong>Pending:</strong> <span id="print-doc-pending">0</span></div>
+        <div><strong>Status:</strong> <span id="print-doc-rate">0% Verified</span></div>
+      </div>
+    </div>
+
+    <!-- Printable Table Container -->
+    <table class="print-table" id="print-doc-table">
+      <thead>
+        <tr>
+          <th style="width: 35px; text-align: center;">#</th>
+          <th>Student Full Name</th>
+          <th>Contact Phone</th>
+          <th>Residence</th>
+          <th>Track</th>
+          <th style="width: 100px; text-align: center;">Status</th>
+          <th style="width: 140px;">Driver / Sign-off</th>
+        </tr>
+      </thead>
+      <tbody id="print-doc-tbody">
+        <!-- Rendered dynamically for print -->
+      </tbody>
+    </table>
+
+    <!-- Signature Sign-off footer -->
+    <div style="margin-top: 36px; padding-top: 14px; border-top: 1px solid #94a3b8; font-size: 9.5pt; display: flex; justify-content: space-between;">
+      <div>
+        <p>Driver / Chaperone Signature: _________________________________</p>
+      </div>
+      <div>
+        <p>Academy Supervisor Signature: _________________________________</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed bottom-20 sm:bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- Application Logic -->
+  <script src="./app.js"></script>
+</body>
+</html>
