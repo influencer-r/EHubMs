@@ -1,10 +1,10 @@
-// Service Worker for EldoHub Tech & AI Academy Portal (Cache v9)
-const CACHE_NAME = 'eldohub-academy-v9';
+// Service Worker for EldoHub Tech & AI Academy Portal (Cache v10)
+const CACHE_NAME = 'eldohub-academy-v10';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
-  './style.css?v=9',
-  './app.js?v=9',
+  './style.css?v=10',
+  './app.js?v=10',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png',

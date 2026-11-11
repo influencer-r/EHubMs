@@ -481,6 +481,84 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     btnSignoutHeader?.addEventListener('click', handleSignOut);
     btnSignoutSidebar?.addEventListener('click', handleSignOut);
     btnSignoutDock?.addEventListener('click', handleSignOut);
+
+    // Automated Password Setup Modal Handler (triggered when user clicks invitation link in their email)
+    if (state.supabaseClient) {
+      state.supabaseClient.auth.onAuthStateChange((event, session) => {
+        if (event === 'PASSWORD_RECOVERY') {
+          const modalSet = document.getElementById('modal-set-password');
+          modalSet?.classList.remove('hidden');
+          if (window.lucide) window.lucide.createIcons();
+        }
+      });
+    }
+
+    if (window.location.hash.includes('type=recovery') || window.location.search.includes('type=recovery')) {
+      const modalSet = document.getElementById('modal-set-password');
+      modalSet?.classList.remove('hidden');
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    const formSetPassword = document.getElementById('form-set-password');
+    formSetPassword?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const p1 = document.getElementById('new-permanent-password').value;
+      const p2 = document.getElementById('confirm-permanent-password').value;
+      const submitBtn = document.getElementById('btn-submit-new-password');
+
+      if (p1 !== p2) {
+        notify('Passwords do not match. Please verify.', 'error');
+        return;
+      }
+      if (p1.length < 6) {
+        notify('Password must be at least 6 characters.', 'error');
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Saving Password...</span>';
+      if (window.lucide) window.lucide.createIcons();
+
+      try {
+        if (state.supabaseClient) {
+          const { error } = await state.supabaseClient.auth.updateUser({ password: p1 });
+          if (error) throw error;
+        }
+
+        notify('Password successfully created! Welcome to EldoHub Academy.', 'success');
+        document.getElementById('modal-set-password')?.classList.add('hidden');
+
+        // Fetch user profile and enter system
+        if (state.supabaseClient) {
+          const { data: { user } } = await state.supabaseClient.auth.getUser();
+          if (user) {
+            const { data: prof } = await state.supabaseClient
+              .from('profiles')
+              .select('*')
+              .eq('id', user.id)
+              .single();
+
+            state.currentUser = prof || {
+              id: user.id,
+              email: user.email,
+              full_name: user.user_metadata?.full_name || user.email.split('@')[0],
+              role: user.user_metadata?.role || 'instructor',
+              assigned_tracks: [],
+              is_active: true
+            };
+            localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(state.currentUser));
+            applyRolePermissions();
+            renderApp();
+          }
+        }
+      } catch (err) {
+        notify(`Password setup notice: ${err.message || 'Please retry'}`, 'error');
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<i data-lucide="check-circle-2" class="w-4 h-4"></i><span>Save Password & Enter Academy</span>';
+        if (window.lucide) window.lucide.createIcons();
+      }
+    });
   }
 
   function formatRoleName(role) {
@@ -1306,12 +1384,43 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
           </span>
         </td>
         <td class="py-3.5 px-4 text-right space-x-2">
+          <button data-resend-link="${escapeHTML(st.email)}" class="touch-btn h-8 px-2.5 rounded-lg text-xs font-bold bg-sky-50 hover:bg-sky-100 text-sky-700 border border-sky-200 inline-flex items-center gap-1.5" title="Send or resend automated password setup link">
+            <i data-lucide="mail" class="w-3.5 h-3.5 text-sky-600"></i>
+            <span>Email Link</span>
+          </button>
           <button data-toggle-staff="${st.id}" class="touch-btn h-8 px-2.5 rounded-lg text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200">
             ${st.is_active ? 'Deactivate' : 'Activate'}
           </button>
         </td>
       `;
       tbody.appendChild(tr);
+    });
+
+    // Wire Resend Password Link buttons
+    tbody.querySelectorAll('[data-resend-link]').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const email = btn.getAttribute('data-resend-link');
+        const originalHtml = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i><span>Sending...</span>';
+        if (window.lucide) window.lucide.createIcons();
+
+        try {
+          if (state.supabaseClient) {
+            const { error } = await state.supabaseClient.auth.resetPasswordForEmail(email, {
+              redirectTo: window.location.origin
+            });
+            if (error) throw error;
+          }
+          notify(`Automated password setup link dispatched to ${email}!`, 'success');
+        } catch (err) {
+          notify(`Notice: ${err.message || 'Could not dispatch email'}`, 'warning');
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = originalHtml;
+          if (window.lucide) window.lucide.createIcons();
+        }
+      });
     });
 
     // Wire deactivate/activate buttons
@@ -1358,15 +1467,66 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       const name = document.getElementById('staff-name').value.trim();
       const email = document.getElementById('staff-email').value.trim();
       const role = document.getElementById('staff-role').value;
-      const password = document.getElementById('staff-password').value;
+      const submitBtn = document.getElementById('btn-submit-staff');
 
       const checkedTracks = [];
       document.querySelectorAll('input[name="staff-track-assign"]:checked').forEach(cb => {
         checkedTracks.push(cb.value);
       });
 
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Inviting Staff...</span>';
+      if (window.lucide) window.lucide.createIcons();
+
+      let createdAuthUserId = null;
+      let emailDispatched = false;
+
+      // 1. Provision Auth user and dispatch password setup email via Supabase
+      if (state.supabaseClient) {
+        try {
+          const tempSecret = 'Eldo!' + Math.random().toString(36).substring(2, 10) + 'A' + Date.now().toString(36);
+
+          // Use isolated client so Super Admin's active session is never disturbed
+          const clientConfig = {
+            url: state.supabaseClient.supabaseUrl || DEFAULT_SUPABASE_CONFIG.url,
+            key: state.supabaseClient.supabaseKey || DEFAULT_SUPABASE_CONFIG.key
+          };
+          const tempClient = window.supabase.createClient(clientConfig.url, clientConfig.key, {
+            auth: { persistSession: false, autoRefreshToken: false }
+          });
+
+          const { data: signUpData, error: signUpError } = await tempClient.auth.signUp({
+            email: email,
+            password: tempSecret,
+            options: {
+              data: {
+                full_name: name,
+                role: role
+              }
+            }
+          });
+
+          if (signUpData?.user) {
+            createdAuthUserId = signUpData.user.id;
+          }
+
+          // Trigger automated password setup / recovery email
+          const { error: resetErr } = await state.supabaseClient.auth.resetPasswordForEmail(email, {
+            redirectTo: window.location.origin
+          });
+
+          if (!resetErr) {
+            emailDispatched = true;
+          } else {
+            console.warn('Password reset dispatch notice:', resetErr);
+          }
+        } catch (err) {
+          console.warn('Staff auth dispatch notice:', err);
+        }
+      }
+
       const newStaff = {
-        id: crypto.randomUUID ? crypto.randomUUID() : 'staff_' + Date.now(),
+        id: createdAuthUserId || (crypto.randomUUID ? crypto.randomUUID() : 'staff_' + Date.now()),
         full_name: name,
         email: email,
         role: role,
@@ -1375,37 +1535,50 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         created_at: new Date().toISOString()
       };
 
-      state.data.staff.push(newStaff);
+      // Add to local state (or update existing)
+      const existingIdx = state.data.staff.findIndex(s => s.email.toLowerCase() === email.toLowerCase());
+      if (existingIdx >= 0) {
+        state.data.staff[existingIdx] = newStaff;
+      } else {
+        state.data.staff.push(newStaff);
+      }
       saveStoredData();
 
-      logAuditAction('STAFF_PROVISION', 'profile', newStaff.id, {
-        name: name,
-        email: email,
-        role: role,
-        assigned_tracks: checkedTracks
-      });
-
-      // If Supabase is available, provision Auth user / Profile
+      // Upsert profile in Supabase database
       if (state.supabaseClient) {
         try {
-          await state.supabaseClient.auth.signUp({
+          await state.supabaseClient.from('profiles').upsert({
+            id: newStaff.id,
             email: email,
-            password: password,
-            options: {
-              data: {
-                full_name: name,
-                role: role
-              }
-            }
+            full_name: name,
+            role: role,
+            assigned_tracks: checkedTracks,
+            is_active: true
           });
-        } catch (err) {
-          console.warn('Staff auth signUp notice:', err);
+        } catch (e) {
+          console.warn('Profiles upsert warning:', e);
         }
       }
 
-      notify(`Staff account for ${name} (${formatRoleName(role)}) created!`, 'success');
+      logAuditAction('STAFF_INVITE_SENT', 'profile', newStaff.id, {
+        name: name,
+        email: email,
+        role: role,
+        assigned_tracks: checkedTracks,
+        email_sent: emailDispatched
+      });
+
+      if (emailDispatched) {
+        notify(`Invitation sent! Supabase dispatched a password setup link to ${email}.`, 'success');
+      } else {
+        notify(`Staff account registered for ${name}. Click "Email Link" anytime to send setup link.`, 'info');
+      }
+
       modalAddStaff?.classList.add('hidden');
       formAddStaff.reset();
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i data-lucide="send" class="w-4 h-4"></i><span>Send Email Invitation & Setup Link</span>';
+      if (window.lucide) window.lucide.createIcons();
       renderStaffTable();
     });
   }
