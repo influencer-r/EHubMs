@@ -52,7 +52,7 @@
   <script src="https://unpkg.com/lucide@latest"></script>
 
   <!-- Custom Stylesheet with cache busting -->
-  <link rel="stylesheet" href="./style.css?v=13">
+  <link rel="stylesheet" href="./style.css?v=14">
 </head>
 <body class="text-slate-900 min-h-screen flex flex-col antialiased selection:bg-sky-500 selection:text-white">
 
@@ -85,11 +85,10 @@
         <p class="text-xs text-slate-500 font-medium">Please authenticate with your official EldoHub staff account</p>
       </div>
 
-      <!-- Auth Tabs: Sign In / Forgot Password / Set Password -->
+      <!-- Auth Tabs: Sign In / Forgot Password -->
       <div id="auth-tabs-bar" class="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs font-bold">
         <button id="auth-tab-signin" class="flex-1 py-2 rounded-lg bg-white text-slate-900 shadow-sm">Sign In</button>
         <button id="auth-tab-reset" class="flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900">Forgot Password</button>
-        <button id="auth-tab-activate" class="flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900">Set Password</button>
       </div>
 
       <!-- Sign In Form -->
@@ -110,7 +109,10 @@
           </label>
           <div class="relative">
             <i data-lucide="lock" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
-            <input type="password" id="auth-password" required placeholder="••••••••" class="w-full glass-input rounded-xl pl-10 pr-4 text-sm font-medium">
+            <input type="password" id="auth-password" required placeholder="••••••••" class="w-full glass-input rounded-xl pl-10 pr-11 text-sm font-medium">
+            <button type="button" class="btn-toggle-password absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1" data-target="auth-password" aria-label="Toggle password visibility">
+              <i data-lucide="eye" class="w-4 h-4"></i>
+            </button>
           </div>
         </div>
 
@@ -137,7 +139,7 @@
         </button>
       </form>
 
-      <!-- Password Setup / Activation Form (Shown automatically when arriving from email invitation/recovery link) -->
+      <!-- Password Setup / Activation Form (Shown ONLY for first-time invited users arriving via invite/recovery link) -->
       <form id="auth-update-password-form" class="space-y-4 hidden">
         <div class="p-4 bg-sky-50 border border-sky-200 rounded-2xl text-center space-y-1">
           <div class="w-10 h-10 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center mx-auto mb-1">
@@ -153,7 +155,10 @@
           </label>
           <div class="relative">
             <i data-lucide="lock" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
-            <input type="password" id="new-permanent-password" required minlength="6" placeholder="At least 6 characters" class="w-full glass-input rounded-xl pl-10 pr-4 text-sm font-medium">
+            <input type="password" id="new-permanent-password" required minlength="6" placeholder="At least 6 characters" class="w-full glass-input rounded-xl pl-10 pr-11 text-sm font-medium">
+            <button type="button" class="btn-toggle-password absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1" data-target="new-permanent-password" aria-label="Toggle password visibility">
+              <i data-lucide="eye" class="w-4 h-4"></i>
+            </button>
           </div>
         </div>
 
@@ -163,7 +168,10 @@
           </label>
           <div class="relative">
             <i data-lucide="check-circle" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
-            <input type="password" id="confirm-permanent-password" required minlength="6" placeholder="Repeat your new password" class="w-full glass-input rounded-xl pl-10 pr-4 text-sm font-medium">
+            <input type="password" id="confirm-permanent-password" required minlength="6" placeholder="Repeat your new password" class="w-full glass-input rounded-xl pl-10 pr-11 text-sm font-medium">
+            <button type="button" class="btn-toggle-password absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1" data-target="confirm-permanent-password" aria-label="Toggle password visibility">
+              <i data-lucide="eye" class="w-4 h-4"></i>
+            </button>
           </div>
         </div>
 
@@ -919,7 +927,13 @@
           <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1" for="staff-password">
             Direct Access Password <span class="text-sky-600">*</span>
           </label>
-          <input type="text" id="staff-password" required value="EldoHub2026!" class="w-full glass-input rounded-xl px-4 text-sm font-medium">
+          <div class="relative">
+            <i data-lucide="lock" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+            <input type="password" id="staff-password" required value="EldoHub2026!" class="w-full glass-input rounded-xl pl-10 pr-11 text-sm font-medium">
+            <button type="button" class="btn-toggle-password absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1" data-target="staff-password" aria-label="Toggle password visibility">
+              <i data-lucide="eye" class="w-4 h-4"></i>
+            </button>
+          </div>
           <p class="text-[11px] text-slate-500 mt-1">Staff can log in with this password immediately, or reset it anytime via email.</p>
         </div>
 
@@ -1110,6 +1124,6 @@
   <div id="toast-container" class="fixed bottom-20 sm:bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
   <!-- Application Logic with cache busting -->
-  <script src="./app.js?v=13"></script>
+  <script src="./app.js?v=14"></script>
 </body>
 </html>

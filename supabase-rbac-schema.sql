@@ -31,9 +31,12 @@ CREATE TABLE IF NOT EXISTS public.profiles (
     role public.app_role NOT NULL DEFAULT 'instructor',
     assigned_tracks TEXT[] DEFAULT '{}',
     is_active BOOLEAN NOT NULL DEFAULT true,
+    is_first_login BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
+
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_first_login BOOLEAN NOT NULL DEFAULT false;
 
 CREATE INDEX IF NOT EXISTS idx_profiles_role ON public.profiles (role);
 CREATE INDEX IF NOT EXISTS idx_profiles_email ON public.profiles (email);
@@ -408,24 +411,27 @@ DECLARE
     user_count INT;
     assigned_role public.app_role;
     user_name TEXT;
+    is_first BOOLEAN;
 BEGIN
     SELECT count(*) INTO user_count FROM public.profiles;
 
-    -- First registered user in system automatically becomes Super Administrator!
+    -- First registered user in system automatically becomes Super Administrator with is_first_login false!
     IF user_count = 0 THEN
         assigned_role := 'super_admin'::public.app_role;
+        is_first := false;
     ELSE
         -- Default role from raw_user_meta_data or instructor
         assigned_role := COALESCE(
             (NEW.raw_user_meta_data->>'role')::public.app_role, 
             'instructor'::public.app_role
         );
+        is_first := COALESCE((NEW.raw_user_meta_data->>'is_first_login')::boolean, true);
     END IF;
 
     user_name := COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1));
 
-    INSERT INTO public.profiles (id, email, full_name, role, is_active)
-    VALUES (NEW.id, NEW.email, user_name, assigned_role, true)
+    INSERT INTO public.profiles (id, email, full_name, role, is_active, is_first_login)
+    VALUES (NEW.id, NEW.email, user_name, assigned_role, true, is_first)
     ON CONFLICT (id) DO UPDATE SET
         email = EXCLUDED.email,
         full_name = EXCLUDED.full_name;

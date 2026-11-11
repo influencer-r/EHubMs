@@ -13,12 +13,12 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
   // Capture URL parameters BEFORE anything can strip or alter them!
   const INITIAL_HASH = window.location.hash || '';
   const INITIAL_SEARCH = window.location.search || '';
+  // ONLY true if arriving via Supabase email invite or recovery link!
   const IS_RECOVERY_INTENT = 
+    INITIAL_HASH.includes('type=invite') || 
     INITIAL_HASH.includes('type=recovery') || 
-    INITIAL_SEARCH.includes('type=recovery') || 
-    INITIAL_HASH.includes('access_token=') || 
-    INITIAL_HASH.includes('type=invite') ||
-    INITIAL_SEARCH.includes('code=');
+    INITIAL_SEARCH.includes('type=invite') || 
+    INITIAL_SEARCH.includes('type=recovery');
 
   // ============================================================================
   // 1. GLOBAL STATE & INSTITUTIONAL CONFIGURATION
@@ -330,13 +330,36 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
   // 4. AUTHENTICATION & ROLE-BASED ACCESS CONTROL (RBAC)
   // ============================================================================
 
+  function initPasswordToggles() {
+    document.querySelectorAll('.btn-toggle-password').forEach(btn => {
+      if (btn._hasToggleListener) return;
+      btn._hasToggleListener = true;
+
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const targetId = btn.getAttribute('data-target');
+        const input = document.getElementById(targetId);
+        if (!input) return;
+
+        const isPassword = input.type === 'password';
+        input.type = isPassword ? 'text' : 'password';
+
+        btn.innerHTML = isPassword 
+          ? '<i data-lucide="eye-off" class="w-4 h-4 text-sky-600"></i>' 
+          : '<i data-lucide="eye" class="w-4 h-4 text-slate-400"></i>';
+
+        if (window.lucide) window.lucide.createIcons();
+      });
+    });
+  }
+
   function initAuthSystem() {
     const authGateway = document.getElementById('auth-gateway');
     const loginForm = document.getElementById('auth-login-form');
     const resetForm = document.getElementById('auth-reset-form');
     const tabSignIn = document.getElementById('auth-tab-signin');
     const tabReset = document.getElementById('auth-tab-reset');
-    const tabActivate = document.getElementById('auth-tab-activate');
     const tabsBar = document.getElementById('auth-tabs-bar');
     const updatePasswordForm = document.getElementById('auth-update-password-form');
     const roleSimulator = document.getElementById('auth-role-simulator');
@@ -344,29 +367,26 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     const btnSignoutSidebar = document.getElementById('btn-sidebar-signout');
     const btnSignoutDock = document.getElementById('dock-btn-signout');
 
-    // Display password setup form when arriving from email invitation/recovery
+    // Initialize password eye toggles
+    initPasswordToggles();
+
+    // Display password setup form ONLY when arriving from email invitation/recovery
     function showPasswordRecoveryMode() {
       state.isPasswordRecoveryActive = true;
       if (authGateway) authGateway.classList.remove('hidden');
+      if (tabsBar) tabsBar.classList.add('hidden');
       if (loginForm) loginForm.classList.add('hidden');
       if (resetForm) resetForm.classList.add('hidden');
       if (roleSimulator) roleSimulator.classList.add('hidden');
       if (updatePasswordForm) updatePasswordForm.classList.remove('hidden');
-      
-      if (tabSignIn && tabReset && tabActivate) {
-        tabActivate.className = 'flex-1 py-2 rounded-lg bg-white text-slate-900 shadow-sm';
-        tabSignIn.className = 'flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900';
-        tabReset.className = 'flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900';
-      }
       if (window.lucide) window.lucide.createIcons();
     }
     window.showPasswordRecoveryModeGlobal = showPasswordRecoveryMode;
 
-    // Tab switcher
+    // Tab switcher (2 tabs: Sign In & Forgot Password)
     tabSignIn?.addEventListener('click', () => {
       tabSignIn.className = 'flex-1 py-2 rounded-lg bg-white text-slate-900 shadow-sm';
       tabReset.className = 'flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900';
-      if (tabActivate) tabActivate.className = 'flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900';
       loginForm?.classList.remove('hidden');
       resetForm?.classList.add('hidden');
       updatePasswordForm?.classList.add('hidden');
@@ -377,7 +397,6 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     tabReset?.addEventListener('click', () => {
       tabReset.className = 'flex-1 py-2 rounded-lg bg-white text-slate-900 shadow-sm';
       tabSignIn.className = 'flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900';
-      if (tabActivate) tabActivate.className = 'flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900';
       resetForm?.classList.remove('hidden');
       loginForm?.classList.add('hidden');
       updatePasswordForm?.classList.add('hidden');
@@ -385,11 +404,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       state.isPasswordRecoveryActive = false;
     });
 
-    tabActivate?.addEventListener('click', () => {
-      showPasswordRecoveryMode();
-    });
-
-    // Check URL parameters or active state immediately
+    // Check URL parameters: ONLY activate if arriving via email invite/recovery token
     if (state.isPasswordRecoveryActive) {
       showPasswordRecoveryMode();
     }
@@ -402,7 +417,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       }
     } catch (e) {}
 
-    // Form submission: Sign In
+    // Form submission: Standard Sign In
     loginForm?.addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = document.getElementById('auth-email').value.trim();
@@ -415,7 +430,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
       let authenticatedStaff = null;
 
-      // 1. Attempt Supabase Auth login if client is connected
+      // 1. Authenticate with Supabase Auth
       if (state.supabaseClient) {
         try {
           const { data, error } = await state.supabaseClient.auth.signInWithPassword({
@@ -433,7 +448,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
           }
 
           if (data?.user) {
-            // Find or fetch profile
+            // Fetch profile
             const { data: prof } = await state.supabaseClient
               .from('profiles')
               .select('*')
@@ -449,7 +464,8 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
                 full_name: data.user.user_metadata?.full_name || email.split('@')[0],
                 role: data.user.user_metadata?.role || 'super_admin',
                 assigned_tracks: [],
-                is_active: true
+                is_active: true,
+                is_first_login: false
               };
             }
           }
@@ -473,6 +489,20 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
           return;
         }
 
+        // Super Admin account NEVER enters password recovery loop
+        if (authenticatedStaff.role === 'super_admin') {
+          authenticatedStaff.is_first_login = false;
+        }
+
+        // Only first-time invited users with is_first_login true are prompted to set password
+        if (authenticatedStaff.role !== 'super_admin' && authenticatedStaff.is_first_login === true) {
+          showPasswordRecoveryMode();
+          notify('First-time login: Please create your permanent password.', 'info');
+          return;
+        }
+
+        // Standard user or Super Admin: route directly to role dashboard
+        state.isPasswordRecoveryActive = false;
         state.currentUser = authenticatedStaff;
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authenticatedStaff));
         logAuditAction('STAFF_SIGN_IN', 'auth', authenticatedStaff.id, { email: authenticatedStaff.email });
@@ -584,6 +614,12 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
           const user = data.user;
           let userProfile = null;
           if (user) {
+            // Immediately sync is_first_login = false to database
+            await state.supabaseClient
+              .from('profiles')
+              .update({ is_first_login: false, updated_at: new Date().toISOString() })
+              .eq('id', user.id);
+
             const { data: prof } = await state.supabaseClient
               .from('profiles')
               .select('*')
@@ -596,13 +632,25 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
               full_name: user.user_metadata?.full_name || user.email.split('@')[0],
               role: user.user_metadata?.role || 'instructor',
               assigned_tracks: [],
-              is_active: true
+              is_active: true,
+              is_first_login: false
             };
+            userProfile.is_first_login = false;
           }
 
           state.isPasswordRecoveryActive = false;
           state.currentUser = userProfile;
           localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(userProfile));
+
+          // Also sync local cache
+          if (userProfile) {
+            const localIdx = state.data.staff.findIndex(s => s.id === userProfile.id || s.email.toLowerCase() === userProfile.email.toLowerCase());
+            if (localIdx >= 0) {
+              state.data.staff[localIdx].is_first_login = false;
+              saveStoredData();
+            }
+          }
+
           notify('Password successfully created! Welcome to EldoHub Academy.', 'success');
           applyRolePermissions();
           renderApp();
@@ -773,6 +821,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     if (window.lucide) {
       window.lucide.createIcons();
     }
+    initPasswordToggles();
   }
 
   function updateUserProfileUI() {
@@ -1561,13 +1610,15 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
             auth: { persistSession: false, autoRefreshToken: false }
           });
 
+          const isFirstLogin = role !== 'super_admin';
           const { data: signUpData, error: signUpError } = await tempClient.auth.signUp({
             email: email,
             password: initialPassword,
             options: {
               data: {
                 full_name: name,
-                role: role
+                role: role,
+                is_first_login: isFirstLogin
               }
             }
           });
@@ -1595,6 +1646,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         }
       }
 
+      const isFirstLogin = role !== 'super_admin';
       const newStaff = {
         id: createdAuthUserId || (crypto.randomUUID ? crypto.randomUUID() : 'staff_' + Date.now()),
         full_name: name,
@@ -1602,6 +1654,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         role: role,
         assigned_tracks: checkedTracks,
         is_active: true,
+        is_first_login: isFirstLogin,
         created_at: new Date().toISOString()
       };
 
@@ -1623,7 +1676,8 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
             full_name: name,
             role: role,
             assigned_tracks: checkedTracks,
-            is_active: true
+            is_active: true,
+            is_first_login: isFirstLogin
           });
         } catch (e) {
           console.warn('Profiles upsert warning:', e);
@@ -2496,6 +2550,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     initStaffManagement();
     initSupabase();
     initAuthSystem();
+    initPasswordToggles();
 
     applyRolePermissions();
     renderApp();
