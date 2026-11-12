@@ -748,6 +748,19 @@ body:has(.auth-gateway-overlay:focus-within) .slide-item {
   color: #7dd3fc !important;
 }
 
+/* Dynamic vehicle selector inside manifest table */
+#manifest-card .select-assigned-vehicle {
+  background: rgba(15, 23, 42, 0.85) !important;
+  border-color: rgba(245, 158, 11, 0.4) !important;
+  color: #fde68a !important;
+  border-radius: 0.5rem;
+  padding: 0.25rem 0.625rem;
+}
+#manifest-card .select-assigned-vehicle option {
+  background: #0f172a !important;
+  color: #f8fafc !important;
+}
+
 /* Status checklist buttons — unchecked */
 #manifest-card .single-check-btn.bg-rose-50,
 #manifest-card .checklist-btn.bg-rose-50 {

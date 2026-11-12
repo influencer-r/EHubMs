@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS public.students (
     transport_mode VARCHAR(50) NOT NULL DEFAULT 'none' CHECK (
         transport_mode IN ('morning_bus', 'evening_bus', 'both', 'parent_pickup', 'self_arrival', 'none')
     ),
+    assigned_vehicle VARCHAR(100) DEFAULT '',
     notes TEXT DEFAULT '',
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
@@ -67,6 +68,17 @@ CREATE TABLE IF NOT EXISTS public.tracks (
     CONSTRAINT unique_branch_track UNIQUE (branch, name)
 );
 
+-- 5B. Dynamic Fleet & Vehicles Table
+CREATE TABLE IF NOT EXISTS public.vehicles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100) NOT NULL UNIQUE,
+    type VARCHAR(50) NOT NULL DEFAULT 'bus',
+    plate_number VARCHAR(50) DEFAULT '',
+    capacity INT DEFAULT 30,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
 -- 6. Trigger for Updating `updated_at` on Students
 CREATE OR REPLACE FUNCTION public.handle_updated_at()
 RETURNS TRIGGER AS $$
@@ -112,6 +124,7 @@ ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.manifest_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cohorts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tracks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.vehicles ENABLE ROW LEVEL SECURITY;
 
 -- Allow anon public read/write access (Academy Portal)
 CREATE POLICY "Allow public read students" ON public.students FOR SELECT USING (true);
@@ -130,6 +143,12 @@ CREATE POLICY "Allow public insert cohorts" ON public.cohorts FOR INSERT WITH CH
 CREATE POLICY "Allow public read tracks" ON public.tracks FOR SELECT USING (true);
 CREATE POLICY "Allow public insert tracks" ON public.tracks FOR INSERT WITH CHECK (true);
 
+CREATE POLICY "Allow public read vehicles" ON public.vehicles FOR SELECT USING (true);
+CREATE POLICY "Allow public insert vehicles" ON public.vehicles FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update vehicles" ON public.vehicles FOR UPDATE USING (true);
+CREATE POLICY "Allow public delete vehicles" ON public.vehicles FOR DELETE USING (true);
+
 -- 9. Enable Realtime Replication
 ALTER PUBLICATION supabase_realtime ADD TABLE public.students;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.manifest_logs;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.vehicles;

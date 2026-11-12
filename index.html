@@ -52,7 +52,7 @@
   <script src="https://unpkg.com/lucide@latest"></script>
 
   <!-- Custom Stylesheet with cache busting -->
-  <link rel="stylesheet" href="./style.css?v=16">
+  <link rel="stylesheet" href="./style.css?v=17">
 </head>
 <body class="text-slate-900 min-h-screen flex flex-col antialiased selection:bg-sky-500 selection:text-white">
 
@@ -507,6 +507,21 @@
                 </button>
               </div>
             </div>
+
+            <!-- Fleet Vehicle / Transport Unit Filter Row (Shown for Transport Manifests) -->
+            <div id="manifest-vehicle-divider" class="h-px bg-slate-100"></div>
+
+            <div id="manifest-vehicle-controls" class="flex flex-wrap items-center justify-between gap-3">
+              <div class="flex flex-wrap items-center gap-2">
+                <i data-lucide="bus" class="w-4 h-4 text-amber-600"></i>
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Fleet Unit / Vehicle:</span>
+                <div id="vehicle-pills-container" class="flex flex-wrap items-center gap-1.5"></div>
+              </div>
+              <button id="btn-open-fleet-modal" class="touch-btn h-8 px-3 rounded-lg text-xs font-bold bg-amber-50 border border-amber-200 text-amber-800 hover:bg-amber-100 flex items-center gap-1.5 shadow-sm" title="Manage transport units, buses, and vans">
+                <i data-lucide="settings-2" class="w-3.5 h-3.5 text-amber-600"></i>
+                <span>Manage Fleet Vehicles</span>
+              </button>
+            </div>
           </div>
 
           <!-- Toolbar: Live Search, Batch Checklist Actions & Exports -->
@@ -576,7 +591,7 @@
                     <th>Parent / Guardian Phone</th>
                     <th>Residence / Area</th>
                     <th>Curriculum Track</th>
-                    <th class="th-transport-col">Transport Mode</th>
+                    <th class="th-transport-col">Assigned Vehicle</th>
                     <th id="th-checklist-col" class="text-center w-56">Status Checklist</th>
                     <th class="text-right w-16" id="th-remove-col">Remove</th>
                   </tr>
@@ -795,17 +810,27 @@
           </div>
         </div>
 
-        <div id="onboard-transport-group">
-          <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5" for="onboard-transport">
-            Transport Preference
-          </label>
-          <select id="onboard-transport" class="w-full glass-input rounded-xl px-3 text-sm font-medium bg-white">
-            <option value="both">Both Morning Pick-up & Evening Drop-off (Bus)</option>
-            <option value="morning_bus">Morning Bus Pick-up Only</option>
-            <option value="evening_bus">Evening Bus Drop-off Only</option>
-            <option value="parent_pickup">Parent Pick-up & Drop-off (Gate Carline)</option>
-            <option value="self_arrival">Self Arrival / Walking</option>
-          </select>
+        <div id="onboard-transport-group" class="space-y-3">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5" for="onboard-transport">
+              Transport Preference
+            </label>
+            <select id="onboard-transport" class="w-full glass-input rounded-xl px-3 text-sm font-medium bg-white">
+              <option value="both">Both Morning Pick-up & Evening Drop-off (Bus)</option>
+              <option value="morning_bus">Morning Bus Pick-up Only</option>
+              <option value="evening_bus">Evening Bus Drop-off Only</option>
+              <option value="parent_pickup">Parent Pick-up & Drop-off (Gate Carline)</option>
+              <option value="self_arrival">Self Arrival / Walking</option>
+            </select>
+          </div>
+          <div id="onboard-vehicle-container">
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5" for="onboard-vehicle">
+              Assigned Vehicle / Transport Unit <span class="text-amber-600 font-semibold">(Flexible Fleet)</span>
+            </label>
+            <select id="onboard-vehicle" class="w-full glass-input rounded-xl px-3 text-sm font-medium bg-white">
+              <!-- Dynamically populated from active fleet -->
+            </select>
+          </div>
         </div>
 
         <div>
@@ -1025,6 +1050,86 @@
   </div>
 
   <!-- ==============================================================================
+       8B. DYNAMIC FLEET & VEHICLE MANAGEMENT MODAL
+       ============================================================================== -->
+  <div id="modal-manage-fleet" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm hidden transition-opacity">
+    <div class="bg-white w-full max-w-xl rounded-2xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div class="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center">
+            <i data-lucide="bus" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-base sm:text-lg font-bold text-slate-900">Fleet & Vehicle Management</h3>
+            <p class="text-xs text-slate-500">Configure buses, vans, capacity and flexible routing</p>
+          </div>
+        </div>
+        <button id="btn-close-fleet-modal" class="text-slate-400 hover:text-slate-700 p-2 rounded-lg hover:bg-slate-100">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-5 overflow-y-auto space-y-6">
+        <!-- Add New Vehicle Form -->
+        <form id="form-add-vehicle" class="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+            <i data-lucide="plus-circle" class="w-4 h-4 text-amber-600"></i>
+            <span>Add New Transport Unit</span>
+          </h4>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[11px] font-bold uppercase text-slate-600 mb-1" for="new-veh-name">Vehicle Name *</label>
+              <input type="text" id="new-veh-name" required placeholder="e.g. Bus 3, Van 2, East Shuttle" class="w-full glass-input rounded-xl px-3 text-xs font-medium bg-white">
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold uppercase text-slate-600 mb-1" for="new-veh-type">Vehicle Type</label>
+              <select id="new-veh-type" class="w-full glass-input rounded-xl px-3 text-xs font-medium bg-white">
+                <option value="bus">School Bus (Large)</option>
+                <option value="van">Transport Van (Mini)</option>
+                <option value="minibus">Minibus / Shuttle</option>
+                <option value="car">Car / Station Wagon</option>
+              </select>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[11px] font-bold uppercase text-slate-600 mb-1" for="new-veh-plate">License Plate / Reg (Optional)</label>
+              <input type="text" id="new-veh-plate" placeholder="e.g. KDC 123A" class="w-full glass-input rounded-xl px-3 text-xs font-medium bg-white uppercase">
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold uppercase text-slate-600 mb-1" for="new-veh-capacity">Seating Capacity</label>
+              <input type="number" id="new-veh-capacity" min="1" max="100" placeholder="e.g. 35" class="w-full glass-input rounded-xl px-3 text-xs font-medium bg-white">
+            </div>
+          </div>
+          <div class="pt-1">
+            <button type="submit" id="btn-submit-vehicle" class="touch-btn w-full h-10 rounded-xl text-xs font-extrabold bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white shadow-sm flex items-center justify-center gap-2">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+              <span>Add Vehicle to Fleet</span>
+            </button>
+          </div>
+        </form>
+
+        <!-- Current Vehicles List -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+              <i data-lucide="layers" class="w-4 h-4 text-sky-600"></i>
+              <span>Active Fleet Units</span>
+            </h4>
+            <span id="fleet-total-count-badge" class="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+              0 Vehicles
+            </span>
+          </div>
+
+          <div id="fleet-list-container" class="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden bg-white">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==============================================================================
        9. OFFICIAL PRINT ENGINE TEMPLATE (Visible during @media print only)
        ============================================================================== -->
   <div id="print-document" aria-hidden="true">
@@ -1067,6 +1172,7 @@
           <th>Contact Phone</th>
           <th>Residence</th>
           <th>Curriculum Track</th>
+          <th style="width: 110px;">Assigned Vehicle</th>
           <th style="width: 120px; text-align: center;">Status</th>
           <th style="width: 140px;">Driver / Sign-off</th>
         </tr>
@@ -1088,6 +1194,6 @@
   <div id="toast-container" class="fixed bottom-20 sm:bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
   <!-- Application Logic with cache busting -->
-  <script src="./app.js?v=15"></script>
+  <script src="./app.js?v=17"></script>
 </body>
 </html>

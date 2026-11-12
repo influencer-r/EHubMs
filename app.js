@@ -39,6 +39,12 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     manifestLogs: [],
     staff: [],
     auditLogs: [],
+    vehicles: [
+      { id: 'veh_bus_1', name: 'Bus 1', type: 'bus', plate: 'KDC 101A', capacity: 35, is_active: true },
+      { id: 'veh_bus_2', name: 'Bus 2', type: 'bus', plate: 'KDC 102B', capacity: 35, is_active: true },
+      { id: 'veh_van_1', name: 'Van 1', type: 'van', plate: 'KDD 201C', capacity: 14, is_active: true },
+      { id: 'veh_van_2', name: 'Van 2', type: 'van', plate: 'KDD 202D', capacity: 14, is_active: true }
+    ],
     cohorts: {
       bootcamp: ['August Intake', 'November Intake'],
       regular: [
@@ -65,6 +71,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     activeBranch: 'bootcamp',
     activeCohort: 'August Intake',
     activeTrack: 'all',
+    activeVehicle: 'all',
     activeManifestType: 'morning_pickup',
     activeDate: new Date().toISOString().split('T')[0],
     activeViewModule: 'manifest_operations', // 'manifest_operations' | 'staff_management' | 'audit_logs'
@@ -85,6 +92,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
           manifestLogs: Array.isArray(parsed.manifestLogs) ? parsed.manifestLogs : [],
           staff: Array.isArray(parsed.staff) ? parsed.staff : [],
           auditLogs: Array.isArray(parsed.auditLogs) ? parsed.auditLogs : [],
+          vehicles: Array.isArray(parsed.vehicles) && parsed.vehicles.length > 0 ? parsed.vehicles : DEFAULT_STATE.vehicles,
           cohorts: parsed.cohorts || DEFAULT_STATE.cohorts,
           tracks: parsed.tracks || DEFAULT_STATE.tracks
         };
@@ -170,11 +178,12 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     if (!state.supabaseClient) return;
 
     try {
-      const [studentsRes, logsRes, profilesRes, auditRes] = await Promise.all([
+      const [studentsRes, logsRes, profilesRes, auditRes, vehiclesRes] = await Promise.all([
         state.supabaseClient.from('students').select('*'),
         state.supabaseClient.from('manifest_logs').select('*'),
         state.supabaseClient.from('profiles').select('*'),
-        state.supabaseClient.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(100)
+        state.supabaseClient.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(100),
+        state.supabaseClient.from('vehicles').select('*').catch(() => ({ data: null }))
       ]);
 
       if (studentsRes.data && !studentsRes.error) {
@@ -188,6 +197,9 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       }
       if (auditRes.data && !auditRes.error) {
         state.data.auditLogs = auditRes.data;
+      }
+      if (vehiclesRes && vehiclesRes.data && !vehiclesRes.error && vehiclesRes.data.length > 0) {
+        state.data.vehicles = vehiclesRes.data;
       }
 
       saveStoredData();
@@ -889,8 +901,17 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     if (bClass) bClass.textContent = classCount;
   }
 
+  function getActiveVehicles() {
+    if (!state.data.vehicles || !Array.isArray(state.data.vehicles)) {
+      state.data.vehicles = JSON.parse(JSON.stringify(DEFAULT_STATE.vehicles));
+    }
+    return state.data.vehicles.filter(v => v.is_active !== false);
+  }
+
   function renderBranchControls() {
     const isBootcamp = state.activeBranch === 'bootcamp';
+    const isAttendance = state.activeManifestType === 'class_attendance';
+    const isTransportManifest = isBootcamp && !isAttendance && (state.activeManifestType === 'morning_pickup' || state.activeManifestType === 'evening_dropoff');
 
     // Cohorts
     const cohortContainer = document.getElementById('cohort-switcher-container');
@@ -950,12 +971,72 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       });
     }
 
+    // Fleet Vehicles (Prominently rendered for Transport Pick-up & Drop-off manifests)
+    const vehicleControls = document.getElementById('manifest-vehicle-controls');
+    const vehicleDivider = document.getElementById('manifest-vehicle-divider');
+    const vehicleContainer = document.getElementById('vehicle-pills-container');
+
+    if (vehicleControls && vehicleDivider) {
+      if (isTransportManifest) {
+        vehicleControls.classList.remove('hidden');
+        vehicleDivider.classList.remove('hidden');
+      } else {
+        vehicleControls.classList.add('hidden');
+        vehicleDivider.classList.add('hidden');
+      }
+    }
+
+    if (vehicleContainer) {
+      vehicleContainer.innerHTML = '';
+      const activeVehicles = getActiveVehicles();
+
+      // "All Vehicles" Pill
+      const allVehBtn = document.createElement('button');
+      allVehBtn.className = `touch-btn h-8 px-3 rounded-lg text-xs font-bold transition-all ${
+        state.activeVehicle === 'all'
+          ? 'bg-amber-600 text-white shadow-sm'
+          : 'bg-slate-100 text-slate-700 hover:text-slate-900 hover:bg-slate-200 border border-slate-200'
+      }`;
+      allVehBtn.textContent = 'All Vehicles';
+      allVehBtn.onclick = () => {
+        state.activeVehicle = 'all';
+        renderApp();
+      };
+      vehicleContainer.appendChild(allVehBtn);
+
+      activeVehicles.forEach(veh => {
+        const isActive = state.activeVehicle === veh.name;
+        // Count how many students assigned to this vehicle in this intake/cohort
+        const assignedCount = state.data.students.filter(s => 
+          s.branch === state.activeBranch &&
+          (!state.activeCohort || s.cohort === state.activeCohort) &&
+          (s.assigned_vehicle === veh.name) &&
+          (s.transport_mode === 'both' || s.transport_mode === 'morning_bus' || s.transport_mode === 'evening_bus')
+        ).length;
+
+        const btn = document.createElement('button');
+        btn.className = `touch-btn h-8 px-3 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+          isActive
+            ? 'bg-amber-600 text-white shadow-sm'
+            : 'bg-slate-100 text-slate-700 hover:text-slate-900 hover:bg-slate-200 border border-slate-200'
+        }`;
+        btn.innerHTML = `<span>${escapeHTML(veh.name)}</span><span class="px-1.5 py-0.2 rounded-full text-[10px] ${isActive ? 'bg-amber-700 text-amber-100' : 'bg-slate-200 text-slate-700'}">${assignedCount}</span>`;
+        btn.onclick = () => {
+          state.activeVehicle = veh.name;
+          renderApp();
+        };
+        vehicleContainer.appendChild(btn);
+      });
+    }
+
     const dateInput = document.getElementById('manifest-date-input');
     if (dateInput) dateInput.value = state.activeDate;
   }
 
   function getFilteredStudents() {
     const isBootcamp = state.activeBranch === 'bootcamp';
+    const isAttendance = state.activeManifestType === 'class_attendance';
+    const isTransportManifest = isBootcamp && !isAttendance && (state.activeManifestType === 'morning_pickup' || state.activeManifestType === 'evening_dropoff');
     const user = state.currentUser;
 
     return state.data.students
@@ -979,13 +1060,19 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
           }
         }
 
+        // Vehicle Filter on Transport Manifests
+        if (isTransportManifest && state.activeVehicle && state.activeVehicle !== 'all') {
+          if ((s.assigned_vehicle || '') !== state.activeVehicle) return false;
+        }
+
         if (state.searchQuery.trim()) {
           const q = state.searchQuery.toLowerCase().trim();
           const matchName = s.name.toLowerCase().includes(q);
           const matchPhone = s.phone.toLowerCase().includes(q);
           const matchRes = s.residence.toLowerCase().includes(q);
           const matchTrack = s.track.toLowerCase().includes(q);
-          if (!matchName && !matchPhone && !matchRes && !matchTrack) return false;
+          const matchVeh = (s.assigned_vehicle || '').toLowerCase().includes(q);
+          if (!matchName && !matchPhone && !matchRes && !matchTrack && !matchVeh) return false;
         }
 
         return true;
@@ -1081,6 +1168,8 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     const students = getFilteredStudents();
     const user = state.currentUser;
     const canDelete = user && user.role === 'super_admin';
+    const canManageFleet = user && (user.role === 'super_admin' || user.role === 'transport_officer');
+    const activeVehicles = getActiveVehicles();
 
     if (thRemoveCol) {
       thRemoveCol.style.display = canDelete ? 'table-cell' : 'none';
@@ -1264,9 +1353,19 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
           ${isBootcamp && !isAttendance ? `
             <td class="py-3.5 px-4 text-xs text-slate-700 th-transport-col">
-              <span class="route-badge bg-sky-50 text-sky-700 border border-sky-200">
-                ${routeCode}
-              </span>
+              <div class="flex items-center gap-1.5">
+                ${canManageFleet ? `
+                  <select data-student-id="${student.id}" class="select-assigned-vehicle text-xs font-bold py-1 px-2.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-900 focus:outline-none focus:ring-1 focus:ring-amber-500 shadow-sm" title="Reassign Vehicle / Route">
+                    <option value="">Unassigned</option>
+                    ${activeVehicles.map(v => `<option value="${escapeHTML(v.name)}" ${(student.assigned_vehicle === v.name) ? 'selected' : ''}>${escapeHTML(v.name)} (${v.type.toUpperCase()})</option>`).join('')}
+                  </select>
+                ` : `
+                  <span class="route-badge ${student.assigned_vehicle ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-slate-100 text-slate-600 border border-slate-200'}">
+                    <i data-lucide="bus" class="w-3 h-3 inline mr-1 text-amber-600"></i>
+                    ${escapeHTML(student.assigned_vehicle || routeCode)}
+                  </span>
+                `}
+              </div>
             </td>
           ` : ''}
 
@@ -1284,6 +1383,14 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         `;
         tbody.appendChild(tr);
       }
+    });
+
+    // Wire assigned vehicle selectors
+    document.querySelectorAll('.select-assigned-vehicle').forEach(sel => {
+      sel.addEventListener('change', (e) => {
+        const studentId = sel.getAttribute('data-student-id');
+        assignStudentVehicle(studentId, e.target.value);
+      });
     });
 
     // Wire checklist buttons
@@ -1314,6 +1421,41 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         deleteStudent(studentId);
       });
     });
+  }
+
+  async function assignStudentVehicle(studentId, vehicleName) {
+    const user = state.currentUser;
+    if (!user || (user.role !== 'super_admin' && user.role !== 'transport_officer')) {
+      notify('Only Transport Officers and Super Administrators can assign vehicles.', 'error');
+      return;
+    }
+
+    const student = state.data.students.find(s => s.id === studentId);
+    if (!student) return;
+
+    student.assigned_vehicle = vehicleName;
+    saveStoredData();
+
+    if (state.supabaseClient) {
+      try {
+        await state.supabaseClient
+          .from('students')
+          .update({ assigned_vehicle: vehicleName })
+          .eq('id', studentId);
+      } catch (err) {
+        console.warn('Supabase vehicle assignment sync warning:', err);
+      }
+    }
+
+    logAuditAction('ASSIGN_VEHICLE', 'transport', studentId, {
+      student_name: student.name,
+      assigned_vehicle: vehicleName || 'Unassigned'
+    });
+
+    notify(`${student.name} assigned to ${vehicleName || 'Unassigned route'}`, 'success');
+    renderManifestTable();
+    renderBranchControls();
+    updateKPIs();
   }
 
   function deleteStudent(studentId) {
@@ -1751,6 +1893,18 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       if (transportGroup) {
         if (selectedBranch === 'bootcamp') {
           transportGroup.classList.remove('hidden');
+          // Populate vehicle selector
+          const vehSelect = document.getElementById('onboard-vehicle');
+          if (vehSelect) {
+            vehSelect.innerHTML = '<option value="">Select Transport Unit / Vehicle (Optional)</option>';
+            const activeVehicles = getActiveVehicles();
+            activeVehicles.forEach(v => {
+              const opt = document.createElement('option');
+              opt.value = v.name;
+              opt.textContent = `${v.name} (${v.type.toUpperCase()}${v.capacity ? ' • ' + v.capacity + ' seats' : ''})`;
+              vehSelect.appendChild(opt);
+            });
+          }
         } else {
           transportGroup.classList.add('hidden');
         }
@@ -1774,6 +1928,9 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       const cohort = cohortSelect.value;
       const track = trackSelect.value;
       const transport = branch === 'bootcamp' ? document.getElementById('onboard-transport').value : 'none';
+      const assignedVehicle = (branch === 'bootcamp' && (transport === 'both' || transport === 'morning_bus' || transport === 'evening_bus'))
+        ? (document.getElementById('onboard-vehicle')?.value || '')
+        : '';
       const notes = document.getElementById('onboard-notes').value.trim();
 
       const newStudent = {
@@ -1785,6 +1942,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         cohort: cohort,
         track: track,
         transport_mode: transport,
+        assigned_vehicle: assignedVehicle,
         notes: notes,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
@@ -1863,7 +2021,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       tbody.innerHTML = '';
 
       if (students.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #64748b;">No students registered for this manifest.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 20px; color: #64748b;">No students registered for this manifest.</td></tr>';
       } else {
         students.forEach((s, i) => {
           const st = getStudentStatus(s.id);
@@ -1875,6 +2033,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
             <td>${escapeHTML(s.phone)}</td>
             <td>${escapeHTML(s.residence)}</td>
             <td>${escapeHTML(s.track)}</td>
+            <td style="text-align: center; font-weight: bold; color: #b45309;">${escapeHTML(s.assigned_vehicle || (s.transport_mode === 'both' ? 'Bus' : '-'))}</td>
             <td style="text-align: center;">
               <span class="print-badge" style="${isDone ? 'background-color: #dcfce7; border-color: #10b981; color: #166534;' : 'background-color: #fee2e2; border-color: #ef4444; color: #991b1b;'}">
                 ${isDone ? '✔ ' + (st.toUpperCase().replace('_', ' ')) : '✖ NOT VERIFIED'}
@@ -1913,7 +2072,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
           else if (state.activeManifestType === 'gate_pickup') manifestName = 'Gate_Carline_Register';
         }
 
-        const headers = ['Serial', 'Student Name', 'Parent Phone', 'Residence', 'Branch', 'Cohort', 'Track', 'Transport Mode', 'Daily Status', 'Date', 'Notes'];
+        const headers = ['Serial', 'Student Name', 'Parent Phone', 'Residence', 'Branch', 'Cohort', 'Track', 'Transport Mode', 'Assigned Vehicle', 'Daily Status', 'Date', 'Notes'];
         const rows = students.map((s, idx) => {
           const status = getStudentStatus(s.id);
           return [
@@ -1925,6 +2084,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
             `"${s.cohort.replace(/"/g, '""')}"`,
             `"${s.track.replace(/"/g, '""')}"`,
             s.transport_mode,
+            `"${(s.assigned_vehicle || '').replace(/"/g, '""')}"`,
             status,
             state.activeDate,
             `"${(s.notes || '').replace(/"/g, '""')}"`
@@ -2047,7 +2207,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
             s.name,
             s.phone,
             s.residence,
-            s.track,
+            s.assigned_vehicle || (s.transport_mode === 'both' ? 'Bus' : '-'),
             displayStatus,
             ''
           ];
@@ -2055,7 +2215,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
         doc.autoTable({
           startY: 60,
-          head: [['#', 'Student Full Name', 'Contact Phone', 'Residence', 'Track', 'Status', 'Sign-off']],
+          head: [['#', 'Student Full Name', 'Contact Phone', 'Residence', 'Vehicle / Route', 'Status', 'Sign-off']],
           body: tableRows,
           theme: 'striped',
           headStyles: {
@@ -2350,6 +2510,186 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     });
   }
 
+  // ============================================================================
+  // 10B. DYNAMIC FLEET & VEHICLE MANAGEMENT
+  // ============================================================================
+
+  function initFleetManagement() {
+    const modal = document.getElementById('modal-manage-fleet');
+    const openBtn = document.getElementById('btn-open-fleet-modal');
+    const closeBtn = document.getElementById('btn-close-fleet-modal');
+    const form = document.getElementById('form-add-vehicle');
+    const listContainer = document.getElementById('fleet-list-container');
+    const totalCountBadge = document.getElementById('fleet-total-count-badge');
+
+    function openModal() {
+      const user = state.currentUser;
+      if (user && user.role !== 'super_admin' && user.role !== 'transport_officer') {
+        notify('Access Denied: Only Transport Officers and Super Administrators can manage fleet units.', 'error');
+        return;
+      }
+      renderFleetList();
+      modal?.classList.remove('hidden');
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    function closeModal() {
+      modal?.classList.add('hidden');
+    }
+
+    openBtn?.addEventListener('click', openModal);
+    closeBtn?.addEventListener('click', closeModal);
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const user = state.currentUser;
+      if (user && user.role !== 'super_admin' && user.role !== 'transport_officer') {
+        notify('Unauthorized action.', 'error');
+        return;
+      }
+
+      const name = document.getElementById('new-veh-name').value.trim();
+      const type = document.getElementById('new-veh-type').value;
+      const plate = document.getElementById('new-veh-plate').value.trim().toUpperCase();
+      const capacity = parseInt(document.getElementById('new-veh-capacity').value, 10) || 30;
+
+      if (!name) return;
+
+      const activeVehicles = getActiveVehicles();
+      if (activeVehicles.some(v => v.name.toLowerCase() === name.toLowerCase())) {
+        notify(`A vehicle named "${name}" already exists in the fleet!`, 'error');
+        return;
+      }
+
+      const newVehicle = {
+        id: crypto.randomUUID ? crypto.randomUUID() : 'veh_' + Date.now(),
+        name: name,
+        type: type,
+        plate: plate,
+        capacity: capacity,
+        is_active: true,
+        created_at: new Date().toISOString()
+      };
+
+      if (!Array.isArray(state.data.vehicles)) {
+        state.data.vehicles = [];
+      }
+      state.data.vehicles.push(newVehicle);
+      saveStoredData();
+
+      if (state.supabaseClient) {
+        try {
+          await state.supabaseClient.from('vehicles').insert([newVehicle]);
+        } catch (err) {
+          console.warn('Vehicle Supabase insert warning:', err);
+        }
+      }
+
+      logAuditAction('ADD_VEHICLE', 'transport', newVehicle.id, {
+        name: name,
+        type: type,
+        plate: plate,
+        capacity: capacity
+      });
+
+      notify(`Transport unit "${name}" added to fleet!`, 'success');
+      form.reset();
+      renderFleetList();
+      renderBranchControls();
+      renderManifestTable();
+    });
+
+    function renderFleetList() {
+      if (!listContainer) return;
+      const vehicles = state.data.vehicles || [];
+
+      if (totalCountBadge) {
+        totalCountBadge.textContent = `${vehicles.length} Vehicle${vehicles.length === 1 ? '' : 's'}`;
+      }
+
+      if (vehicles.length === 0) {
+        listContainer.innerHTML = '<div class="p-6 text-center text-xs text-slate-500 font-medium">No vehicles registered yet. Use the form above to add a bus or van.</div>';
+        return;
+      }
+
+      listContainer.innerHTML = '';
+      vehicles.forEach(veh => {
+        const assignedStudents = state.data.students.filter(s => s.assigned_vehicle === veh.name);
+        const item = document.createElement('div');
+        item.className = 'p-3.5 flex items-center justify-between gap-3 hover:bg-slate-50 transition-colors';
+        const isBus = veh.type === 'bus';
+
+        item.innerHTML = `
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl ${isBus ? 'bg-amber-100 text-amber-700 border border-amber-200' : 'bg-sky-100 text-sky-700 border border-sky-200'} flex items-center justify-center shrink-0">
+              <i data-lucide="${isBus ? 'bus' : 'truck'}" class="w-4 h-4"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="font-extrabold text-sm text-slate-900">${escapeHTML(veh.name)}</span>
+                <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${isBus ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-sky-50 text-sky-700 border border-sky-200'}">
+                  ${escapeHTML(veh.type)}
+                </span>
+                ${veh.plate ? `<span class="text-[11px] font-mono text-slate-500 font-bold">${escapeHTML(veh.plate)}</span>` : ''}
+              </div>
+              <div class="text-xs text-slate-500 flex items-center gap-3 mt-0.5 font-medium">
+                <span>Capacity: <strong>${veh.capacity || 30} seats</strong></span>
+                <span>Assigned: <strong>${assignedStudents.length} students</strong></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <button data-delete-veh="${veh.id}" class="btn-delete-veh touch-btn p-2 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors" title="Remove vehicle from fleet">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+        `;
+        listContainer.appendChild(item);
+      });
+
+      if (window.lucide) window.lucide.createIcons();
+
+      // Wire delete handlers
+      listContainer.querySelectorAll('.btn-delete-veh').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const vehId = btn.getAttribute('data-delete-veh');
+          const targetVeh = state.data.vehicles.find(v => v.id === vehId);
+          if (!targetVeh) return;
+
+          const assignedCount = state.data.students.filter(s => s.assigned_vehicle === targetVeh.name).length;
+          const confirmMsg = assignedCount > 0
+            ? `Vehicle "${targetVeh.name}" currently has ${assignedCount} student(s) assigned. Removing it will unassign them. Proceed?`
+            : `Remove vehicle "${targetVeh.name}" from fleet?`;
+
+          if (confirm(confirmMsg)) {
+            // Unassign students
+            state.data.students.forEach(s => {
+              if (s.assigned_vehicle === targetVeh.name) s.assigned_vehicle = '';
+            });
+            // Remove vehicle
+            state.data.vehicles = state.data.vehicles.filter(v => v.id !== vehId);
+            saveStoredData();
+
+            if (state.supabaseClient) {
+              try {
+                await state.supabaseClient.from('vehicles').delete().eq('id', vehId);
+              } catch (err) {
+                console.warn('Vehicle Supabase delete warning:', err);
+              }
+            }
+
+            logAuditAction('REMOVE_VEHICLE', 'transport', vehId, { name: targetVeh.name });
+            notify(`Vehicle "${targetVeh.name}" removed from fleet.`, 'info');
+            renderFleetList();
+            renderBranchControls();
+            renderManifestTable();
+          }
+        });
+      });
+    }
+  }
+
   function initDynamicItemCreator() {
     const modal = document.getElementById('modal-add-item');
     const title = document.getElementById('modal-add-item-title');
@@ -2481,6 +2821,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     initGeneralListeners();
     initOnboarding();
     initDynamicItemCreator();
+    initFleetManagement();
     initExportEngine();
     initSettingsModal();
     initStaffManagement();

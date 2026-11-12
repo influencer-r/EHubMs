@@ -78,6 +78,7 @@ CREATE TABLE IF NOT EXISTS public.students (
     transport_mode VARCHAR(50) NOT NULL DEFAULT 'none' CHECK (
         transport_mode IN ('morning_bus', 'evening_bus', 'both', 'parent_pickup', 'self_arrival', 'none')
     ),
+    assigned_vehicle VARCHAR(100) DEFAULT '',
     notes TEXT DEFAULT '',
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
@@ -132,6 +133,17 @@ CREATE TABLE IF NOT EXISTS public.tracks (
     is_active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
     CONSTRAINT unique_branch_track UNIQUE (branch, name)
+);
+
+-- Dynamic Fleet & Vehicles Table
+CREATE TABLE IF NOT EXISTS public.vehicles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100) NOT NULL UNIQUE,
+    type VARCHAR(50) NOT NULL DEFAULT 'bus',
+    plate_number VARCHAR(50) DEFAULT '',
+    capacity INT DEFAULT 30,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
 
 -- ==============================================================================
@@ -295,11 +307,11 @@ CREATE POLICY "Admins and receptionists can insert students" ON public.students
     FOR INSERT TO authenticated
     WITH CHECK (public.is_super_admin() OR public.is_receptionist());
 
--- Super admin and Receptionist can edit student information
-CREATE POLICY "Admins and receptionists can update students" ON public.students
+-- Super admin, Receptionist and Transport Officers can edit student information (e.g. details, vehicle assignment)
+CREATE POLICY "Admins, receptionists and transport officers can update students" ON public.students
     FOR UPDATE TO authenticated
-    USING (public.is_super_admin() OR public.is_receptionist())
-    WITH CHECK (public.is_super_admin() OR public.is_receptionist());
+    USING (public.is_super_admin() OR public.is_receptionist() OR public.is_transport_officer())
+    WITH CHECK (public.is_super_admin() OR public.is_receptionist() OR public.is_transport_officer());
 
 -- ONLY Super Administrator can DELETE students
 CREATE POLICY "Only super admins can delete students" ON public.students
@@ -373,6 +385,17 @@ CREATE POLICY "Only super admins can manage tracks" ON public.tracks
     FOR ALL TO authenticated
     USING (public.is_super_admin())
     WITH CHECK (public.is_super_admin());
+
+ALTER TABLE public.vehicles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Staff can view vehicles" ON public.vehicles
+    FOR SELECT TO authenticated
+    USING (true);
+
+CREATE POLICY "Admins and transport officers can manage vehicles" ON public.vehicles
+    FOR ALL TO authenticated
+    USING (public.is_super_admin() OR public.is_transport_officer())
+    WITH CHECK (public.is_super_admin() OR public.is_transport_officer());
 
 -- ------------------------------------------------------------------------------
 -- E. AUDIT LOGS POLICIES (Tamper-Proof)
@@ -451,3 +474,4 @@ CREATE TRIGGER on_auth_user_created
 -- ==============================================================================
 ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.audit_logs;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.vehicles;
