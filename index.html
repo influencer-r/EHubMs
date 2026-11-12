@@ -546,14 +546,14 @@
           </div>
 
           <!-- Manifest Table Container -->
-          <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm relative min-h-[380px]">
-            <div class="p-4 sm:p-5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-slate-50/50">
+          <div id="manifest-card" class="rounded-2xl border border-slate-200 overflow-hidden shadow-sm relative min-h-[380px]">
+            <div class="p-4 sm:p-5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-slate-900/30 backdrop-blur-sm">
               <div>
-                <h3 id="manifest-table-heading" class="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
-                  <span id="heading-icon"><i data-lucide="bus" class="w-5 h-5 text-sky-600"></i></span>
+                <h3 id="manifest-table-heading" class="text-base sm:text-lg font-black text-white flex items-center gap-2">
+                  <span id="heading-icon"><i data-lucide="bus" class="w-5 h-5 text-sky-300"></i></span>
                   <span id="heading-text">Morning Pick-up Bus Manifest</span>
                 </h3>
-                <p id="manifest-table-subheading" class="text-xs text-slate-500 mt-0.5 font-medium">
+                <p id="manifest-table-subheading" class="text-xs text-slate-300 mt-0.5 font-medium">
                   Sorted Alphabetically (A–Z) &bull; Filtered for Morning Bus transport
                 </p>
               </div>
@@ -565,7 +565,7 @@
               </div>
             </div>
 
-            <div class="overflow-x-auto w-full" id="manifest-table-wrapper">
+            <div class="overflow-x-auto w-full bg-white/10 backdrop-blur-sm" id="manifest-table-wrapper">
               <table class="cloudschool-table text-left border-collapse text-sm">
                 <thead>
                   <tr>
@@ -586,13 +586,13 @@
             </div>
 
             <!-- Empty State -->
-            <div id="manifest-empty-state" class="p-12 text-center flex flex-col items-center justify-center space-y-4">
-              <div class="w-16 h-16 rounded-2xl bg-sky-50 border border-sky-200 flex items-center justify-center text-sky-600">
+            <div id="manifest-empty-state" class="p-12 text-center flex flex-col items-center justify-center space-y-4 bg-slate-900/40 backdrop-blur-sm">
+              <div class="w-16 h-16 rounded-2xl bg-sky-500/20 border border-sky-400/40 flex items-center justify-center text-sky-300">
                 <i data-lucide="users" class="w-8 h-8"></i>
               </div>
               <div class="max-w-md">
-                <h4 class="text-lg font-bold text-slate-900">No Students in this Manifest</h4>
-                <p class="text-xs sm:text-sm text-slate-500 mt-1">
+                <h4 class="text-lg font-bold text-white">No Students in this Manifest</h4>
+                <p class="text-xs sm:text-sm text-slate-300 mt-1">
                   All rosters start completely clean. Use the Admission Desk to register the first student.
                 </p>
               </div>

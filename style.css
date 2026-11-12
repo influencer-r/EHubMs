@@ -641,3 +641,42 @@ body {
   color: #b45309;
   border-color: #fde68a;
 }
+
+/* ============================================================
+   BUS MANIFEST CARD — Photo Background
+   ============================================================ */
+#manifest-card {
+  background:
+    linear-gradient(rgba(15, 23, 42, 0.78), rgba(15, 23, 42, 0.88)),
+    url('images/bus.jpg') center / cover no-repeat;
+  backdrop-filter: blur(0px);
+  border-color: rgba(148, 163, 184, 0.3);
+}
+
+/* Keep table rows readable with a frosted white layer */
+#manifest-card .cloudschool-table thead tr {
+  background: rgba(15, 23, 42, 0.60);
+}
+#manifest-card .cloudschool-table thead th {
+  color: #cbd5e1;
+  border-bottom-color: rgba(148, 163, 184, 0.2);
+}
+#manifest-card .cloudschool-table tbody tr {
+  background: rgba(255, 255, 255, 0.07);
+  border-bottom-color: rgba(148, 163, 184, 0.15);
+}
+#manifest-card .cloudschool-table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.13);
+}
+#manifest-card .cloudschool-table tbody td {
+  color: #e2e8f0;
+}
+#manifest-card .cloudschool-table tbody td .text-slate-900,
+#manifest-card .cloudschool-table tbody td .text-slate-700,
+#manifest-card .cloudschool-table tbody td .font-bold {
+  color: #f1f5f9 !important;
+}
+#manifest-card .cloudschool-table tbody td .text-slate-500,
+#manifest-card .cloudschool-table tbody td .text-slate-400 {
+  color: #94a3b8 !important;
+}
