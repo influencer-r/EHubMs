@@ -652,162 +652,106 @@ body {
   border-color: rgba(148, 163, 184, 0.3) !important;
 }
 
-/* --- Card header bar --- */
+/* Card header bar */
 #manifest-card > div:first-child {
   background: rgba(15, 23, 42, 0.55) !important;
   border-bottom-color: rgba(148, 163, 184, 0.2) !important;
   backdrop-filter: blur(8px);
 }
 
-/* --- All text inside the card defaults to light --- */
-#manifest-card,
-#manifest-card * {
-  color: #e2e8f0;
-}
-
-/* --- Table header row --- */
+/* Table header */
 #manifest-card thead tr {
-  background: rgba(15, 23, 42, 0.65) !important;
+  background: rgba(15, 23, 42, 0.70) !important;
 }
 #manifest-card thead th {
   color: #94a3b8 !important;
-  font-size: 10.5px;
-  letter-spacing: 0.06em;
   border-bottom: 1px solid rgba(148, 163, 184, 0.15) !important;
   background: transparent !important;
 }
-#manifest-card thead th:hover {
-  color: #e2e8f0 !important;
-}
+#manifest-card #th-sort-name .text-sky-600 { color: #38bdf8 !important; }
 
-/* --- Table body rows --- */
+/* Each row gets a solid dark frosted background so text always has contrast */
 #manifest-card tbody tr {
-  background: rgba(255, 255, 255, 0.05) !important;
+  background: rgba(15, 23, 42, 0.72) !important;
   border-bottom: 1px solid rgba(148, 163, 184, 0.12) !important;
-  transition: background 0.15s;
 }
 #manifest-card tbody tr:hover {
-  background: rgba(255, 255, 255, 0.11) !important;
+  background: rgba(30, 41, 59, 0.88) !important;
 }
 
-/* --- All td text --- */
-#manifest-card tbody td {
-  color: #e2e8f0 !important;
-}
-#manifest-card tbody td * {
-  color: inherit;
+/* Row number */
+#manifest-card tbody td:first-child {
+  color: #64748b !important;
 }
 
-/* --- Student name (bold primary text) --- */
-#manifest-card tbody td .font-bold,
-#manifest-card tbody td .font-semibold,
-#manifest-card tbody td strong {
-  color: #f8fafc !important;
+/* Student name — bright white, bold */
+#manifest-card .font-extrabold.text-slate-900 {
+  color: #ffffff !important;
 }
 
-/* --- Secondary / muted text --- */
-#manifest-card tbody td .text-slate-500,
-#manifest-card tbody td .text-slate-400,
-#manifest-card tbody td small,
-#manifest-card tbody td .text-xs {
+/* Cohort sub-label under name */
+#manifest-card .text-\[11px\].text-slate-500 {
   color: #94a3b8 !important;
 }
 
-/* --- Row number badges --- */
-#manifest-card tbody td .row-num,
-#manifest-card tbody td span.w-7 {
-  background: rgba(255, 255, 255, 0.12) !important;
-  color: #cbd5e1 !important;
-  border-color: rgba(148, 163, 184, 0.2) !important;
-}
-
-/* --- Transport mode badges --- */
-#manifest-card .badge-transport,
-#manifest-card [class*="transport"] span,
-#manifest-card .text-sky-700,
-#manifest-card .text-sky-800 {
+/* Phone link badge */
+#manifest-card a.text-sky-700,
+#manifest-card a[href^="tel"] {
+  background: rgba(56, 189, 248, 0.18) !important;
+  border-color: rgba(56, 189, 248, 0.35) !important;
   color: #7dd3fc !important;
 }
-#manifest-card .bg-sky-50,
-#manifest-card .bg-sky-100 {
+#manifest-card a[href^="tel"] i { color: #38bdf8 !important; }
+
+/* Residence / Area text */
+#manifest-card td.text-xs.text-slate-600 { color: #cbd5e1 !important; }
+#manifest-card td .text-slate-400 { color: #64748b !important; }
+
+/* Track badge */
+#manifest-card .bg-slate-100.border-slate-200.text-slate-700 {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border-color: rgba(148, 163, 184, 0.3) !important;
+  color: #e2e8f0 !important;
+}
+
+/* Route badge */
+#manifest-card .route-badge {
   background: rgba(56, 189, 248, 0.15) !important;
-  border-color: rgba(56, 189, 248, 0.25) !important;
-}
-#manifest-card .text-amber-700,
-#manifest-card .text-amber-800 {
-  color: #fcd34d !important;
-}
-#manifest-card .bg-amber-50,
-#manifest-card .bg-amber-100 {
-  background: rgba(251, 191, 36, 0.15) !important;
-  border-color: rgba(251, 191, 36, 0.25) !important;
-}
-#manifest-card .text-purple-700,
-#manifest-card .text-purple-800 {
-  color: #c4b5fd !important;
-}
-#manifest-card .bg-purple-50,
-#manifest-card .bg-purple-100 {
-  background: rgba(167, 139, 250, 0.15) !important;
-  border-color: rgba(167, 139, 250, 0.25) !important;
+  border-color: rgba(56, 189, 248, 0.3) !important;
+  color: #7dd3fc !important;
 }
 
-/* --- Status checklist buttons (morning/evening/parked) --- */
-#manifest-card button[class*="checklist"],
-#manifest-card .checklist-btn,
-#manifest-card button.h-9,
-#manifest-card button.h-8 {
-  background: rgba(255, 255, 255, 0.08) !important;
-  border-color: rgba(148, 163, 184, 0.25) !important;
-  color: #cbd5e1 !important;
-}
-#manifest-card button[class*="checklist"]:hover,
-#manifest-card .checklist-btn:hover {
-  background: rgba(255, 255, 255, 0.16) !important;
-}
-/* Checked / active state stays green */
-#manifest-card button.bg-emerald-500,
-#manifest-card button.bg-emerald-600,
-#manifest-card .bg-emerald-500,
-#manifest-card .bg-emerald-600 {
-  background: #059669 !important;
-  color: #fff !important;
-  border-color: #059669 !important;
-}
-#manifest-card .text-emerald-700,
-#manifest-card .text-emerald-800 {
-  color: #34d399 !important;
-}
-#manifest-card .bg-emerald-50,
-#manifest-card .bg-emerald-100 {
-  background: rgba(16, 185, 129, 0.15) !important;
-  border-color: rgba(16, 185, 129, 0.25) !important;
-}
-
-/* --- Remove / delete buttons --- */
-#manifest-card button.text-rose-500,
-#manifest-card button.text-rose-600,
-#manifest-card .btn-remove-student {
+/* Status checklist buttons — unchecked */
+#manifest-card .single-check-btn.bg-rose-50,
+#manifest-card .checklist-btn.bg-rose-50 {
+  background: rgba(239, 68, 68, 0.15) !important;
+  border-color: rgba(239, 68, 68, 0.4) !important;
   color: #fca5a5 !important;
-  background: rgba(239, 68, 68, 0.1) !important;
-  border-color: rgba(239, 68, 68, 0.2) !important;
 }
-#manifest-card button.text-rose-500:hover,
-#manifest-card .btn-remove-student:hover {
-  background: rgba(239, 68, 68, 0.22) !important;
-  color: #f87171 !important;
-}
-
-/* --- Sort arrow in th-sort-name --- */
-#manifest-card #th-sort-name .text-sky-600 {
-  color: #38bdf8 !important;
+/* Status checklist buttons — checked/active */
+#manifest-card .single-check-btn.bg-emerald-600,
+#manifest-card .checklist-btn.bg-emerald-600,
+#manifest-card .single-check-btn.bg-emerald-500 {
+  background: #059669 !important;
+  border-color: #059669 !important;
+  color: #ffffff !important;
 }
 
-/* --- Scrollbar inside table --- */
-#manifest-card #manifest-table-wrapper::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.4);
+/* Delete button */
+#manifest-card .delete-student-btn {
+  color: #94a3b8 !important;
+  background: transparent !important;
 }
-#manifest-card #manifest-table-wrapper::-webkit-scrollbar-thumb {
-  background: rgba(148, 163, 184, 0.3);
-  border-radius: 4px;
+#manifest-card .delete-student-btn:hover {
+  color: #fca5a5 !important;
+  background: rgba(239, 68, 68, 0.15) !important;
+}
+
+/* Info icon on student name */
+#manifest-card .text-sky-600 { color: #38bdf8 !important; }
+
+/* Empty state */
+#manifest-empty-state {
+  background: rgba(15, 23, 42, 0.50);
+  backdrop-filter: blur(4px);
 }
