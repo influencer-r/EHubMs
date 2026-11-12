@@ -52,7 +52,7 @@
   <script src="https://unpkg.com/lucide@latest"></script>
 
   <!-- Custom Stylesheet with cache busting -->
-  <link rel="stylesheet" href="./style.css?v=15">
+  <link rel="stylesheet" href="./style.css?v=16">
 </head>
 <body class="text-slate-900 min-h-screen flex flex-col antialiased selection:bg-sky-500 selection:text-white">
 
@@ -99,7 +99,7 @@
           </label>
           <div class="relative">
             <i data-lucide="mail" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
-            <input type="email" id="auth-email" required placeholder="staff@eldohub.co.ke" class="w-full glass-input rounded-xl pl-10 pr-4 text-sm font-medium">
+            <input type="email" id="auth-email" required autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="email" placeholder="staff@eldohub.co.ke" class="w-full glass-input rounded-xl pl-10 pr-4 text-sm font-medium">
           </div>
         </div>
 
@@ -109,7 +109,7 @@
           </label>
           <div class="relative">
             <i data-lucide="lock" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
-            <input type="password" id="auth-password" required placeholder="••••••••" class="w-full glass-input rounded-xl pl-10 pr-11 text-sm font-medium">
+            <input type="password" id="auth-password" required autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="••••••••" class="w-full glass-input rounded-xl pl-10 pr-11 text-sm font-medium">
             <button type="button" class="btn-toggle-password absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1" data-target="auth-password" aria-label="Toggle password visibility">
               <i data-lucide="eye" class="w-4 h-4"></i>
             </button>
@@ -130,7 +130,7 @@
           </label>
           <div class="relative">
             <i data-lucide="mail" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
-            <input type="email" id="auth-reset-email" required placeholder="staff@eldohub.co.ke" class="w-full glass-input rounded-xl pl-10 pr-4 text-sm font-medium">
+            <input type="email" id="auth-reset-email" required autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="email" placeholder="staff@eldohub.co.ke" class="w-full glass-input rounded-xl pl-10 pr-4 text-sm font-medium">
           </div>
         </div>
         <button type="submit" id="btn-auth-reset-submit" class="touch-btn w-full h-12 rounded-xl text-sm font-extrabold bg-sky-600 hover:bg-sky-700 text-white shadow-sm flex items-center justify-center gap-2">
@@ -155,7 +155,7 @@
           </label>
           <div class="relative">
             <i data-lucide="lock" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
-            <input type="password" id="new-permanent-password" required minlength="6" placeholder="At least 6 characters" class="w-full glass-input rounded-xl pl-10 pr-11 text-sm font-medium">
+            <input type="password" id="new-permanent-password" required minlength="6" autocomplete="new-password" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="At least 6 characters" class="w-full glass-input rounded-xl pl-10 pr-11 text-sm font-medium">
             <button type="button" class="btn-toggle-password absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1" data-target="new-permanent-password" aria-label="Toggle password visibility">
               <i data-lucide="eye" class="w-4 h-4"></i>
             </button>
@@ -168,7 +168,7 @@
           </label>
           <div class="relative">
             <i data-lucide="check-circle" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
-            <input type="password" id="confirm-permanent-password" required minlength="6" placeholder="Repeat your new password" class="w-full glass-input rounded-xl pl-10 pr-11 text-sm font-medium">
+            <input type="password" id="confirm-permanent-password" required minlength="6" autocomplete="new-password" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Repeat your new password" class="w-full glass-input rounded-xl pl-10 pr-11 text-sm font-medium">
             <button type="button" class="btn-toggle-password absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1" data-target="confirm-permanent-password" aria-label="Toggle password visibility">
               <i data-lucide="eye" class="w-4 h-4"></i>
             </button>
