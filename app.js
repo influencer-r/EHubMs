@@ -345,6 +345,58 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     // Initialize password eye toggles
     initPasswordToggles();
 
+    // Inline Auth Error Alert Controls (Sharp foreground alert above submit button)
+    function showAuthError(message) {
+      const alertBox = document.getElementById('auth-error-alert');
+      const alertText = document.getElementById('auth-error-text');
+      if (alertBox && alertText) {
+        alertText.textContent = message;
+        alertBox.classList.remove('hidden');
+        if (window.lucide) window.lucide.createIcons();
+      }
+    }
+
+    function clearAuthError() {
+      const alertBox = document.getElementById('auth-error-alert');
+      if (alertBox) alertBox.classList.add('hidden');
+    }
+
+    function showResetError(message) {
+      const alertBox = document.getElementById('auth-reset-error-alert');
+      const alertText = document.getElementById('auth-reset-error-text');
+      if (alertBox && alertText) {
+        alertText.textContent = message;
+        alertBox.classList.remove('hidden');
+        if (window.lucide) window.lucide.createIcons();
+      }
+    }
+
+    function clearResetError() {
+      const alertBox = document.getElementById('auth-reset-error-alert');
+      if (alertBox) alertBox.classList.add('hidden');
+    }
+
+    function showUpdateError(message) {
+      const alertBox = document.getElementById('auth-update-error-alert');
+      const alertText = document.getElementById('auth-update-error-text');
+      if (alertBox && alertText) {
+        alertText.textContent = message;
+        alertBox.classList.remove('hidden');
+        if (window.lucide) window.lucide.createIcons();
+      }
+    }
+
+    function clearUpdateError() {
+      const alertBox = document.getElementById('auth-update-error-alert');
+      if (alertBox) alertBox.classList.add('hidden');
+    }
+
+    document.getElementById('auth-email')?.addEventListener('input', clearAuthError);
+    document.getElementById('auth-password')?.addEventListener('input', clearAuthError);
+    document.getElementById('auth-reset-email')?.addEventListener('input', clearResetError);
+    document.getElementById('new-permanent-password')?.addEventListener('input', clearUpdateError);
+    document.getElementById('confirm-permanent-password')?.addEventListener('input', clearUpdateError);
+
     // Display password setup form ONLY when arriving from email invitation/recovery
     function showPasswordRecoveryMode() {
       state.isPasswordRecoveryActive = true;
@@ -360,6 +412,8 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
     // Tab switcher (2 tabs: Sign In & Forgot Password)
     tabSignIn?.addEventListener('click', () => {
+      clearAuthError();
+      clearResetError();
       tabSignIn.className = 'flex-1 py-2 rounded-lg bg-white text-slate-900 shadow-sm';
       tabReset.className = 'flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900';
       loginForm?.classList.remove('hidden');
@@ -370,6 +424,8 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     });
 
     tabReset?.addEventListener('click', () => {
+      clearAuthError();
+      clearResetError();
       tabReset.className = 'flex-1 py-2 rounded-lg bg-white text-slate-900 shadow-sm';
       tabSignIn.className = 'flex-1 py-2 rounded-lg text-slate-600 hover:text-slate-900';
       resetForm?.classList.remove('hidden');
@@ -395,6 +451,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     // Form submission: Standard Sign In
     loginForm?.addEventListener('submit', async (e) => {
       e.preventDefault();
+      clearAuthError();
       const email = document.getElementById('auth-email').value.trim();
       const password = document.getElementById('auth-password').value;
       const submitBtn = document.getElementById('btn-auth-submit');
@@ -415,6 +472,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
           if (error) {
             console.warn('Supabase login error:', error);
+            showAuthError(`Supabase Login Failed: ${error.message}`);
             notify(`Supabase Login Failed: ${error.message}`, 'error');
             submitBtn.disabled = false;
             submitBtn.innerHTML = '<i data-lucide="log-in" class="w-4 h-4"></i><span>Sign In to Academy System</span>';
@@ -446,6 +504,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
           }
         } catch (err) {
           console.warn('Supabase auth check:', err);
+          showAuthError(`Authentication Error: ${err.message || 'Check network connection'}`);
           notify(`Authentication Error: ${err.message || 'Check network connection'}`, 'error');
           submitBtn.disabled = false;
           submitBtn.innerHTML = '<i data-lucide="log-in" class="w-4 h-4"></i><span>Sign In to Academy System</span>';
@@ -460,6 +519,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
       if (authenticatedStaff) {
         if (!authenticatedStaff.is_active) {
+          showAuthError('Account is deactivated. Please contact the Super Administrator.');
           notify('Account is deactivated. Please contact the Super Administrator.', 'error');
           return;
         }
@@ -477,6 +537,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         }
 
         // Standard user or Super Admin: route directly to role dashboard
+        clearAuthError();
         state.isPasswordRecoveryActive = false;
         state.currentUser = authenticatedStaff;
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authenticatedStaff));
@@ -485,6 +546,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         applyRolePermissions();
         renderApp();
       } else {
+        showAuthError('Invalid credentials or unregistered staff account.');
         notify('Invalid credentials or unregistered staff account.', 'error');
       }
     });
@@ -492,13 +554,23 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     // Form submission: Reset Password
     resetForm?.addEventListener('submit', async (e) => {
       e.preventDefault();
+      clearResetError();
       const resetEmail = document.getElementById('auth-reset-email').value.trim();
       if (!resetEmail) return;
 
       if (state.supabaseClient) {
         try {
-          await state.supabaseClient.auth.resetPasswordForEmail(resetEmail);
-        } catch (err) {}
+          const { error } = await state.supabaseClient.auth.resetPasswordForEmail(resetEmail);
+          if (error) {
+            showResetError(error.message);
+            notify(`Password Reset Error: ${error.message}`, 'error');
+            return;
+          }
+        } catch (err) {
+          showResetError(err.message || 'Error sending password reset email');
+          notify(`Password Reset Error: ${err.message || 'Error sending password reset email'}`, 'error');
+          return;
+        }
       }
       notify(`Password reset link dispatched to ${resetEmail}.`, 'info');
       tabSignIn.click();
@@ -537,15 +609,18 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
     updatePasswordForm?.addEventListener('submit', async (e) => {
       e.preventDefault();
+      clearUpdateError();
       const p1 = document.getElementById('new-permanent-password').value;
       const p2 = document.getElementById('confirm-permanent-password').value;
       const submitBtn = document.getElementById('btn-submit-new-password');
 
       if (p1 !== p2) {
+        showUpdateError('Passwords do not match. Please verify.');
         notify('Passwords do not match. Please verify.', 'error');
         return;
       }
       if (p1.length < 6) {
+        showUpdateError('Password must be at least 6 characters.');
         notify('Password must be at least 6 characters.', 'error');
         return;
       }
@@ -609,6 +684,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
           renderApp();
         }
       } catch (err) {
+        showUpdateError(`Password setup notice: ${err.message || 'Please retry'}`);
         notify(`Password setup notice: ${err.message || 'Please retry'}`, 'error');
       } finally {
         submitBtn.disabled = false;
@@ -630,7 +706,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     const user = state.currentUser;
     if (!user) return;
 
-    const role = user.role;
+    const role = user.role || 'staff';
     const isSuperAdmin = role === 'super_admin';
     const isInstructor = role === 'instructor';
     const isReceptionist = role === 'receptionist';
@@ -638,8 +714,10 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
     // Set default active tab based on role
     if (isInstructor) {
-      state.activeManifestType = 'class_attendance';
-      if (user.assigned_tracks && user.assigned_tracks.length > 0) {
+      if (state.activeManifestType !== 'class_attendance') {
+        state.activeManifestType = 'class_attendance';
+      }
+      if (user.assigned_tracks && user.assigned_tracks.length > 0 && (!state.activeTrack || state.activeTrack === 'all')) {
         state.activeTrack = user.assigned_tracks[0];
       }
     } else if (isTransport) {
@@ -656,47 +734,61 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     const tabEvening = document.getElementById('tab-logistics-evening');
     const tabGate = document.getElementById('tab-logistics-gate');
     const tabClass = document.getElementById('tab-logistics-class');
+    const btnOpenOnboard = document.getElementById('btn-open-onboarding');
     const headerBtnOnboard = document.getElementById('header-btn-onboard');
     const btnEmptyOnboard = document.getElementById('btn-empty-onboard');
+    const dockBtnAdd = document.getElementById('dock-btn-add');
     const thRemoveCol = document.getElementById('th-remove-col');
 
+    // 1. Institutional Admin Section (Staff & Permissions, Security & Audit Logs, Cloud Sync & Backups)
+    // Strictly restricted to Super Admin only
     if (navAdmin) {
       navAdmin.style.display = isSuperAdmin ? 'block' : 'none';
     }
 
+    // If a non-super-admin is currently on an administrative view, reset to operational manifests
+    if (!isSuperAdmin && (state.activeViewModule === 'staff_management' || state.activeViewModule === 'audit_logs')) {
+      state.activeViewModule = 'manifest_operations';
+    }
+
+    // 2. Admissions & Records (New Student Admission Desk)
+    // Only Super Admin and Receptionist have admissions privileges
+    const canAdmitStudents = isSuperAdmin || isReceptionist;
+    if (btnOpenOnboard) btnOpenOnboard.style.display = canAdmitStudents ? 'flex' : 'none';
+    if (headerBtnOnboard) headerBtnOnboard.style.display = canAdmitStudents ? 'inline-flex' : 'none';
+    if (btnEmptyOnboard) btnEmptyOnboard.style.display = canAdmitStudents ? 'inline-flex' : 'none';
+    if (dockBtnAdd) dockBtnAdd.style.display = canAdmitStudents ? 'flex' : 'none';
+
+    // Student record deletion: Super Admin only
+    if (thRemoveCol) thRemoveCol.style.display = isSuperAdmin ? 'table-cell' : 'none';
+
+    // 3. Daily Operations & Fleet (Logistics manifests)
+    if (navLogistics) navLogistics.style.display = 'block';
+
     if (isInstructor) {
+      // Instructors: Class Attendance only
       if (tabMorning) tabMorning.style.display = 'none';
       if (tabEvening) tabEvening.style.display = 'none';
       if (tabGate) tabGate.style.display = 'none';
       if (tabClass) tabClass.style.display = 'flex';
-      if (headerBtnOnboard) headerBtnOnboard.style.display = 'none';
-      if (btnEmptyOnboard) btnEmptyOnboard.style.display = 'none';
-      if (thRemoveCol) thRemoveCol.style.display = 'none';
     } else if (isTransport) {
+      // Transport Officers: Morning bus, Evening bus, and Gate / Parent Carline
       if (tabMorning) tabMorning.style.display = 'flex';
       if (tabEvening) tabEvening.style.display = 'flex';
       if (tabGate) tabGate.style.display = 'flex';
       if (tabClass) tabClass.style.display = 'none';
-      if (headerBtnOnboard) headerBtnOnboard.style.display = 'none';
-      if (btnEmptyOnboard) btnEmptyOnboard.style.display = 'none';
-      if (thRemoveCol) thRemoveCol.style.display = 'none';
-    } else if (isReceptionist) {
+    } else if (isReceptionist || isSuperAdmin) {
+      // Receptionist & Super Admin: Access to all operational items
       if (tabMorning) tabMorning.style.display = 'flex';
       if (tabEvening) tabEvening.style.display = 'flex';
       if (tabGate) tabGate.style.display = 'flex';
       if (tabClass) tabClass.style.display = 'flex';
-      if (headerBtnOnboard) headerBtnOnboard.style.display = 'inline-flex';
-      if (btnEmptyOnboard) btnEmptyOnboard.style.display = 'inline-flex';
-      if (thRemoveCol) thRemoveCol.style.display = 'none'; // Receptionist cannot delete
     } else {
-      // Super Admin: Full Access
+      // Standard Staff / Regular Users: Permitted operational items
       if (tabMorning) tabMorning.style.display = 'flex';
       if (tabEvening) tabEvening.style.display = 'flex';
       if (tabGate) tabGate.style.display = 'flex';
       if (tabClass) tabClass.style.display = 'flex';
-      if (headerBtnOnboard) headerBtnOnboard.style.display = 'inline-flex';
-      if (btnEmptyOnboard) btnEmptyOnboard.style.display = 'inline-flex';
-      if (thRemoveCol) thRemoveCol.style.display = 'table-cell';
     }
   }
 
@@ -744,6 +836,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     if (authGateway) authGateway.classList.add('hidden');
     if (appShell) appShell.style.display = 'flex';
 
+    applyRolePermissions();
     updateUserProfileUI();
     renderNavigation();
     renderBranchControls();
@@ -2295,18 +2388,28 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     const backdrop = document.getElementById('sidebar-backdrop');
     const sidebar = document.getElementById('app-sidebar');
 
+    function closeMobileDrawer() {
+      if (window.innerWidth <= 1024) {
+        sidebar?.classList.remove('mobile-open');
+        backdrop?.classList.add('hidden');
+      }
+    }
+
     function toggleSidebar() {
       if (window.innerWidth <= 1024) {
+        sidebar?.classList.remove('collapsed');
         sidebar?.classList.toggle('mobile-open');
         backdrop?.classList.toggle('hidden');
       } else {
+        sidebar?.classList.remove('mobile-open');
+        backdrop?.classList.add('hidden');
         sidebar?.classList.toggle('collapsed');
       }
     }
 
     toggleBtn?.addEventListener('click', toggleSidebar);
-    closeSidebarMobile?.addEventListener('click', toggleSidebar);
-    backdrop?.addEventListener('click', toggleSidebar);
+    closeSidebarMobile?.addEventListener('click', closeMobileDrawer);
+    backdrop?.addEventListener('click', closeMobileDrawer);
 
     // Branch switcher
     document.getElementById('branch-nav-bootcamp')?.addEventListener('click', () => {
@@ -2314,6 +2417,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       state.activeCohort = state.data.cohorts.bootcamp[0] || 'August Intake';
       state.activeTrack = 'all';
       state.activeViewModule = 'manifest_operations';
+      closeMobileDrawer();
       renderApp();
     });
 
@@ -2322,6 +2426,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       state.activeCohort = state.data.cohorts.regular[0] || 'January Intake';
       state.activeTrack = 'all';
       state.activeViewModule = 'manifest_operations';
+      closeMobileDrawer();
       renderApp();
     });
 
@@ -2354,6 +2459,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       document.getElementById(item.id)?.addEventListener('click', () => {
         state.activeManifestType = item.type;
         state.activeViewModule = 'manifest_operations';
+        closeMobileDrawer();
         renderApp();
       });
     });
@@ -2365,6 +2471,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         return;
       }
       state.activeViewModule = 'staff_management';
+      closeMobileDrawer();
       renderApp();
     });
 
@@ -2374,7 +2481,25 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         return;
       }
       state.activeViewModule = 'audit_logs';
+      closeMobileDrawer();
       renderApp();
+    });
+
+    // Additional sidebar action buttons auto-close mobile drawer
+    document.getElementById('btn-open-settings')?.addEventListener('click', () => {
+      closeMobileDrawer();
+    });
+    document.getElementById('btn-open-onboarding')?.addEventListener('click', () => {
+      closeMobileDrawer();
+    });
+    document.getElementById('btn-trigger-print')?.addEventListener('click', () => {
+      closeMobileDrawer();
+    });
+    document.getElementById('btn-export-csv')?.addEventListener('click', () => {
+      closeMobileDrawer();
+    });
+    document.getElementById('btn-export-pdf')?.addEventListener('click', () => {
+      closeMobileDrawer();
     });
 
     // Refresh audit button

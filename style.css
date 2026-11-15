@@ -124,7 +124,7 @@ body {
   top: 0;
   bottom: 0;
   left: 0;
-  z-index: 45;
+  z-index: 50;
   transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -148,10 +148,18 @@ body {
   .app-sidebar {
     transform: translateX(-100%);
     box-shadow: 10px 0 40px rgba(15, 23, 42, 0.2);
+    z-index: 50 !important;
+    background: #ffffff !important;
   }
   
   .app-sidebar.mobile-open {
-    transform: translateX(0);
+    transform: translateX(0) !important;
+    z-index: 50 !important;
+    background: #ffffff !important;
+  }
+
+  .app-sidebar.mobile-open .sidebar-text-hide {
+    display: initial !important;
   }
 
   .sidebar-backdrop {
@@ -159,7 +167,9 @@ body {
     inset: 0;
     background: rgba(15, 23, 42, 0.5);
     backdrop-filter: blur(4px);
-    z-index: 40;
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 40 !important;
+    cursor: pointer;
   }
 }
 
@@ -448,7 +458,7 @@ body {
     bottom: 0;
     left: 0;
     right: 0;
-    z-index: 50;
+    z-index: 35;
     padding-bottom: env(safe-area-inset-bottom, 8px);
     background: rgba(255, 255, 255, 0.96);
     backdrop-filter: blur(20px);
@@ -630,6 +640,14 @@ body:has(.auth-gateway-overlay:focus-within) .slide-item {
     opacity: 1;
     transform: scale(1) translateY(0);
   }
+}
+
+/* ==============================================================================
+   Foreground Toast Notifications Layer (Stacking Context & Z-Index Guard)
+   ============================================================================== */
+#toast-container {
+  position: fixed;
+  z-index: 9999 !important;
 }
 
 .role-badge {

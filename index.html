@@ -52,7 +52,7 @@
   <script src="https://unpkg.com/lucide@latest"></script>
 
   <!-- Custom Stylesheet with cache busting -->
-  <link rel="stylesheet" href="./style.css?v=17">
+  <link rel="stylesheet" href="./style.css?v=18">
 </head>
 <body class="text-slate-900 min-h-screen flex flex-col antialiased selection:bg-sky-500 selection:text-white">
 
@@ -66,9 +66,6 @@
     <div class="slide-item" style="background-image: url('./images/bg4.jpg');"></div>
   </div>
   <div class="vignette-overlay" aria-hidden="true"></div>
-
-  <!-- Off-canvas backdrop for mobile sidebar drawer -->
-  <div id="sidebar-backdrop" class="sidebar-backdrop hidden lg:hidden" aria-hidden="true"></div>
 
   <!-- ==============================================================================
        2. INSTITUTIONAL AUTHENTICATION GATEWAY (SUPABASE AUTHENTICATION SCREEN)
@@ -116,6 +113,12 @@
           </div>
         </div>
 
+        <!-- Authentication Error Banner -->
+        <div id="auth-error-alert" class="hidden p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-start gap-2.5 shadow-sm">
+          <i data-lucide="alert-circle" class="w-4 h-4 shrink-0 text-rose-600 mt-0.5"></i>
+          <span id="auth-error-text" class="flex-1 leading-relaxed"></span>
+        </div>
+
         <button type="submit" id="btn-auth-submit" class="touch-btn w-full h-12 rounded-xl text-sm font-extrabold bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 text-white shadow-md shadow-sky-600/25 hover:opacity-95 flex items-center justify-center gap-2">
           <i data-lucide="log-in" class="w-4 h-4"></i>
           <span>Sign In to Academy System</span>
@@ -133,6 +136,12 @@
             <input type="email" id="auth-reset-email" required autocomplete="email" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="email" placeholder="staff@eldohub.co.ke" class="w-full glass-input rounded-xl pl-10 pr-4 text-sm font-medium">
           </div>
         </div>
+        <!-- Reset Password Error Banner -->
+        <div id="auth-reset-error-alert" class="hidden p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-start gap-2.5 shadow-sm">
+          <i data-lucide="alert-circle" class="w-4 h-4 shrink-0 text-rose-600 mt-0.5"></i>
+          <span id="auth-reset-error-text" class="flex-1 leading-relaxed"></span>
+        </div>
+
         <button type="submit" id="btn-auth-reset-submit" class="touch-btn w-full h-12 rounded-xl text-sm font-extrabold bg-sky-600 hover:bg-sky-700 text-white shadow-sm flex items-center justify-center gap-2">
           <i data-lucide="send" class="w-4 h-4"></i>
           <span>Send Password Reset Email</span>
@@ -175,6 +184,12 @@
           </div>
         </div>
 
+        <!-- Update Password Error Banner -->
+        <div id="auth-update-error-alert" class="hidden p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-start gap-2.5 shadow-sm">
+          <i data-lucide="alert-circle" class="w-4 h-4 shrink-0 text-rose-600 mt-0.5"></i>
+          <span id="auth-update-error-text" class="flex-1 leading-relaxed"></span>
+        </div>
+
         <button type="submit" id="btn-submit-new-password" class="touch-btn w-full h-12 rounded-xl text-sm font-extrabold bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-600/25 hover:opacity-95 flex items-center justify-center gap-2">
           <i data-lucide="check-circle-2" class="w-4 h-4"></i>
           <span>Save Password & Enter Academy</span>
@@ -189,10 +204,13 @@
        ============================================================================== -->
   <div class="app-shell" id="app-shell">
 
+    <!-- Off-canvas backdrop for mobile sidebar drawer (sits behind mobile drawer at z-40) -->
+    <div id="sidebar-backdrop" class="sidebar-backdrop hidden lg:hidden z-40" aria-hidden="true"></div>
+
     <!-- --------------------------------------------------------------------------
          A. INSTITUTIONAL NAVIGATION SIDEBAR
          -------------------------------------------------------------------------- -->
-    <aside class="app-sidebar" id="app-sidebar">
+    <aside class="app-sidebar z-50" id="app-sidebar">
       
       <!-- Sidebar Header with Official EldoHub Logo -->
       <div class="p-4 border-b border-slate-200 flex items-center justify-between">
@@ -706,34 +724,34 @@
 
     </div>
 
-  </div>
+    <!-- ==============================================================================
+         4. MOBILE BOTTOM NAVIGATION DOCK (z-35, below backdrop z-40 and drawer z-50)
+         ============================================================================== -->
+    <div class="mobile-bottom-bar flex items-center justify-around px-2 py-2 bg-white/95 border-t border-slate-200 lg:hidden shadow-lg z-35">
+      <button id="dock-btn-bootcamp" class="flex flex-col items-center justify-center text-sky-600 text-[10px] font-bold py-1 px-3">
+        <i data-lucide="bus" class="w-5 h-5 mb-0.5"></i>
+        <span>Logistics</span>
+      </button>
+      <button id="dock-btn-regular" class="flex flex-col items-center justify-center text-slate-500 hover:text-slate-900 text-[10px] font-bold py-1 px-3">
+        <i data-lucide="graduation-cap" class="w-5 h-5 mb-0.5"></i>
+        <span>Regular</span>
+      </button>
+      <button id="dock-btn-add" class="flex flex-col items-center justify-center text-white text-[10px] font-bold py-1 px-3 -mt-4">
+        <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-sky-600 to-blue-600 flex items-center justify-center shadow-lg shadow-sky-600/30 border-2 border-white">
+          <i data-lucide="plus" class="w-6 h-6"></i>
+        </div>
+        <span class="mt-0.5 text-slate-700 font-extrabold">Add</span>
+      </button>
+      <button id="dock-btn-print" class="flex flex-col items-center justify-center text-slate-500 hover:text-slate-900 text-[10px] font-bold py-1 px-3">
+        <i data-lucide="printer" class="w-5 h-5 mb-0.5"></i>
+        <span>Print</span>
+      </button>
+      <button id="dock-btn-signout" class="flex flex-col items-center justify-center text-slate-500 hover:text-rose-600 text-[10px] font-bold py-1 px-3">
+        <i data-lucide="log-out" class="w-5 h-5 mb-0.5"></i>
+        <span>Logout</span>
+      </button>
+    </div>
 
-  <!-- ==============================================================================
-       4. MOBILE BOTTOM NAVIGATION DOCK
-       ============================================================================== -->
-  <div class="mobile-bottom-bar flex items-center justify-around px-2 py-2 bg-white/95 border-t border-slate-200 lg:hidden shadow-lg">
-    <button id="dock-btn-bootcamp" class="flex flex-col items-center justify-center text-sky-600 text-[10px] font-bold py-1 px-3">
-      <i data-lucide="bus" class="w-5 h-5 mb-0.5"></i>
-      <span>Logistics</span>
-    </button>
-    <button id="dock-btn-regular" class="flex flex-col items-center justify-center text-slate-500 hover:text-slate-900 text-[10px] font-bold py-1 px-3">
-      <i data-lucide="graduation-cap" class="w-5 h-5 mb-0.5"></i>
-      <span>Regular</span>
-    </button>
-    <button id="dock-btn-add" class="flex flex-col items-center justify-center text-white text-[10px] font-bold py-1 px-3 -mt-4">
-      <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-sky-600 to-blue-600 flex items-center justify-center shadow-lg shadow-sky-600/30 border-2 border-white">
-        <i data-lucide="plus" class="w-6 h-6"></i>
-      </div>
-      <span class="mt-0.5 text-slate-700 font-extrabold">Add</span>
-    </button>
-    <button id="dock-btn-print" class="flex flex-col items-center justify-center text-slate-500 hover:text-slate-900 text-[10px] font-bold py-1 px-3">
-      <i data-lucide="printer" class="w-5 h-5 mb-0.5"></i>
-      <span>Print</span>
-    </button>
-    <button id="dock-btn-signout" class="flex flex-col items-center justify-center text-slate-500 hover:text-rose-600 text-[10px] font-bold py-1 px-3">
-      <i data-lucide="log-out" class="w-5 h-5 mb-0.5"></i>
-      <span>Logout</span>
-    </button>
   </div>
 
   <!-- ==============================================================================
@@ -1190,10 +1208,10 @@
     </div>
   </div>
 
-  <!-- Toast Notification Container -->
-  <div id="toast-container" class="fixed bottom-20 sm:bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none"></div>
+  <!-- Toast Notification Container (Foreground Root Layer, z-[9999]) -->
+  <div id="toast-container" class="fixed bottom-20 sm:bottom-6 right-6 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
 
   <!-- Application Logic with cache busting -->
-  <script src="./app.js?v=17"></script>
+  <script src="./app.js?v=18"></script>
 </body>
 </html>
