@@ -650,6 +650,16 @@ body:has(.auth-gateway-overlay:focus-within) .slide-item {
   z-index: 9999 !important;
 }
 
+/* Header Cloud Sync Status Pill animations */
+#header-sync-status-btn.syncing #header-sync-dot {
+  animation: pulseSync 0.8s infinite alternate ease-in-out;
+}
+
+@keyframes pulseSync {
+  from { opacity: 0.4; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1.2); }
+}
+
 .role-badge {
   display: inline-flex;
   align-items: center;

@@ -28,6 +28,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
   const AUTH_STORAGE_KEY = 'eldohub_auth_session_v10';
   const SUPABASE_CONFIG_KEY = 'tech_ai_academy_supabase_config_v10';
   const LOGO_STORAGE_KEY = 'tech_ai_academy_custom_logo_v10';
+  const OUTBOX_STORAGE_KEY = 'eldohub_offline_outbox_v10';
 
   const DEFAULT_SUPABASE_CONFIG = {
     url: 'https://sopqoumqblhtguprgtwx.supabase.co',
@@ -112,7 +113,275 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
   }
 
   // ============================================================================
-  // 2. SUPABASE INITIALIZATION & REALTIME POSTGRESQL SYNC
+  // 2. OFFLINE OUTBOX ENGINE & PERSISTENCE QUEUE (24HR+ FAULT TOLERANCE)
+  // ============================================================================
+
+  function getOutboxQueue() {
+    try {
+      const q = localStorage.getItem(OUTBOX_STORAGE_KEY);
+      return q ? JSON.parse(q) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveOutboxQueue(queue) {
+    try {
+      localStorage.setItem(OUTBOX_STORAGE_KEY, JSON.stringify(queue));
+    } catch (e) {
+      console.warn('Failed to save offline outbox queue:', e);
+    }
+  }
+
+  function enqueueOutbox(type, payload) {
+    const queue = getOutboxQueue();
+    // Idempotent deduplication for status logs and vehicle assignments
+    if (type === 'UPSERT_MANIFEST_LOG') {
+      const existingIdx = queue.findIndex(
+        i => i.type === 'UPSERT_MANIFEST_LOG' &&
+             i.payload.student_id === payload.student_id &&
+             i.payload.date === payload.date &&
+             i.payload.type === payload.type
+      );
+      if (existingIdx >= 0) {
+        queue[existingIdx].payload = payload;
+        queue[existingIdx].timestamp = new Date().toISOString();
+        saveOutboxQueue(queue);
+        updateSyncIndicator();
+        return;
+      }
+    } else if (type === 'ASSIGN_VEHICLE') {
+      const existingIdx = queue.findIndex(
+        i => i.type === 'ASSIGN_VEHICLE' && i.payload.studentId === payload.studentId
+      );
+      if (existingIdx >= 0) {
+        queue[existingIdx].payload = payload;
+        queue[existingIdx].timestamp = new Date().toISOString();
+        saveOutboxQueue(queue);
+        updateSyncIndicator();
+        return;
+      }
+    }
+
+    queue.push({
+      id: 'sync_' + Date.now() + '_' + Math.random().toString(36).substr(2, 7),
+      type: type,
+      payload: payload,
+      timestamp: new Date().toISOString(),
+      retryCount: 0
+    });
+    saveOutboxQueue(queue);
+    updateSyncIndicator();
+  }
+
+  let isFlushingOutbox = false;
+
+  async function flushOutboxQueue() {
+    if (isFlushingOutbox) return;
+    if (!navigator.onLine || !state.supabaseClient) {
+      updateSyncIndicator();
+      return;
+    }
+
+    const queue = getOutboxQueue();
+    if (queue.length === 0) {
+      updateSyncIndicator();
+      return;
+    }
+
+    isFlushingOutbox = true;
+    updateSyncIndicator(true);
+
+    let syncedCount = 0;
+    const remainingQueue = [];
+
+    for (const item of queue) {
+      try {
+        let success = false;
+        if (item.type === 'INSERT_STUDENT') {
+          const { error } = await state.supabaseClient.from('students').upsert([item.payload], { onConflict: 'id' });
+          if (!error) success = true;
+        } else if (item.type === 'DELETE_STUDENT') {
+          const { error } = await state.supabaseClient.from('students').delete().eq('id', item.payload.id);
+          if (!error) success = true;
+        } else if (item.type === 'UPSERT_MANIFEST_LOG') {
+          const { error } = await state.supabaseClient.from('manifest_logs').upsert([item.payload], { onConflict: 'student_id,date,type' });
+          if (!error) success = true;
+        } else if (item.type === 'ASSIGN_VEHICLE') {
+          const { error } = await state.supabaseClient.from('students').update({ assigned_vehicle: item.payload.vehicleName }).eq('id', item.payload.studentId);
+          if (!error) success = true;
+        } else if (item.type === 'INSERT_VEHICLE') {
+          const { error } = await state.supabaseClient.from('vehicles').upsert([item.payload], { onConflict: 'id' });
+          if (!error) success = true;
+        } else if (item.type === 'DELETE_VEHICLE') {
+          const { error } = await state.supabaseClient.from('vehicles').delete().eq('id', item.payload.id);
+          if (!error) success = true;
+        } else if (item.type === 'INSERT_AUDIT_LOG') {
+          const { error } = await state.supabaseClient.from('audit_logs').insert([item.payload]);
+          if (!error) success = true;
+        } else if (item.type === 'PROVISION_STAFF') {
+          const p = item.payload;
+          const clientConfig = {
+            url: state.supabaseClient.supabaseUrl || DEFAULT_SUPABASE_CONFIG.url,
+            key: state.supabaseClient.supabaseKey || DEFAULT_SUPABASE_CONFIG.key
+          };
+          const tempClient = window.supabase.createClient(clientConfig.url, clientConfig.key, {
+            auth: { persistSession: false, autoRefreshToken: false }
+          });
+          const { data: signUpData, error: signUpError } = await tempClient.auth.signUp({
+            email: p.email,
+            password: p.initialPassword,
+            options: {
+              data: {
+                full_name: p.name,
+                role: p.role,
+                is_first_login: p.role !== 'super_admin'
+              }
+            }
+          });
+          const realUserId = signUpData?.user?.id || p.localStaffId;
+          await state.supabaseClient.from('profiles').upsert({
+            id: realUserId,
+            email: p.email,
+            full_name: p.name,
+            role: p.role,
+            assigned_tracks: p.assigned_tracks,
+            is_active: true,
+            is_first_login: p.role !== 'super_admin'
+          });
+          const localStaff = state.data.staff.find(s => s.email.toLowerCase() === p.email.toLowerCase());
+          if (localStaff) {
+            localStaff.id = realUserId;
+            saveStoredData();
+          }
+          try {
+            await state.supabaseClient.auth.resetPasswordForEmail(p.email, { redirectTo: window.location.origin });
+          } catch (e) {}
+          success = true;
+        }
+
+        if (success) {
+          syncedCount++;
+        } else {
+          item.retryCount = (item.retryCount || 0) + 1;
+          remainingQueue.push(item);
+        }
+      } catch (err) {
+        console.warn(`Sync item failed (${item.type}):`, err);
+        item.retryCount = (item.retryCount || 0) + 1;
+        remainingQueue.push(item);
+      }
+    }
+
+    saveOutboxQueue(remainingQueue);
+    isFlushingOutbox = false;
+    updateSyncIndicator();
+
+    if (syncedCount > 0) {
+      notify(`Cloud Sync: Uploaded ${syncedCount} offline record${syncedCount === 1 ? '' : 's'}!`, 'success');
+      fetchSupabaseData();
+    }
+  }
+
+  function setupOfflineNetworkListeners() {
+    window.addEventListener('online', () => {
+      updateSupabaseStatus('connected');
+      notify('Internet connection restored. Synchronizing offline records with cloud...', 'info');
+      flushOutboxQueue();
+    });
+
+    window.addEventListener('offline', () => {
+      updateSupabaseStatus('local');
+      notify('Offline Mode: All additions & attendance changes are safely preserved on this device.', 'info');
+      updateSyncIndicator();
+    });
+
+    setInterval(() => {
+      if (navigator.onLine && getOutboxQueue().length > 0) {
+        flushOutboxQueue();
+      }
+    }, 25000);
+  }
+
+  function updateSyncIndicator(isSyncing = false) {
+    const queue = getOutboxQueue();
+    const count = queue.length;
+    const isOnline = navigator.onLine && state.supabaseStatus === 'connected';
+
+    const headerBtn = document.getElementById('header-sync-status-btn');
+    const headerDot = document.getElementById('header-sync-dot');
+    const headerText = document.getElementById('header-sync-text');
+    const sidebarDot = document.getElementById('sidebar-db-dot');
+    const modalBadge = document.getElementById('settings-outbox-badge');
+    const modalDesc = document.getElementById('settings-outbox-desc');
+
+    if (isSyncing) {
+      if (headerBtn) {
+        headerBtn.className = 'touch-btn h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all bg-sky-50 text-sky-700 border border-sky-200 syncing';
+        headerBtn.title = `Syncing ${count} offline record(s) to cloud...`;
+      }
+      if (headerDot) headerDot.className = 'w-2 h-2 rounded-full bg-sky-500 shrink-0';
+      if (headerText) headerText.textContent = `Syncing (${count})...`;
+      if (sidebarDot) sidebarDot.className = 'w-2 h-2 rounded-full bg-sky-500 shrink-0';
+      if (modalBadge) {
+        modalBadge.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-100 text-sky-800 border border-sky-200';
+        modalBadge.textContent = 'Syncing...';
+      }
+      return;
+    }
+
+    if (headerBtn) headerBtn.classList.remove('syncing');
+
+    if (!isOnline) {
+      if (headerBtn) {
+        headerBtn.className = 'touch-btn h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all bg-amber-50 text-amber-800 border border-amber-300';
+        headerBtn.title = count > 0 ? `Offline: ${count} change(s) stored on device. Auto-syncs when online.` : 'Offline Mode: Stored on device.';
+      }
+      if (headerDot) headerDot.className = 'w-2 h-2 rounded-full bg-amber-500 shrink-0';
+      if (headerText) headerText.textContent = count > 0 ? `${count} Pending` : 'Offline';
+      if (sidebarDot) sidebarDot.className = 'w-2 h-2 rounded-full bg-amber-500 shrink-0';
+      if (modalBadge) {
+        modalBadge.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200';
+        modalBadge.textContent = count > 0 ? `${count} Pending (Offline)` : 'Offline';
+      }
+      if (modalDesc) {
+        modalDesc.textContent = count > 0 ? `${count} change(s) queued locally. Reconnecting will auto-sync.` : 'Operating offline. Changes will save locally.';
+      }
+    } else if (count > 0) {
+      if (headerBtn) {
+        headerBtn.className = 'touch-btn h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all bg-amber-50 text-amber-800 border border-amber-300';
+        headerBtn.title = `${count} change(s) pending sync. Tap to upload now.`;
+      }
+      if (headerDot) headerDot.className = 'w-2 h-2 rounded-full bg-amber-500 shrink-0';
+      if (headerText) headerText.textContent = `${count} Pending`;
+      if (sidebarDot) sidebarDot.className = 'w-2 h-2 rounded-full bg-amber-500 shrink-0';
+      if (modalBadge) {
+        modalBadge.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200';
+        modalBadge.textContent = `${count} Pending`;
+      }
+      if (modalDesc) {
+        modalDesc.textContent = `${count} change(s) waiting to sync to PostgreSQL cloud.`;
+      }
+    } else {
+      if (headerBtn) {
+        headerBtn.className = 'touch-btn h-10 px-2.5 sm:px-3 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all bg-emerald-50 text-emerald-700 border border-emerald-200';
+        headerBtn.title = 'Cloud Synchronized: All records up to date.';
+      }
+      if (headerDot) headerDot.className = 'w-2 h-2 rounded-full bg-emerald-500 shrink-0';
+      if (headerText) headerText.textContent = 'Synced';
+      if (sidebarDot) sidebarDot.className = 'w-2 h-2 rounded-full bg-emerald-500 shrink-0';
+      if (modalBadge) {
+        modalBadge.className = 'px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200';
+        modalBadge.textContent = 'All Synced';
+      }
+      if (modalDesc) {
+        modalDesc.textContent = 'All records synchronized with PostgreSQL cloud.';
+      }
+    }
+  }
+
+  // ============================================================================
+  // 3. SUPABASE INITIALIZATION & REALTIME POSTGRESQL SYNC
   // ============================================================================
 
   function initSupabase() {
@@ -145,8 +414,9 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
           }
         });
 
-        updateSupabaseStatus('connected');
+        updateSupabaseStatus(navigator.onLine ? 'connected' : 'local');
         setupRealtimeSubscriptions();
+        flushOutboxQueue();
         fetchSupabaseData();
       } catch (err) {
         console.warn('Supabase initialization warning:', err);
@@ -172,10 +442,14 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       if (label) label.textContent = 'Local Mode';
       if (dbDot) dbDot.className = 'w-2 h-2 rounded-full bg-amber-500 shrink-0';
     }
+    updateSyncIndicator();
   }
 
   async function fetchSupabaseData(force = false) {
-    if (!state.supabaseClient) return;
+    if (!state.supabaseClient || !navigator.onLine) {
+      updateSyncIndicator();
+      return;
+    }
 
     try {
       const [studentsRes, logsRes, profilesRes, auditRes, vehiclesRes] = await Promise.all([
@@ -186,29 +460,99 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         state.supabaseClient.from('vehicles').select('*').catch(() => ({ data: null }))
       ]);
 
+      const queue = getOutboxQueue();
+
+      // 1. Safe Students Merge: Never overwrite students pending sync in the outbox
       if (studentsRes.data && !studentsRes.error) {
-        state.data.students = studentsRes.data;
+        const cloudStudents = studentsRes.data;
+        const cloudIdSet = new Set(cloudStudents.map(s => s.id));
+        const pendingStudentIds = new Set(
+          queue.filter(item => item.type === 'INSERT_STUDENT').map(item => item.payload.id)
+        );
+        const deletedStudentIds = new Set(
+          queue.filter(item => item.type === 'DELETE_STUDENT').map(item => item.payload.id)
+        );
+
+        // Keep local students that are pending insert and haven't been deleted
+        const pendingLocalStudents = (state.data.students || []).filter(
+          s => pendingStudentIds.has(s.id) && !cloudIdSet.has(s.id)
+        );
+
+        // Filter out any cloud students that are queued for deletion locally
+        const filteredCloud = cloudStudents.filter(s => !deletedStudentIds.has(s.id));
+
+        state.data.students = [...filteredCloud, ...pendingLocalStudents];
       }
+
+      // 2. Safe Manifest Logs Merge: Never overwrite local pending status changes
       if (logsRes.data && !logsRes.error) {
-        state.data.manifestLogs = logsRes.data;
+        const cloudLogs = logsRes.data;
+        const pendingLogs = queue.filter(item => item.type === 'UPSERT_MANIFEST_LOG').map(item => item.payload);
+        const pendingKeyMap = new Map(pendingLogs.map(l => [`${l.student_id}_${l.date}_${l.type}`, l]));
+
+        const merged = cloudLogs.map(cl => {
+          const key = `${cl.student_id}_${cl.date}_${cl.type}`;
+          return pendingKeyMap.has(key) ? pendingKeyMap.get(key) : cl;
+        });
+
+        const cloudKeySet = new Set(cloudLogs.map(cl => `${cl.student_id}_${cl.date}_${cl.type}`));
+        pendingLogs.forEach(pl => {
+          const key = `${pl.student_id}_${pl.date}_${pl.type}`;
+          if (!cloudKeySet.has(key)) {
+            merged.push(pl);
+          }
+        });
+
+        state.data.manifestLogs = merged;
       }
+
+      // 3. Safe Profiles/Staff Merge: Never overwrite staff pending provision
       if (profilesRes.data && !profilesRes.error && profilesRes.data.length > 0) {
-        state.data.staff = profilesRes.data;
+        const cloudStaff = profilesRes.data;
+        const cloudEmails = new Set(cloudStaff.map(s => (s.email || '').toLowerCase()));
+        const pendingEmails = new Set(
+          queue.filter(item => item.type === 'PROVISION_STAFF').map(item => (item.payload.email || '').toLowerCase())
+        );
+
+        const pendingLocalStaff = (state.data.staff || []).filter(
+          st => pendingEmails.has((st.email || '').toLowerCase()) && !cloudEmails.has((st.email || '').toLowerCase())
+        );
+
+        state.data.staff = [...cloudStaff, ...pendingLocalStaff];
       }
+
       if (auditRes.data && !auditRes.error) {
         state.data.auditLogs = auditRes.data;
       }
+
+      // 4. Safe Vehicles Merge
       if (vehiclesRes && vehiclesRes.data && !vehiclesRes.error && vehiclesRes.data.length > 0) {
-        state.data.vehicles = vehiclesRes.data;
+        const cloudVehicles = vehiclesRes.data;
+        const cloudVehIds = new Set(cloudVehicles.map(v => v.id));
+        const pendingVehIds = new Set(
+          queue.filter(item => item.type === 'INSERT_VEHICLE').map(item => item.payload.id)
+        );
+        const deletedVehIds = new Set(
+          queue.filter(item => item.type === 'DELETE_VEHICLE').map(item => item.payload.id)
+        );
+
+        const pendingLocalVehs = (state.data.vehicles || []).filter(
+          v => pendingVehIds.has(v.id) && !cloudVehIds.has(v.id)
+        );
+
+        const filteredCloudVehs = cloudVehicles.filter(v => !deletedVehIds.has(v.id));
+        state.data.vehicles = [...filteredCloudVehs, ...pendingLocalVehs];
       }
 
       saveStoredData();
       if (!state.isPasswordRecoveryActive) {
         renderApp();
       }
+      updateSyncIndicator();
       if (force) notify('Cloud data synchronized successfully!', 'success');
     } catch (e) {
       console.warn('Fetch data warning:', e);
+      updateSyncIndicator();
     }
   }
 
@@ -292,12 +636,14 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     if (state.data.auditLogs.length > 300) state.data.auditLogs.pop();
     saveStoredData();
 
-    if (state.supabaseClient && user.id) {
+    if (state.supabaseClient && user.id && navigator.onLine) {
       try {
         await state.supabaseClient.from('audit_logs').insert([logEntry]);
       } catch (err) {
-        console.warn('Audit cloud sync notice:', err.message);
+        enqueueOutbox('INSERT_AUDIT_LOG', logEntry);
       }
+    } else if (user.id) {
+      enqueueOutbox('INSERT_AUDIT_LOG', logEntry);
     }
   }
 
@@ -1233,13 +1579,8 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       date: state.activeDate
     });
 
-    if (state.supabaseClient) {
-      try {
-        await state.supabaseClient.from('manifest_logs').upsert([logRecord], { onConflict: 'student_id,date,type' });
-      } catch (err) {
-        console.warn('Manifest upsert warning:', err);
-      }
-    }
+    enqueueOutbox('UPSERT_MANIFEST_LOG', logRecord);
+    flushOutboxQueue();
 
     renderApp();
   }
@@ -1529,21 +1870,13 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     student.assigned_vehicle = vehicleName;
     saveStoredData();
 
-    if (state.supabaseClient) {
-      try {
-        await state.supabaseClient
-          .from('students')
-          .update({ assigned_vehicle: vehicleName })
-          .eq('id', studentId);
-      } catch (err) {
-        console.warn('Supabase vehicle assignment sync warning:', err);
-      }
-    }
-
     logAuditAction('ASSIGN_VEHICLE', 'transport', studentId, {
       student_name: student.name,
       assigned_vehicle: vehicleName || 'Unassigned'
     });
+
+    enqueueOutbox('ASSIGN_VEHICLE', { studentId, vehicleName });
+    flushOutboxQueue();
 
     notify(`${student.name} assigned to ${vehicleName || 'Unassigned route'}`, 'success');
     renderManifestTable();
@@ -1568,9 +1901,8 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
       logAuditAction('DELETE_STUDENT', 'student', studentId, { name: student.name });
 
-      if (state.supabaseClient) {
-        state.supabaseClient.from('students').delete().eq('id', studentId).then(() => {});
-      }
+      enqueueOutbox('DELETE_STUDENT', { id: studentId });
+      flushOutboxQueue();
 
       notify(`Student ${student.name} permanently removed.`, 'info');
       renderApp();
@@ -1843,8 +2175,8 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       }
       saveStoredData();
 
-      // Upsert profile in Supabase database
-      if (state.supabaseClient) {
+      // Upsert profile in Supabase database or queue for offline sync
+      if (state.supabaseClient && createdAuthUserId && navigator.onLine) {
         try {
           await state.supabaseClient.from('profiles').upsert({
             id: newStaff.id,
@@ -1856,8 +2188,25 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
             is_first_login: isFirstLogin
           });
         } catch (e) {
-          console.warn('Profiles upsert warning:', e);
+          enqueueOutbox('PROVISION_STAFF', {
+            name,
+            email,
+            role,
+            initialPassword,
+            assigned_tracks: checkedTracks,
+            localStaffId: newStaff.id
+          });
         }
+      } else {
+        enqueueOutbox('PROVISION_STAFF', {
+          name,
+          email,
+          role,
+          initialPassword,
+          assigned_tracks: checkedTracks,
+          localStaffId: newStaff.id
+        });
+        flushOutboxQueue();
       }
 
       logAuditAction('STAFF_INVITE_SENT', 'profile', newStaff.id, {
@@ -1868,7 +2217,9 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         email_sent: emailDispatched
       });
 
-      if (emailDispatched) {
+      if (!createdAuthUserId) {
+        notify(`Staff account saved locally on device. Will finalize cloud setup when connected. Initial password: ${initialPassword}`, 'info');
+      } else if (emailDispatched) {
         notify(`Staff account created & email dispatched to ${email}!`, 'success');
       } else {
         notify(`Staff account registered for ${name}! Password: ${initialPassword}`, 'success');
@@ -2051,13 +2402,8 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         track: track
       });
 
-      if (state.supabaseClient) {
-        try {
-          await state.supabaseClient.from('students').insert([newStudent]);
-        } catch (err) {
-          console.warn('Student insert warning:', err);
-        }
-      }
+      enqueueOutbox('INSERT_STUDENT', newStudent);
+      flushOutboxQueue();
 
       notify(`Student "${name}" successfully enrolled into ${cohort}!`, 'success');
       form.reset();
@@ -2568,6 +2914,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         btn.innerHTML = '<i data-lucide="refresh-cw" class="w-4 h-4 animate-spin"></i><span>Syncing...</span>';
         if (window.lucide) window.lucide.createIcons();
       }
+      await flushOutboxQueue();
       await fetchSupabaseData(true);
       if (btn) {
         btn.disabled = false;
@@ -2702,13 +3049,8 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       state.data.vehicles.push(newVehicle);
       saveStoredData();
 
-      if (state.supabaseClient) {
-        try {
-          await state.supabaseClient.from('vehicles').insert([newVehicle]);
-        } catch (err) {
-          console.warn('Vehicle Supabase insert warning:', err);
-        }
-      }
+      enqueueOutbox('INSERT_VEHICLE', newVehicle);
+      await flushOutboxQueue();
 
       logAuditAction('ADD_VEHICLE', 'transport', newVehicle.id, {
         name: name,
@@ -2796,13 +3138,8 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
             state.data.vehicles = state.data.vehicles.filter(v => v.id !== vehId);
             saveStoredData();
 
-            if (state.supabaseClient) {
-              try {
-                await state.supabaseClient.from('vehicles').delete().eq('id', vehId);
-              } catch (err) {
-                console.warn('Vehicle Supabase delete warning:', err);
-              }
-            }
+            enqueueOutbox('DELETE_VEHICLE', { id: vehId });
+            await flushOutboxQueue();
 
             logAuditAction('REMOVE_VEHICLE', 'transport', vehId, { name: targetVeh.name });
             notify(`Vehicle "${targetVeh.name}" removed from fleet.`, 'info');
@@ -2953,6 +3290,14 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     initSupabase();
     initAuthSystem();
     initPasswordToggles();
+    setupOfflineNetworkListeners();
+    updateSyncIndicator();
+
+    // Wire header sync pill click → manual flush
+    document.getElementById('header-sync-status-btn')?.addEventListener('click', () => {
+      if (navigator.onLine) flushOutboxQueue();
+      else notify('No internet connection. Changes are safely stored on this device.', 'info');
+    });
 
     // Wire PWA install button
     document.getElementById('btn-install-pwa')?.addEventListener('click', async () => {
