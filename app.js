@@ -786,11 +786,20 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       showPasswordRecoveryMode();
     }
 
-    // Check existing stored session
+    // Check existing stored session and verify token validity with Supabase Auth
     try {
       const storedSession = localStorage.getItem(AUTH_STORAGE_KEY);
       if (storedSession) {
         state.currentUser = JSON.parse(storedSession);
+      }
+      if (state.supabaseClient) {
+        state.supabaseClient.auth.getSession().then(({ data: { session } }) => {
+          if (!session && !state.isPasswordRecoveryActive) {
+            state.currentUser = null;
+            localStorage.removeItem(AUTH_STORAGE_KEY);
+            renderApp();
+          }
+        }).catch(() => {});
       }
     } catch (e) {}
 
@@ -2090,8 +2099,14 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       const name = document.getElementById('staff-name').value.trim();
       const email = document.getElementById('staff-email').value.trim();
       const role = document.getElementById('staff-role').value;
-      const initialPassword = document.getElementById('staff-password')?.value.trim() || 'EldoHub2026!';
+      const customPassword = document.getElementById('staff-password')?.value.trim();
+      const initialPassword = customPassword || generateSecureTempPassword();
       const submitBtn = document.getElementById('btn-submit-staff');
+
+      if (!navigator.onLine || !state.supabaseClient) {
+        notify('Staff provisioning requires an active internet connection to securely initialize authentication credentials without caching passwords in browser storage.', 'error');
+        return;
+      }
 
       const checkedTracks = [];
       document.querySelectorAll('input[name="staff-track-assign"]:checked').forEach(cb => {
@@ -2175,7 +2190,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       }
       saveStoredData();
 
-      // Upsert profile in Supabase database or queue for offline sync
+      // Upsert profile in Supabase database
       if (state.supabaseClient && createdAuthUserId && navigator.onLine) {
         try {
           await state.supabaseClient.from('profiles').upsert({
@@ -2188,25 +2203,8 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
             is_first_login: isFirstLogin
           });
         } catch (e) {
-          enqueueOutbox('PROVISION_STAFF', {
-            name,
-            email,
-            role,
-            initialPassword,
-            assigned_tracks: checkedTracks,
-            localStaffId: newStaff.id
-          });
+          console.warn('Failed to upsert profile to Supabase:', e);
         }
-      } else {
-        enqueueOutbox('PROVISION_STAFF', {
-          name,
-          email,
-          role,
-          initialPassword,
-          assigned_tracks: checkedTracks,
-          localStaffId: newStaff.id
-        });
-        flushOutboxQueue();
       }
 
       logAuditAction('STAFF_INVITE_SENT', 'profile', newStaff.id, {
@@ -2511,22 +2509,33 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
           else if (state.activeManifestType === 'gate_pickup') manifestName = 'Gate_Carline_Register';
         }
 
+        const sanitizeCSVCell = (val) => {
+          if (val === null || val === undefined) return '""';
+          let str = String(val);
+          // Mitigate CSV Formula / DDE Injection in Excel / Calc:
+          // If string begins with =, +, -, @, \t, or \r, prepend a single quote
+          if (/^[=+\-@\t\r]/.test(str)) {
+            str = "'" + str;
+          }
+          return `"${str.replace(/"/g, '""')}"`;
+        };
+
         const headers = ['Serial', 'Student Name', 'Parent Phone', 'Residence', 'Branch', 'Cohort', 'Track', 'Transport Mode', 'Assigned Vehicle', 'Daily Status', 'Date', 'Notes'];
         const rows = students.map((s, idx) => {
           const status = getStudentStatus(s.id);
           return [
             idx + 1,
-            `"${s.name.replace(/"/g, '""')}"`,
-            `"${s.phone.replace(/"/g, '""')}"`,
-            `"${s.residence.replace(/"/g, '""')}"`,
-            s.branch,
-            `"${s.cohort.replace(/"/g, '""')}"`,
-            `"${s.track.replace(/"/g, '""')}"`,
-            s.transport_mode,
-            `"${(s.assigned_vehicle || '').replace(/"/g, '""')}"`,
-            status,
-            state.activeDate,
-            `"${(s.notes || '').replace(/"/g, '""')}"`
+            sanitizeCSVCell(s.name),
+            sanitizeCSVCell(s.phone),
+            sanitizeCSVCell(s.residence),
+            sanitizeCSVCell(s.branch),
+            sanitizeCSVCell(s.cohort),
+            sanitizeCSVCell(s.track),
+            sanitizeCSVCell(s.transport_mode),
+            sanitizeCSVCell(s.assigned_vehicle || ''),
+            sanitizeCSVCell(status),
+            sanitizeCSVCell(state.activeDate),
+            sanitizeCSVCell(s.notes || '')
           ];
         });
 
@@ -3248,6 +3257,17 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         if (toast.parentElement) toast.parentElement.removeChild(toast);
       }, 300);
     }, 4000);
+  }
+
+  function generateSecureTempPassword() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*';
+    const array = new Uint8Array(16);
+    if (window.crypto && window.crypto.getRandomValues) {
+      window.crypto.getRandomValues(array);
+    } else {
+      for (let i = 0; i < 16; i++) array[i] = Math.floor(Math.random() * 256);
+    }
+    return Array.from(array, byte => chars[byte % chars.length]).join('');
   }
 
   function escapeHTML(str) {

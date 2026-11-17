@@ -229,8 +229,8 @@ DECLARE
     user_tracks TEXT[];
 BEGIN
     SELECT assigned_tracks INTO user_tracks FROM public.profiles WHERE id = auth.uid() AND is_active = true;
-    IF user_tracks IS NULL OR array_length(user_tracks, 1) IS NULL THEN
-        RETURN true; -- Unrestricted instructor can access all tracks
+    IF user_tracks IS NULL OR cardinality(user_tracks) = 0 THEN
+        RETURN false; -- Strict RBAC: instructor must have explicit track assignment
     END IF;
     RETURN track_name = ANY(user_tracks);
 END;
@@ -246,6 +246,7 @@ ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.manifest_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cohorts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tracks ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.vehicles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- Drop old permissive policies
@@ -265,25 +266,45 @@ DROP POLICY IF EXISTS "Allow public insert cohorts" ON public.cohorts;
 DROP POLICY IF EXISTS "Allow public read tracks" ON public.tracks;
 DROP POLICY IF EXISTS "Allow public insert tracks" ON public.tracks;
 
+DROP POLICY IF EXISTS "Allow public read vehicles" ON public.vehicles;
+DROP POLICY IF EXISTS "Allow public insert vehicles" ON public.vehicles;
+DROP POLICY IF EXISTS "Allow public update vehicles" ON public.vehicles;
+DROP POLICY IF EXISTS "Allow public delete vehicles" ON public.vehicles;
+
 -- ------------------------------------------------------------------------------
 -- A. PROFILES TABLE POLICIES
 -- ------------------------------------------------------------------------------
 
 -- Staff can view all active profiles (for names, directory, sign-off)
+DROP POLICY IF EXISTS "Staff can view profiles" ON public.profiles;
 CREATE POLICY "Staff can view profiles" ON public.profiles
     FOR SELECT TO authenticated
     USING (is_active = true OR public.is_super_admin());
 
--- Only super administrators can insert, update, or deactivate profiles
+-- Only super administrators can insert profiles directly
+DROP POLICY IF EXISTS "Super admins can insert profiles" ON public.profiles;
 CREATE POLICY "Super admins can insert profiles" ON public.profiles
     FOR INSERT TO authenticated
     WITH CHECK (public.is_super_admin());
 
+-- Super admins can update any profile; staff can only update their own profile while active
+-- Staff CANNOT escalate their own role, reactivate themselves, or modify their assigned tracks
+DROP POLICY IF EXISTS "Super admins can update profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Super admins and staff update profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Admins update all, staff update only own display name" ON public.profiles;
 CREATE POLICY "Super admins can update profiles" ON public.profiles
     FOR UPDATE TO authenticated
-    USING (public.is_super_admin() OR auth.uid() = id)
-    WITH CHECK (public.is_super_admin() OR (auth.uid() = id AND role = (SELECT role FROM public.profiles WHERE id = auth.uid())));
+    USING (public.is_super_admin() OR (auth.uid() = id AND is_active = true))
+    WITH CHECK (
+        public.is_super_admin() OR (
+            auth.uid() = id 
+            AND is_active = true
+            AND role = (SELECT role FROM public.profiles WHERE id = auth.uid())
+            AND assigned_tracks = (SELECT assigned_tracks FROM public.profiles WHERE id = auth.uid())
+        )
+    );
 
+DROP POLICY IF EXISTS "Super admins can delete profiles" ON public.profiles;
 CREATE POLICY "Super admins can delete profiles" ON public.profiles
     FOR DELETE TO authenticated
     USING (public.is_super_admin());
@@ -293,6 +314,7 @@ CREATE POLICY "Super admins can delete profiles" ON public.profiles
 -- ------------------------------------------------------------------------------
 
 -- All active authenticated staff can view student records
+DROP POLICY IF EXISTS "Staff can view students" ON public.students;
 CREATE POLICY "Staff can view students" ON public.students
     FOR SELECT TO authenticated
     USING (
@@ -303,17 +325,20 @@ CREATE POLICY "Staff can view students" ON public.students
     );
 
 -- Super admin and Receptionist can register (INSERT) new students
+DROP POLICY IF EXISTS "Admins and receptionists can insert students" ON public.students;
 CREATE POLICY "Admins and receptionists can insert students" ON public.students
     FOR INSERT TO authenticated
     WITH CHECK (public.is_super_admin() OR public.is_receptionist());
 
 -- Super admin, Receptionist and Transport Officers can edit student information (e.g. details, vehicle assignment)
+DROP POLICY IF EXISTS "Admins, receptionists and transport officers can update students" ON public.students;
 CREATE POLICY "Admins, receptionists and transport officers can update students" ON public.students
     FOR UPDATE TO authenticated
     USING (public.is_super_admin() OR public.is_receptionist() OR public.is_transport_officer())
     WITH CHECK (public.is_super_admin() OR public.is_receptionist() OR public.is_transport_officer());
 
 -- ONLY Super Administrator can DELETE students
+DROP POLICY IF EXISTS "Only super admins can delete students" ON public.students;
 CREATE POLICY "Only super admins can delete students" ON public.students
     FOR DELETE TO authenticated
     USING (public.is_super_admin());
@@ -323,6 +348,7 @@ CREATE POLICY "Only super admins can delete students" ON public.students
 -- ------------------------------------------------------------------------------
 
 -- Staff can view manifest logs
+DROP POLICY IF EXISTS "Staff can view manifest logs" ON public.manifest_logs;
 CREATE POLICY "Staff can view manifest logs" ON public.manifest_logs
     FOR SELECT TO authenticated
     USING (
@@ -336,6 +362,7 @@ CREATE POLICY "Staff can view manifest logs" ON public.manifest_logs
 -- Super admin can insert any log.
 -- Instructor can ONLY insert class_attendance logs for their assigned tracks.
 -- Transport officer can ONLY insert morning_pickup, evening_dropoff, or gate_pickup logs.
+DROP POLICY IF EXISTS "Authorized staff can insert manifest logs" ON public.manifest_logs;
 CREATE POLICY "Authorized staff can insert manifest logs" ON public.manifest_logs
     FOR INSERT TO authenticated
     WITH CHECK (
@@ -345,6 +372,7 @@ CREATE POLICY "Authorized staff can insert manifest logs" ON public.manifest_log
     );
 
 -- UPDATE Manifest Logs:
+DROP POLICY IF EXISTS "Authorized staff can update manifest logs" ON public.manifest_logs;
 CREATE POLICY "Authorized staff can update manifest logs" ON public.manifest_logs
     FOR UPDATE TO authenticated
     USING (
@@ -359,6 +387,7 @@ CREATE POLICY "Authorized staff can update manifest logs" ON public.manifest_log
     );
 
 -- ONLY Super Admin can DELETE manifest logs
+DROP POLICY IF EXISTS "Only super admins can delete manifest logs" ON public.manifest_logs;
 CREATE POLICY "Only super admins can delete manifest logs" ON public.manifest_logs
     FOR DELETE TO authenticated
     USING (public.is_super_admin());
@@ -368,19 +397,23 @@ CREATE POLICY "Only super admins can delete manifest logs" ON public.manifest_lo
 -- ------------------------------------------------------------------------------
 
 -- All authenticated staff can read active cohorts & tracks
+DROP POLICY IF EXISTS "Staff can view cohorts" ON public.cohorts;
 CREATE POLICY "Staff can view cohorts" ON public.cohorts
     FOR SELECT TO authenticated
     USING (true);
 
+DROP POLICY IF EXISTS "Only super admins can manage cohorts" ON public.cohorts;
 CREATE POLICY "Only super admins can manage cohorts" ON public.cohorts
     FOR ALL TO authenticated
     USING (public.is_super_admin())
     WITH CHECK (public.is_super_admin());
 
+DROP POLICY IF EXISTS "Staff can view tracks" ON public.tracks;
 CREATE POLICY "Staff can view tracks" ON public.tracks
     FOR SELECT TO authenticated
     USING (true);
 
+DROP POLICY IF EXISTS "Only super admins can manage tracks" ON public.tracks;
 CREATE POLICY "Only super admins can manage tracks" ON public.tracks
     FOR ALL TO authenticated
     USING (public.is_super_admin())
@@ -388,10 +421,12 @@ CREATE POLICY "Only super admins can manage tracks" ON public.tracks
 
 ALTER TABLE public.vehicles ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Staff can view vehicles" ON public.vehicles;
 CREATE POLICY "Staff can view vehicles" ON public.vehicles
     FOR SELECT TO authenticated
     USING (true);
 
+DROP POLICY IF EXISTS "Admins and transport officers can manage vehicles" ON public.vehicles;
 CREATE POLICY "Admins and transport officers can manage vehicles" ON public.vehicles
     FOR ALL TO authenticated
     USING (public.is_super_admin() OR public.is_transport_officer())
@@ -401,21 +436,28 @@ CREATE POLICY "Admins and transport officers can manage vehicles" ON public.vehi
 -- E. AUDIT LOGS POLICIES (Tamper-Proof)
 -- ------------------------------------------------------------------------------
 
--- All authenticated staff can insert audit logs for actions they perform
+-- Authenticated staff can insert audit logs for actions they perform; role must match their real profile role
+DROP POLICY IF EXISTS "Staff can insert audit logs" ON public.audit_logs;
 CREATE POLICY "Staff can insert audit logs" ON public.audit_logs
     FOR INSERT TO authenticated
-    WITH CHECK (auth.uid() = user_id);
+    WITH CHECK (
+        auth.uid() = user_id 
+        AND user_role = (SELECT role::text FROM public.profiles WHERE id = auth.uid())
+    );
 
 -- ONLY Super Administrator can VIEW audit logs
+DROP POLICY IF EXISTS "Only super admins can view audit logs" ON public.audit_logs;
 CREATE POLICY "Only super admins can view audit logs" ON public.audit_logs
     FOR SELECT TO authenticated
     USING (public.is_super_admin());
 
 -- NO ONE can update or delete audit logs (IMMUTABLE AUDIT TRAIL)
+DROP POLICY IF EXISTS "No one can update audit logs" ON public.audit_logs;
 CREATE POLICY "No one can update audit logs" ON public.audit_logs
     FOR UPDATE TO authenticated
     USING (false);
 
+DROP POLICY IF EXISTS "No one can delete audit logs" ON public.audit_logs;
 CREATE POLICY "No one can delete audit logs" ON public.audit_logs
     FOR DELETE TO authenticated
     USING (false);
@@ -434,27 +476,23 @@ DECLARE
     user_count INT;
     assigned_role public.app_role;
     user_name TEXT;
-    is_first BOOLEAN;
 BEGIN
     SELECT count(*) INTO user_count FROM public.profiles;
 
-    -- First registered user in system automatically becomes Super Administrator with is_first_login false!
+    -- ONLY the first registered user in a completely empty system becomes Super Administrator
     IF user_count = 0 THEN
         assigned_role := 'super_admin'::public.app_role;
-        is_first := false;
     ELSE
-        -- Default role from raw_user_meta_data or instructor
-        assigned_role := COALESCE(
-            (NEW.raw_user_meta_data->>'role')::public.app_role, 
-            'instructor'::public.app_role
-        );
-        is_first := COALESCE((NEW.raw_user_meta_data->>'is_first_login')::boolean, true);
+        -- HARDENED: Never trust raw_user_meta_data for role elevation!
+        -- Any subsequent self-registration or invite defaults strictly to lowest-privilege 'instructor'
+        -- Elevated roles can only be granted by an authenticated Super Administrator in the portal.
+        assigned_role := 'instructor'::public.app_role;
     END IF;
 
     user_name := COALESCE(NEW.raw_user_meta_data->>'full_name', split_part(NEW.email, '@', 1));
 
     INSERT INTO public.profiles (id, email, full_name, role, is_active, is_first_login)
-    VALUES (NEW.id, NEW.email, user_name, assigned_role, true, is_first)
+    VALUES (NEW.id, NEW.email, user_name, assigned_role, true, (user_count > 0))
     ON CONFLICT (id) DO UPDATE SET
         email = EXCLUDED.email,
         full_name = EXCLUDED.full_name;
@@ -470,8 +508,19 @@ CREATE TRIGGER on_auth_user_created
     EXECUTE FUNCTION public.handle_new_auth_user();
 
 -- ==============================================================================
--- 8. REALTIME REPLICATION
+-- 8. REALTIME REPLICATION (Safe Idempotent Enrolment)
 -- ==============================================================================
-ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.audit_logs;
-ALTER PUBLICATION supabase_realtime ADD TABLE public.vehicles;
+DO $$ BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.profiles;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.audit_logs;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.vehicles;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
