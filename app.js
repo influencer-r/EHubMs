@@ -3831,12 +3831,12 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
     // Download Sample Template
     sampleBtn?.addEventListener('click', () => {
-      const sampleCSV = `full_name,parent_name,parent_phone,track,pickup_location,requires_transport,total_fee,amount_paid
-Liam Kipchumba,Mary Kipchumba,+254 712 345 678,Junior Robotics,Elgon View,Yes,15000,15000
-Zawadi Chebet,David Chebet,+254 722 987 654,Web Development,Rupa Mall,Yes,15000,7500
-Amani Ochieng,Grace Ochieng,+254 733 112 233,AI & Coding,West Indies,No,15000,0
-Baraka Kiprono,John Kiprono,+254 701 555 444,Mobile App Dev,Pioneer,Yes,15000,10000
-Nia Wanjiku,Esther Wanjiku,+254 799 888 777,Data Science & AI,Annex,No,15000,15000`;
+      const sampleCSV = `full_name,parent_name,parent_phone,track,pickup,total_fee,amount_paid
+Liam Kipchumba,Mary Kipchumba,+254 712 345 678,Junior Robotics,Elgon View,15000,15000
+Zawadi Chebet,David Chebet,+254 722 987 654,Web Development,Rupa Mall,15000,7500
+Amani Ochieng,Grace Ochieng,+254 733 112 233,AI & Coding,Self Arrival,15000,0
+Baraka Kiprono,John Kiprono,+254 701 555 444,Mobile App Dev,Parent Pickup,15000,10000
+Nia Wanjiku,Esther Wanjiku,+254 799 888 777,Data Science & AI,Pioneer,15000,15000`;
 
       const blob = new Blob([sampleCSV], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -3917,9 +3917,22 @@ Nia Wanjiku,Esther Wanjiku,+254 799 888 777,Data Science & AI,Annex,No,15000,150
       const parentName = (row.parent_name || row.guardian_name || row.parent || '').trim();
       const phone = (row.parent_phone || row.phone || row.guardian_phone || row.contact || '').trim();
       const bootcamp = (row.bootcamp_name || row.bootcamp || row.track || row.course || '').trim();
-      const location = (row.pickup_location || row.residence || row.location || 'Campus / Walk-in').trim();
-      const transportRaw = (row.requires_transport || row.transport || '').toString().toLowerCase().trim();
-      const requiresTransport = transportRaw === 'yes' || transportRaw === 'true' || transportRaw === '1' || transportRaw === 'y';
+
+      // Single "pickup" column: derive transport_mode + residence from the value
+      const pickupRaw = (row.pickup || row.pickup_location || row.location || row.residence || '').trim();
+      const pickupLower = pickupRaw.toLowerCase();
+      let transportMode, location;
+      if (!pickupRaw || pickupLower === 'self arrival' || pickupLower === 'self' || pickupLower === 'walk in' || pickupLower === 'walk-in') {
+        transportMode = 'self_arrival';
+        location = 'Campus / Walk-in';
+      } else if (pickupLower === 'parent pickup' || pickupLower === 'parent' || pickupLower === 'parent drop' || pickupLower === 'parent drop-off') {
+        transportMode = 'parent_pickup';
+        location = pickupRaw;
+      } else {
+        // Any real location name → bus pickup
+        transportMode = 'morning_bus';
+        location = pickupRaw;
+      }
 
       const totalFee = Math.max(0, parseFloat(row.total_fee || row.fee || 15000) || 15000);
       const amountPaid = Math.max(0, parseFloat(row.amount_paid || row.paid || 0) || 0);
@@ -3943,7 +3956,7 @@ Nia Wanjiku,Esther Wanjiku,+254 799 888 777,Data Science & AI,Annex,No,15000,150
         phone,
         bootcamp,
         location,
-        requiresTransport,
+        transportMode,
         totalFee,
         amountPaid,
         balanceDue,
@@ -3992,7 +4005,13 @@ Nia Wanjiku,Esther Wanjiku,+254 799 888 777,Data Science & AI,Annex,No,15000,150
         <td class="py-2.5 px-3 text-slate-600 font-mono">${escapeHTML(item.phone || '—')}</td>
         <td class="py-2.5 px-3 font-semibold text-indigo-700">${escapeHTML(item.bootcamp || '—')}</td>
         <td class="py-2.5 px-3 text-slate-600">${escapeHTML(item.location || 'Campus')}</td>
-        <td class="py-2.5 px-3 font-medium text-slate-700">${item.requiresTransport ? '<span class="text-amber-700 font-bold">Bus / Van</span>' : 'Self / Gate'}</td>
+        <td class="py-2.5 px-3 font-medium text-slate-700">${
+          item.transportMode === 'morning_bus' || item.transportMode === 'both'
+            ? `<span class="text-amber-700 font-bold">Bus / Van</span>`
+            : item.transportMode === 'parent_pickup'
+              ? 'Parent Pickup'
+              : 'Self Arrival'
+        }</td>
         <td class="py-2.5 px-3 font-mono font-bold text-slate-700">KES ${item.totalFee.toLocaleString()}</td>
         <td class="py-2.5 px-3 font-mono font-bold text-emerald-700">KES ${item.amountPaid.toLocaleString()}</td>
         <td class="py-2.5 px-3 text-center">${validationBadge}</td>
@@ -4041,8 +4060,8 @@ Nia Wanjiku,Esther Wanjiku,+254 799 888 777,Data Science & AI,Annex,No,15000,150
         branch: 'bootcamp',
         cohort: activeCohort,
         track: row.bootcamp,
-        transport_mode: row.requiresTransport ? 'both' : 'parent_pickup',
-        assigned_vehicle: row.requiresTransport ? defaultVehicle : '',
+        transport_mode: row.transportMode,
+        assigned_vehicle: (row.transportMode === 'morning_bus' || row.transportMode === 'both') ? defaultVehicle : '',
         total_fee: row.totalFee,
         amount_paid: row.amountPaid,
         balance_due: row.balanceDue,
