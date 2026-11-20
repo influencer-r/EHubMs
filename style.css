@@ -524,6 +524,11 @@ body {
   #modal-settings,
   #modal-logo,
   #modal-add-item,
+  #modal-manage-fleet,
+  #modal-record-payment,
+  #modal-receipt,
+  #drawer-student-profile,
+  #modal-bulk-import,
   #toast-container,
   .no-print,
   button:not(.print-include) {
@@ -538,7 +543,22 @@ body {
     display: none !important;
   }
 
-  #print-document {
+  body:not(.printing-receipt) #print-document {
+    display: block !important;
+    width: 100% !important;
+    color: #0f172a !important;
+    background: #ffffff !important;
+  }
+
+  body:not(.printing-receipt) #print-receipt-document {
+    display: none !important;
+  }
+
+  body.printing-receipt #print-document {
+    display: none !important;
+  }
+
+  body.printing-receipt #print-receipt-document {
     display: block !important;
     width: 100% !important;
     color: #0f172a !important;
@@ -822,4 +842,33 @@ body:has(.auth-gateway-overlay:focus-within) .slide-item {
 #manifest-empty-state {
   background: rgba(15, 23, 42, 0.50);
   backdrop-filter: blur(4px);
+}
+
+/* ==============================================================================
+   Fee Badges & Financial Indicators
+   ============================================================================== */
+.badge-fee-paid {
+  background-color: #dcfce7;
+  border: 1px solid #86efac;
+  color: #15803d;
+}
+.badge-fee-partial {
+  background-color: #fef3c7;
+  border: 1px solid #fcd34d;
+  color: #b45309;
+}
+.badge-fee-unpaid {
+  background-color: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #b91c1c;
+}
+
+/* Student clickable in tables */
+.student-clickable-name {
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+.student-clickable-name:hover {
+  text-decoration: underline;
+  color: #0284c7;
 }

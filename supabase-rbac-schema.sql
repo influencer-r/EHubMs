@@ -66,23 +66,63 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON public.audit_logs (created_
 -- 4. UPDATE EXISTING TABLES FOR ATTENDANCE & AUDIT INTEGRITY
 -- ==============================================================================
 
--- Ensure students table exists and has proper structure
+-- Ensure students table exists and has proper structure (Unified Bootcamps & Fees)
 CREATE TABLE IF NOT EXISTS public.students (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     phone VARCHAR(50) NOT NULL,
     residence VARCHAR(255) NOT NULL,
-    branch VARCHAR(50) NOT NULL CHECK (branch IN ('bootcamp', 'regular')),
+    branch VARCHAR(50) NOT NULL DEFAULT 'bootcamp',
     cohort VARCHAR(100) NOT NULL,
     track VARCHAR(100) NOT NULL,
     transport_mode VARCHAR(50) NOT NULL DEFAULT 'none' CHECK (
         transport_mode IN ('morning_bus', 'evening_bus', 'both', 'parent_pickup', 'self_arrival', 'none')
     ),
     assigned_vehicle VARCHAR(100) DEFAULT '',
+    total_fee NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+    amount_paid NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+    balance_due NUMERIC(12, 2) GENERATED ALWAYS AS (total_fee - amount_paid) STORED,
+    payment_status VARCHAR(20) NOT NULL DEFAULT 'Unpaid' CHECK (
+        payment_status IN ('Paid', 'Partial', 'Unpaid')
+    ),
     notes TEXT DEFAULT '',
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='students' AND column_name='total_fee') THEN
+        ALTER TABLE public.students ADD COLUMN total_fee NUMERIC(12, 2) NOT NULL DEFAULT 0.00;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='students' AND column_name='amount_paid') THEN
+        ALTER TABLE public.students ADD COLUMN amount_paid NUMERIC(12, 2) NOT NULL DEFAULT 0.00;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='students' AND column_name='balance_due') THEN
+        ALTER TABLE public.students ADD COLUMN balance_due NUMERIC(12, 2) GENERATED ALWAYS AS (total_fee - amount_paid) STORED;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='students' AND column_name='payment_status') THEN
+        ALTER TABLE public.students ADD COLUMN payment_status VARCHAR(20) NOT NULL DEFAULT 'Unpaid' CHECK (payment_status IN ('Paid', 'Partial', 'Unpaid'));
+    END IF;
+    ALTER TABLE public.students ALTER COLUMN branch SET DEFAULT 'bootcamp';
+END $$;
+
+-- Fee Payments Transaction Log Table
+CREATE TABLE IF NOT EXISTS public.fee_payments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id UUID NOT NULL REFERENCES public.students(id) ON DELETE CASCADE,
+    amount NUMERIC(12, 2) NOT NULL CHECK (amount > 0),
+    payment_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    payment_method VARCHAR(50) DEFAULT 'M-Pesa',
+    reference_code VARCHAR(100) NOT NULL,
+    notes TEXT DEFAULT '',
+    recorded_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+    recorded_by_name VARCHAR(255) DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+);
+
+CREATE INDEX IF NOT EXISTS idx_fee_payments_student ON public.fee_payments (student_id);
+CREATE INDEX IF NOT EXISTS idx_fee_payments_date ON public.fee_payments (payment_date DESC);
+CREATE INDEX IF NOT EXISTS idx_fee_payments_ref ON public.fee_payments (reference_code);
 
 -- Ensure manifest_logs has recorded_by and updated_at
 CREATE TABLE IF NOT EXISTS public.manifest_logs (
@@ -115,20 +155,20 @@ DO $$ BEGIN
     END IF;
 END $$;
 
--- Dynamic Cohorts Table
+-- Dynamic Cohorts Table (Unified Bootcamps)
 CREATE TABLE IF NOT EXISTS public.cohorts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    branch VARCHAR(50) NOT NULL CHECK (branch IN ('bootcamp', 'regular')),
+    branch VARCHAR(50) NOT NULL DEFAULT 'bootcamp',
     name VARCHAR(100) NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
     CONSTRAINT unique_branch_cohort UNIQUE (branch, name)
 );
 
--- Dynamic Tracks Table
+-- Dynamic Tracks Table (Unified Bootcamps)
 CREATE TABLE IF NOT EXISTS public.tracks (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    branch VARCHAR(50) NOT NULL CHECK (branch IN ('bootcamp', 'regular')),
+    branch VARCHAR(50) NOT NULL DEFAULT 'bootcamp',
     name VARCHAR(100) NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
@@ -243,6 +283,7 @@ $$;
 -- Enable RLS on all tables
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.students ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.fee_payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.manifest_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cohorts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tracks ENABLE ROW LEVEL SECURITY;
@@ -433,6 +474,71 @@ CREATE POLICY "Admins and transport officers can manage vehicles" ON public.vehi
     WITH CHECK (public.is_super_admin() OR public.is_transport_officer());
 
 -- ------------------------------------------------------------------------------
+-- D2. FEE PAYMENTS POLICIES (Super Admin & Receptionist Access)
+-- ------------------------------------------------------------------------------
+
+DROP POLICY IF EXISTS "Admins and receptionists can view fee payments" ON public.fee_payments;
+CREATE POLICY "Admins and receptionists can view fee payments" ON public.fee_payments
+    FOR SELECT TO authenticated
+    USING (public.is_super_admin() OR public.is_receptionist());
+
+DROP POLICY IF EXISTS "Admins and receptionists can insert fee payments" ON public.fee_payments;
+CREATE POLICY "Admins and receptionists can insert fee payments" ON public.fee_payments
+    FOR INSERT TO authenticated
+    WITH CHECK (public.is_super_admin() OR public.is_receptionist());
+
+DROP POLICY IF EXISTS "Only super admins can update fee payments" ON public.fee_payments;
+CREATE POLICY "Only super admins can update fee payments" ON public.fee_payments
+    FOR UPDATE TO authenticated
+    USING (public.is_super_admin())
+    WITH CHECK (public.is_super_admin());
+
+DROP POLICY IF EXISTS "Only super admins can delete fee payments" ON public.fee_payments;
+CREATE POLICY "Only super admins can delete fee payments" ON public.fee_payments
+    FOR DELETE TO authenticated
+    USING (public.is_super_admin());
+
+-- Automatic Student Fee Sync Trigger on Payment Insertion
+CREATE OR REPLACE FUNCTION public.sync_student_fee_on_payment()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_total_paid NUMERIC(12, 2);
+    v_total_fee NUMERIC(12, 2);
+    v_new_status VARCHAR(20);
+BEGIN
+    SELECT COALESCE(SUM(amount), 0) INTO v_total_paid
+    FROM public.fee_payments
+    WHERE student_id = NEW.student_id;
+
+    SELECT total_fee INTO v_total_fee
+    FROM public.students
+    WHERE id = NEW.student_id;
+
+    IF v_total_paid >= v_total_fee AND v_total_fee > 0 THEN
+        v_new_status := 'Paid';
+    ELSIF v_total_paid > 0 THEN
+        v_new_status := 'Partial';
+    ELSE
+        v_new_status := 'Unpaid';
+    END IF;
+
+    UPDATE public.students
+    SET amount_paid = v_total_paid,
+        payment_status = v_new_status,
+        updated_at = timezone('utc'::text, now())
+    WHERE id = NEW.student_id;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_sync_fee_payments ON public.fee_payments;
+CREATE TRIGGER trigger_sync_fee_payments
+AFTER INSERT OR UPDATE OR DELETE ON public.fee_payments
+FOR EACH ROW
+EXECUTE FUNCTION public.sync_student_fee_on_payment();
+
+-- ------------------------------------------------------------------------------
 -- E. AUDIT LOGS POLICIES (Tamper-Proof)
 -- ------------------------------------------------------------------------------
 
@@ -522,5 +628,15 @@ END $$;
 
 DO $$ BEGIN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.vehicles;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.students;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.fee_payments;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;

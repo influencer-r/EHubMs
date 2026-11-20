@@ -45,14 +45,15 @@
     }
   </script>
 
-  <!-- External Libraries: Supabase JS, jsPDF & autoTable, Lucide Icons -->
+  <!-- External Libraries: Supabase JS, jsPDF & autoTable, PapaParse, Lucide Icons -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <script src="https://unpkg.com/lucide@0.460.0"></script>
 
   <!-- Custom Stylesheet with cache busting -->
-  <link rel="stylesheet" href="./style.css?v=19">
+  <link rel="stylesheet" href="./style.css?v=20">
 </head>
 <body class="text-slate-900 min-h-screen flex flex-col antialiased selection:bg-sky-500 selection:text-white">
 
@@ -230,17 +231,16 @@
         </button>
       </div>
 
-      <!-- Campus / Branch Selector Ribbon -->
+      <!-- Tech & AI Bootcamps Status Ribbon -->
       <div class="p-3 border-b border-slate-100 sidebar-text-hide" id="sidebar-branch-ribbon">
-        <div class="flex items-center bg-slate-100 rounded-xl p-1 border border-slate-200">
-          <button id="branch-nav-bootcamp" class="touch-btn flex-1 h-9 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 bg-gradient-to-r from-sky-600 to-blue-600 text-white shadow-sm">
-            <i data-lucide="rocket" class="w-3.5 h-3.5"></i>
-            <span>Boot Camp</span>
-          </button>
-          <button id="branch-nav-regular" class="touch-btn flex-1 h-9 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 text-slate-600 hover:text-slate-900">
-            <i data-lucide="graduation-cap" class="w-3.5 h-3.5"></i>
-            <span>Regular</span>
-          </button>
+        <div class="flex items-center gap-2 p-2 rounded-xl bg-gradient-to-r from-sky-50 via-blue-50 to-indigo-50 border border-sky-200">
+          <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-sky-600 to-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+            <i data-lucide="zap" class="w-4 h-4"></i>
+          </div>
+          <div class="flex-1 min-w-0">
+            <span class="text-xs font-black text-slate-900 block truncate">Tech & AI Bootcamps</span>
+            <span class="text-[9.5px] text-sky-700 font-semibold block">100% Cohort Integrated</span>
+          </div>
         </div>
       </div>
 
@@ -280,6 +280,21 @@
           </nav>
         </div>
 
+        <!-- Section: Finance & Fee Management (Super Admin & Receptionist) -->
+        <div class="space-y-1" id="nav-section-finance">
+          <span class="sidebar-text-hide text-[10px] font-bold uppercase tracking-wider text-emerald-600 px-3 select-none">
+            Finance & Accounts
+          </span>
+
+          <nav class="space-y-1">
+            <button id="tab-nav-fees" class="sidebar-nav-item w-full text-slate-700 hover:text-slate-900" title="Bootcamp Student Fees & Payment Installments">
+              <i data-lucide="receipt" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+              <span class="sidebar-text-hide flex-1 text-left font-bold">Fees & Payments</span>
+              <span id="badge-nav-fees" class="sidebar-text-hide text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">KES</span>
+            </button>
+          </nav>
+        </div>
+
         <!-- Section: Administration & Reception Desk -->
         <div class="space-y-1" id="nav-section-reception">
           <span class="sidebar-text-hide text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3 select-none">
@@ -291,6 +306,12 @@
               <i data-lucide="user-plus" class="w-4 h-4 text-sky-600 shrink-0"></i>
               <span class="sidebar-text-hide flex-1 text-left font-bold">New Student Admission</span>
               <span class="sidebar-text-hide text-[9px] font-bold px-1.5 py-0.5 rounded bg-sky-600 text-white uppercase">Desk</span>
+            </button>
+
+            <button id="btn-sidebar-bulk-import" class="sidebar-nav-item w-full text-slate-700 hover:text-slate-900" title="Bulk Import Students & Fees from CSV">
+              <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+              <span class="sidebar-text-hide flex-1 text-left font-bold">Bulk Import (CSV)</span>
+              <span class="sidebar-text-hide text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 uppercase">Fast</span>
             </button>
 
             <button id="btn-trigger-print" class="sidebar-nav-item w-full text-slate-700 hover:text-slate-900" title="Print official formatted manifest">
@@ -379,7 +400,7 @@
                   Morning Pick-up Bus Manifest
                 </h2>
                 <span id="top-branch-pill" class="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-sky-50 text-sky-700 border border-sky-200">
-                  Boot Camp
+                  Tech & AI Bootcamps
                 </span>
               </div>
               <p id="top-view-subheading" class="text-[11px] text-slate-500 hidden sm:block font-medium">
@@ -418,6 +439,12 @@
             <button id="btn-install-pwa" class="touch-btn h-10 px-3 rounded-xl text-xs font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 flex items-center gap-1.5 transition-colors hidden" title="Install App">
               <i data-lucide="download" class="w-4 h-4"></i>
               <span class="hidden md:inline">Install App</span>
+            </button>
+
+            <!-- Bulk Import CSV Button -->
+            <button id="header-btn-bulk-import" class="touch-btn h-10 px-3 sm:px-3.5 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100 flex items-center gap-1.5 shadow-sm transition-colors" title="Bulk Import Students & Fees from CSV">
+              <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-600"></i>
+              <span class="hidden md:inline">Bulk Import (CSV)</span>
             </button>
 
             <!-- Quick Add Student Admission Button -->
@@ -566,6 +593,11 @@
               </button>
 
               <div class="h-6 w-px bg-slate-200 hidden sm:block"></div>
+
+              <button id="toolbar-btn-bulk-import" class="touch-btn h-11 px-3.5 rounded-xl text-xs font-bold bg-emerald-50 border border-emerald-300 text-emerald-800 hover:bg-emerald-100 shadow-sm flex items-center gap-1.5" title="Bulk Import Students & Fees from CSV">
+                <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-600"></i>
+                <span class="hidden sm:inline">Bulk CSV</span>
+              </button>
 
               <button id="toolbar-btn-print" class="touch-btn h-11 px-3.5 rounded-xl text-xs font-bold bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-sm flex items-center gap-1.5">
                 <i data-lucide="printer" class="w-4 h-4 text-slate-500"></i>
@@ -726,6 +758,161 @@
           </div>
         </div>
 
+        <!-- ==============================================================================
+             MODULE 4: FEES & PAYMENTS SHOWCASE (SUPER ADMIN & RECEPTIONIST)
+             ============================================================================== -->
+        <div id="view-fees-payments" class="space-y-6 hidden">
+          
+          <!-- Top Header & Action Row -->
+          <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center">
+                  <i data-lucide="receipt" class="w-4 h-4"></i>
+                </div>
+                <h3 class="text-lg font-black text-slate-900 tracking-tight">Bootcamp Fees & Revenue Operations</h3>
+              </div>
+              <p class="text-xs text-slate-500 mt-1 font-medium">
+                Student tuition accounts, installment receipts, color-coded balances in Kenya Shillings (KES).
+              </p>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2.5">
+              <button id="btn-open-record-payment" class="touch-btn h-11 px-4 rounded-xl text-xs font-extrabold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-sm flex items-center gap-2">
+                <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                <span>Record Payment</span>
+              </button>
+              <button id="btn-fees-export-csv" class="touch-btn h-11 px-3.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 flex items-center gap-1.5" title="Export Fees Data to CSV">
+                <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-600"></i>
+                <span>Export CSV</span>
+              </button>
+              <button id="btn-fees-export-pdf" class="touch-btn h-11 px-3.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 flex items-center gap-1.5" title="Download Official Financial Statement PDF">
+                <i data-lucide="file-text" class="w-4 h-4 text-rose-600"></i>
+                <span>Statement PDF</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Top KPI Summary Cards -->
+          <section class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <!-- Expected Fees -->
+            <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between relative overflow-hidden">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Total Expected Fees</span>
+                <div class="w-8 h-8 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center">
+                  <i data-lucide="badge-percent" class="w-4 h-4"></i>
+                </div>
+              </div>
+              <div class="mt-3">
+                <div class="text-2xl sm:text-3xl font-black text-slate-900 font-mono tracking-tight" id="kpi-fees-expected">
+                  KES 0
+                </div>
+                <span class="text-xs text-slate-500 font-medium block mt-1" id="kpi-fees-enrolled-count">
+                  0 enrolled bootcamp students
+                </span>
+              </div>
+            </div>
+
+            <!-- Total Collected -->
+            <div class="bg-gradient-to-br from-emerald-50/90 via-teal-50/40 to-white rounded-2xl p-5 border border-emerald-200 shadow-sm flex flex-col justify-between relative overflow-hidden">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-emerald-800">Total Fees Collected</span>
+                <div class="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                  <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                </div>
+              </div>
+              <div class="mt-3">
+                <div class="text-2xl sm:text-3xl font-black text-emerald-700 font-mono tracking-tight" id="kpi-fees-collected">
+                  KES 0
+                </div>
+                <div class="flex items-center gap-2 mt-2">
+                  <div class="flex-1 h-2 rounded-full bg-emerald-100 overflow-hidden">
+                    <div id="kpi-fees-collected-bar" class="h-full bg-emerald-600 rounded-full transition-all duration-500" style="width: 0%"></div>
+                  </div>
+                  <span id="kpi-fees-collected-pct" class="text-xs font-bold text-emerald-700">0%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Total Outstanding Balance -->
+            <div class="bg-gradient-to-br from-rose-50/90 via-amber-50/40 to-white rounded-2xl p-5 border border-rose-200 shadow-sm flex flex-col justify-between relative overflow-hidden">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold uppercase tracking-wider text-rose-800">Total Outstanding Balance</span>
+                <div class="w-8 h-8 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center">
+                  <i data-lucide="alert-circle" class="w-4 h-4"></i>
+                </div>
+              </div>
+              <div class="mt-3">
+                <div class="text-2xl sm:text-3xl font-black text-rose-700 font-mono tracking-tight" id="kpi-fees-balance">
+                  KES 0
+                </div>
+                <span class="text-xs text-rose-800/80 font-medium block mt-1" id="kpi-fees-pending-students">
+                  0 students with pending balance
+                </span>
+              </div>
+            </div>
+          </section>
+
+          <!-- Filter & Search Controls Bar -->
+          <div class="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+            <div class="relative flex-1 max-w-md">
+              <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+              <input type="text" id="fees-search-input" placeholder="Search by student name, phone, or track..." class="w-full glass-input rounded-xl pl-10 pr-4 text-sm placeholder:text-slate-400">
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2.5">
+              <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1">
+                <i data-lucide="layers" class="w-3.5 h-3.5 text-slate-400"></i>
+                <label for="fees-cohort-filter" class="text-xs font-bold text-slate-600">Cohort:</label>
+                <select id="fees-cohort-filter" class="bg-transparent text-xs font-bold text-slate-800 focus:outline-none pr-2 py-1">
+                  <option value="all">All Cohorts</option>
+                </select>
+              </div>
+
+              <div class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1">
+                <i data-lucide="filter" class="w-3.5 h-3.5 text-slate-400"></i>
+                <label for="fees-status-filter" class="text-xs font-bold text-slate-600">Status:</label>
+                <select id="fees-status-filter" class="bg-transparent text-xs font-bold text-slate-800 focus:outline-none pr-2 py-1">
+                  <option value="all">All Statuses</option>
+                  <option value="Paid">Paid</option>
+                  <option value="Partial">Partial</option>
+                  <option value="Unpaid">Unpaid</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Student Fee Table -->
+          <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+            <div class="overflow-x-auto w-full">
+              <table class="cloudschool-table text-left border-collapse text-sm">
+                <thead>
+                  <tr>
+                    <th class="w-12 text-center">#</th>
+                    <th>Student Full Name</th>
+                    <th>Bootcamp Track & Cohort</th>
+                    <th class="text-right">Total Fee</th>
+                    <th class="text-right">Amount Paid</th>
+                    <th class="text-right">Balance Due</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="fees-table-body" class="divide-y divide-slate-100"></tbody>
+              </table>
+            </div>
+
+            <div id="fees-empty-state" class="p-12 text-center flex flex-col items-center justify-center space-y-3 bg-slate-50/50 hidden">
+              <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center">
+                <i data-lucide="receipt" class="w-6 h-6"></i>
+              </div>
+              <h4 class="text-base font-bold text-slate-800">No student fee records found</h4>
+              <p class="text-xs text-slate-500 max-w-sm">No students match your search or filter criteria in the current bootcamp cohort.</p>
+            </div>
+          </div>
+
+        </div>
+
       </main>
 
     </div>
@@ -738,9 +925,9 @@
         <i data-lucide="bus" class="w-5 h-5 mb-0.5"></i>
         <span>Logistics</span>
       </button>
-      <button id="dock-btn-regular" class="flex flex-col items-center justify-center text-slate-500 hover:text-slate-900 text-[10px] font-bold py-1 px-3">
-        <i data-lucide="graduation-cap" class="w-5 h-5 mb-0.5"></i>
-        <span>Regular</span>
+      <button id="dock-btn-fees" class="flex flex-col items-center justify-center text-slate-500 hover:text-emerald-600 text-[10px] font-bold py-1 px-3">
+        <i data-lucide="receipt" class="w-5 h-5 mb-0.5"></i>
+        <span>Fees</span>
       </button>
       <button id="dock-btn-add" class="flex flex-col items-center justify-center text-white text-[10px] font-bold py-1 px-3 -mt-4">
         <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-sky-600 to-blue-600 flex items-center justify-center shadow-lg shadow-sky-600/30 border-2 border-white">
@@ -775,9 +962,15 @@
             <p class="text-xs text-slate-500">Single entry updates database, class registers & fleet manifests</p>
           </div>
         </div>
-        <button id="btn-close-onboarding" class="text-slate-400 hover:text-slate-700 p-2 rounded-lg hover:bg-slate-100">
-          <i data-lucide="x" class="w-5 h-5"></i>
-        </button>
+        <div class="flex items-center gap-2">
+          <button type="button" id="btn-onboard-bulk-csv-link" class="touch-btn h-8 px-2.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100 flex items-center gap-1.5 shadow-sm" title="Import multiple students via CSV">
+            <i data-lucide="file-spreadsheet" class="w-3.5 h-3.5 text-emerald-600"></i>
+            <span class="hidden sm:inline">Bulk CSV</span>
+          </button>
+          <button id="btn-close-onboarding" class="text-slate-400 hover:text-slate-700 p-2 rounded-lg hover:bg-slate-100">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
       </div>
 
       <form id="student-onboarding-form" class="p-5 space-y-4 overflow-y-auto flex-1">
@@ -791,38 +984,22 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5" for="onboard-phone">
-              Parent / Student Phone <span class="text-sky-600">*</span>
+              Parent / Guardian Phone <span class="text-sky-600">*</span>
             </label>
             <input type="tel" id="onboard-phone" required placeholder="e.g. +254 712 345 678" class="w-full glass-input rounded-xl px-4 text-sm font-medium">
           </div>
           <div>
             <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5" for="onboard-residence">
-              Residence / Neighborhood <span class="text-sky-600">*</span>
+              Pickup Location / Residence <span class="text-sky-600">*</span>
             </label>
             <input type="text" id="onboard-residence" required placeholder="e.g. Westlands, Kilimani, Karen" class="w-full glass-input rounded-xl px-4 text-sm font-medium">
-          </div>
-        </div>
-
-        <div>
-          <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5">
-            Academy Campus / Branch <span class="text-sky-600">*</span>
-          </label>
-          <div class="grid grid-cols-2 gap-2">
-            <label class="p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center gap-2 cursor-pointer has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50 transition-all">
-              <input type="radio" name="onboard-branch" value="bootcamp" checked class="text-sky-600 focus:ring-0">
-              <span class="text-xs font-bold text-slate-800">Boot Camp (Kids)</span>
-            </label>
-            <label class="p-3 rounded-xl border border-slate-200 bg-slate-50 flex items-center gap-2 cursor-pointer has-[:checked]:border-sky-500 has-[:checked]:bg-sky-50 transition-all">
-              <input type="radio" name="onboard-branch" value="regular" class="text-sky-600 focus:ring-0">
-              <span class="text-xs font-bold text-slate-800">Regular Programs</span>
-            </label>
           </div>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5" for="onboard-cohort">
-              Intake / Stream <span class="text-sky-600">*</span>
+              Bootcamp Cohort / Intake <span class="text-sky-600">*</span>
             </label>
             <select id="onboard-cohort" required class="w-full glass-input rounded-xl px-3 text-sm font-medium bg-white"></select>
           </div>
@@ -831,6 +1008,32 @@
               Curriculum Track <span class="text-sky-600">*</span>
             </label>
             <select id="onboard-track" required class="w-full glass-input rounded-xl px-3 text-sm font-medium bg-white"></select>
+          </div>
+        </div>
+
+        <!-- Student Bootcamp Fees -->
+        <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+              <i data-lucide="receipt" class="w-3.5 h-3.5 text-emerald-600"></i>
+              <span>Bootcamp Fee Structure (KES)</span>
+            </span>
+            <span class="text-[10.5px] text-slate-500 font-semibold">Tuition & Enrollment</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1" for="onboard-total-fee">
+                Total Fee (KES) <span class="text-sky-600">*</span>
+              </label>
+              <input type="number" id="onboard-total-fee" min="0" step="500" value="15000" required placeholder="e.g. 15000" class="w-full glass-input rounded-xl px-3.5 text-sm font-bold bg-white">
+            </div>
+            <div>
+              <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1" for="onboard-amount-paid">
+                Initial Amount Paid (KES)
+              </label>
+              <input type="number" id="onboard-amount-paid" min="0" step="500" value="0" placeholder="e.g. 10000 (0 for Unpaid)" class="w-full glass-input rounded-xl px-3.5 text-sm font-bold bg-white">
+            </div>
           </div>
         </div>
 
@@ -1223,11 +1426,453 @@
     </div>
   </div>
 
+  <!-- ==============================================================================
+       10. OFFICIAL PRINT ENGINE TEMPLATE FOR RECEIPTS (Visible during @media print only)
+       ============================================================================== -->
+  <div id="print-receipt-document" aria-hidden="true" style="display: none;">
+    <div style="max-width: 650px; margin: 0 auto; padding: 24px; border: 2px solid #0f172a; border-radius: 8px; font-family: 'Plus Jakarta Sans', sans-serif;">
+      <!-- Header -->
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0f172a; padding-bottom: 16px; margin-bottom: 20px;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <img src="./images/eldohub-academy-logo.png" alt="EldoHub Logo" style="height: 48px; max-width: 130px; object-fit: contain;">
+          <div>
+            <h2 style="font-size: 16pt; font-weight: 800; color: #0f172a; margin: 0;">ELDOHUB TECH & AI ACADEMY</h2>
+            <p style="font-size: 9pt; color: #0284c7; font-weight: 700; margin: 2px 0 0 0; text-transform: uppercase;">Official Student Fee Payment Receipt</p>
+            <p style="font-size: 8pt; color: #64748b; margin: 1px 0 0 0;">Eldoret, Kenya &bull; info@eldohub.co.ke</p>
+          </div>
+        </div>
+        <div style="text-align: right;">
+          <div style="font-size: 10pt; font-weight: 800; color: #0f172a;" id="print-receipt-number">REC-2026-0001</div>
+          <div style="font-size: 8.5pt; color: #64748b;" id="print-receipt-date">Date: 2026-11-20</div>
+          <div style="font-size: 8pt; color: #10b981; font-weight: bold; margin-top: 2px;">✔ VERIFIED TRANSACTION</div>
+        </div>
+      </div>
+
+      <!-- Student & Guardian Details -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px; margin-bottom: 18px; font-size: 9pt;">
+        <div>
+          <p style="margin: 0; color: #64748b; font-size: 8pt; text-transform: uppercase; font-weight: bold;">Student Name</p>
+          <p style="margin: 2px 0 0 0; font-size: 11pt; font-weight: 800; color: #0f172a;" id="print-receipt-student-name">-</p>
+        </div>
+        <div>
+          <p style="margin: 0; color: #64748b; font-size: 8pt; text-transform: uppercase; font-weight: bold;">Guardian Phone</p>
+          <p style="margin: 2px 0 0 0; font-size: 10pt; font-weight: 700; color: #0f172a;" id="print-receipt-phone">-</p>
+        </div>
+        <div>
+          <p style="margin: 0; color: #64748b; font-size: 8pt; text-transform: uppercase; font-weight: bold;">Bootcamp Cohort</p>
+          <p style="margin: 2px 0 0 0; font-weight: 600; color: #0f172a;" id="print-receipt-cohort">-</p>
+        </div>
+        <div>
+          <p style="margin: 0; color: #64748b; font-size: 8pt; text-transform: uppercase; font-weight: bold;">Curriculum Track</p>
+          <p style="margin: 2px 0 0 0; font-weight: 600; color: #0f172a;" id="print-receipt-track">-</p>
+        </div>
+      </div>
+
+      <!-- Payment Breakdown Table -->
+      <table style="width: 100%; border-collapse: collapse; margin-bottom: 18px; font-size: 9.5pt;">
+        <thead>
+          <tr style="background: #0f172a; color: #ffffff;">
+            <th style="padding: 8px 12px; text-align: left;">Item Description</th>
+            <th style="padding: 8px 12px; text-align: left;">Reference Code</th>
+            <th style="padding: 8px 12px; text-align: left;">Method</th>
+            <th style="padding: 8px 12px; text-align: right;">Amount (KES)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 10px 12px; font-weight: 700;" id="print-receipt-desc">Bootcamp Tuition & Logistics Installment</td>
+            <td style="padding: 10px 12px; font-family: monospace; font-weight: bold; color: #0284c7;" id="print-receipt-ref">-</td>
+            <td style="padding: 10px 12px;" id="print-receipt-method">M-Pesa</td>
+            <td style="padding: 10px 12px; text-align: right; font-weight: 800; font-size: 11pt; color: #166534;" id="print-receipt-amount">KES 0</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Balance Summary Box -->
+      <div style="display: flex; justify-content: flex-end; margin-bottom: 24px;">
+        <div style="width: 260px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; font-size: 9pt;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span style="color: #64748b;">Total Course Fee:</span>
+            <span style="font-weight: 700;" id="print-receipt-total-fee">KES 0</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+            <span style="color: #64748b;">Total Paid to Date:</span>
+            <span style="font-weight: 700; color: #166534;" id="print-receipt-total-paid">KES 0</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; border-top: 2px solid #0f172a; padding-top: 6px; margin-top: 4px; font-size: 10pt;">
+            <span style="font-weight: 800; color: #0f172a;">Balance Due:</span>
+            <span style="font-weight: 900; color: #b91c1c;" id="print-receipt-balance">KES 0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Signatures & Verification -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding-top: 16px; border-top: 1px dashed #94a3b8; font-size: 8.5pt;">
+        <div>
+          <p style="margin: 0; color: #64748b;">Recorded By: <strong id="print-receipt-recorded-by" style="color: #0f172a;">Reception Desk Staff</strong></p>
+          <p style="margin: 20px 0 0 0; border-top: 1px solid #94a3b8; padding-top: 4px; color: #64748b;">Authorized Signature</p>
+        </div>
+        <div style="text-align: right;">
+          <p style="margin: 0; color: #64748b;">Official Institutional Seal</p>
+          <div style="display: inline-block; margin-top: 6px; border: 2px solid #0284c7; border-radius: 50%; width: 56px; height: 56px; line-height: 52px; text-align: center; font-size: 8pt; font-weight: 800; color: #0284c7; transform: rotate(-10deg);">
+            PAID
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==============================================================================
+       11. RECORD PAYMENT MODAL (INSTALLMENTS & IN-PERSON DESK)
+       ============================================================================== -->
+  <div id="modal-record-payment" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm hidden transition-opacity">
+    <div class="bg-white w-full max-w-lg rounded-2xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+      <div class="p-5 border-b border-slate-200 flex items-center justify-between bg-emerald-50/50">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-emerald-100 border border-emerald-300 text-emerald-700 flex items-center justify-center">
+            <i data-lucide="credit-card" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-base sm:text-lg font-bold text-slate-900">Record Fee Installment</h3>
+            <p class="text-xs text-slate-500">Log payment, auto-update student balance, and generate official receipt</p>
+          </div>
+        </div>
+        <button id="btn-close-record-payment" class="text-slate-400 hover:text-slate-700 p-2 rounded-lg hover:bg-slate-100">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <form id="form-record-payment" class="p-5 space-y-4 overflow-y-auto flex-1">
+        <!-- Student Selection -->
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5" for="payment-student-select">
+            Select Student <span class="text-emerald-600">*</span>
+          </label>
+          <select id="payment-student-select" required class="w-full glass-input rounded-xl px-3 py-2 text-sm font-semibold bg-white border border-slate-300">
+            <!-- Dynamically populated -->
+          </select>
+        </div>
+
+        <!-- Selected Student Live Financial Summary Card -->
+        <div id="payment-student-summary-card" class="p-4 rounded-xl bg-slate-50 border border-slate-200 grid grid-cols-3 gap-2 text-center">
+          <div>
+            <span class="text-[10px] font-bold uppercase text-slate-500 block">Total Fee</span>
+            <span id="card-student-total-fee" class="text-sm sm:text-base font-extrabold text-slate-900 font-mono">KES 0</span>
+          </div>
+          <div>
+            <span class="text-[10px] font-bold uppercase text-slate-500 block">Paid to Date</span>
+            <span id="card-student-amount-paid" class="text-sm sm:text-base font-extrabold text-emerald-600 font-mono">KES 0</span>
+          </div>
+          <div>
+            <span class="text-[10px] font-bold uppercase text-slate-500 block">Balance Due</span>
+            <span id="card-student-balance-due" class="text-sm sm:text-base font-extrabold text-rose-600 font-mono">KES 0</span>
+          </div>
+        </div>
+
+        <!-- Payment Installment Inputs -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5" for="payment-amount">
+              Amount Paid (KES) <span class="text-emerald-600">*</span>
+            </label>
+            <input type="number" id="payment-amount" required min="1" step="100" placeholder="e.g. 5000" class="w-full glass-input rounded-xl px-4 text-sm font-bold bg-white text-emerald-700">
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5" for="payment-date">
+              Payment Date <span class="text-emerald-600">*</span>
+            </label>
+            <input type="date" id="payment-date" required class="w-full glass-input rounded-xl px-3 text-sm font-medium bg-white">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5" for="payment-method">
+              Payment Method <span class="text-emerald-600">*</span>
+            </label>
+            <select id="payment-method" required class="w-full glass-input rounded-xl px-3 text-sm font-medium bg-white">
+              <option value="M-Pesa">M-Pesa Mobile Money</option>
+              <option value="Cash">Cash (Reception Desk)</option>
+              <option value="Bank Transfer">Bank Transfer / EFT</option>
+              <option value="Card">Debit / Credit Card</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5" for="payment-ref">
+              Reference Code / Trans. ID <span class="text-emerald-600">*</span>
+            </label>
+            <input type="text" id="payment-ref" required placeholder="e.g. QDE456RT89 or REC-102" class="w-full glass-input rounded-xl px-4 text-sm font-mono font-bold uppercase bg-white">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-1.5" for="payment-notes">
+            Payment Notes (Optional)
+          </label>
+          <input type="text" id="payment-notes" placeholder="e.g. Installment 2 of 3, paid by mother Grace" class="w-full glass-input rounded-xl px-4 text-xs sm:text-sm font-medium">
+        </div>
+
+        <div class="pt-2">
+          <button type="submit" id="btn-submit-payment" class="touch-btn w-full h-12 rounded-xl text-sm font-extrabold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md shadow-emerald-600/25 flex items-center justify-center gap-2">
+            <i data-lucide="check-circle" class="w-5 h-5"></i>
+            <span>Confirm & Record Payment</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==============================================================================
+       12. VIEW / PRINT RECEIPT MODAL (IN-APP PREVIEW & EXPORT)
+       ============================================================================== -->
+  <div id="modal-receipt" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm hidden transition-opacity">
+    <div class="bg-white w-full max-w-xl rounded-2xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+      <div class="p-4 sm:p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center">
+            <i data-lucide="receipt" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-900">Official Payment Receipt</h3>
+            <p class="text-xs text-slate-500" id="receipt-modal-subtitle">Ready to print or download as PDF</p>
+          </div>
+        </div>
+        <button id="btn-close-receipt" class="text-slate-400 hover:text-slate-700 p-2 rounded-lg hover:bg-slate-100">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-5 overflow-y-auto flex-1 space-y-4">
+        <!-- Rendered Receipt Canvas in Modal -->
+        <div class="p-5 rounded-2xl border border-slate-200 bg-gradient-to-b from-white to-slate-50/80 shadow-sm space-y-4 text-xs sm:text-sm" id="receipt-preview-content">
+          <!-- Dynamic Content Injected Here -->
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="grid grid-cols-2 gap-3 pt-2">
+          <button id="btn-print-receipt-action" class="touch-btn h-11 rounded-xl text-xs sm:text-sm font-bold bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-800 flex items-center justify-center gap-2 shadow-sm">
+            <i data-lucide="printer" class="w-4 h-4 text-slate-600"></i>
+            <span>Print Receipt</span>
+          </button>
+          <button id="btn-pdf-receipt-action" class="touch-btn h-11 rounded-xl text-xs sm:text-sm font-bold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white flex items-center justify-center gap-2 shadow-sm shadow-emerald-600/20">
+            <i data-lucide="download" class="w-4 h-4"></i>
+            <span>Download PDF</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==============================================================================
+       13. STUDENT PROFILE & FINANCIAL DOSSIER DRAWER
+       ============================================================================== -->
+  <div id="drawer-student-profile" class="fixed inset-0 z-50 flex items-center justify-center sm:justify-end p-0 sm:p-4 bg-slate-900/40 backdrop-blur-sm hidden transition-opacity">
+    <div class="bg-white w-full sm:max-w-md h-full sm:h-auto sm:max-h-[92vh] sm:rounded-2xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col">
+      <div class="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-sky-100 text-sky-700 font-extrabold text-sm flex items-center justify-center" id="drawer-student-avatar">
+            S
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-900" id="drawer-student-name">Student Profile</h3>
+            <p class="text-xs text-slate-500" id="drawer-student-cohort">Bootcamp Cohort</p>
+          </div>
+        </div>
+        <button id="btn-close-student-drawer" class="text-slate-400 hover:text-slate-700 p-2 rounded-lg hover:bg-slate-100">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-5 overflow-y-auto flex-1 space-y-5">
+        <!-- Financial Status Badge & Summary Box -->
+        <div class="p-4 rounded-xl border border-slate-200 bg-slate-50/80 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Fee Status & Balance</span>
+            <span id="drawer-student-status-badge" class="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">
+              Paid
+            </span>
+          </div>
+
+          <div class="grid grid-cols-3 gap-2 text-center pt-1 border-t border-slate-200/60">
+            <div>
+              <span class="text-[10px] uppercase font-bold text-slate-400 block">Total Fee</span>
+              <span id="drawer-student-total-fee" class="text-xs sm:text-sm font-extrabold text-slate-800 font-mono">KES 0</span>
+            </div>
+            <div>
+              <span class="text-[10px] uppercase font-bold text-slate-400 block">Paid</span>
+              <span id="drawer-student-amount-paid" class="text-xs sm:text-sm font-extrabold text-emerald-600 font-mono">KES 0</span>
+            </div>
+            <div>
+              <span class="text-[10px] uppercase font-bold text-slate-400 block">Balance</span>
+              <span id="drawer-student-balance-due" class="text-xs sm:text-sm font-extrabold text-rose-600 font-mono">KES 0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Student General Information -->
+        <div class="space-y-3">
+          <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+            <i data-lucide="user" class="w-3.5 h-3.5 text-sky-600"></i>
+            <span>Enrollment & Logistics Details</span>
+          </h4>
+
+          <div class="space-y-2 text-xs">
+            <div class="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
+              <span class="text-slate-500">Contact Phone:</span>
+              <a href="#" id="drawer-student-phone" class="font-mono font-bold text-sky-700 hover:underline">-</a>
+            </div>
+            <div class="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
+              <span class="text-slate-500">Pickup Location:</span>
+              <span id="drawer-student-residence" class="font-semibold text-slate-800">-</span>
+            </div>
+            <div class="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
+              <span class="text-slate-500">Curriculum Track:</span>
+              <span id="drawer-student-track" class="font-bold text-slate-800">-</span>
+            </div>
+            <div class="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-100">
+              <span class="text-slate-500">Transport Unit:</span>
+              <span id="drawer-student-transport" class="font-semibold text-slate-800">-</span>
+            </div>
+            <div id="drawer-student-notes-box" class="p-2.5 rounded-lg bg-amber-50/60 border border-amber-200/60 hidden">
+              <span class="text-[10px] font-bold uppercase text-amber-800 block mb-0.5">Special Notes</span>
+              <p id="drawer-student-notes" class="text-xs text-amber-900 font-medium"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Payment History Log -->
+        <div class="space-y-2.5">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+              <i data-lucide="history" class="w-3.5 h-3.5 text-emerald-600"></i>
+              <span>Payment History</span>
+            </h4>
+            <span id="drawer-payment-count" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">0 Payments</span>
+          </div>
+
+          <div id="drawer-payments-list" class="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden bg-white text-xs">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+
+        <!-- Action Button -->
+        <div class="pt-2">
+          <button id="drawer-btn-record-payment" class="touch-btn w-full h-11 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center justify-center gap-2">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span>Record Payment for Student</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==============================================================================
+       14. BULK CSV IMPORT MODAL (PAPAPARSE ENGINE)
+       ============================================================================== -->
+  <div id="modal-bulk-import" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm hidden transition-opacity">
+    <div class="bg-white w-full max-w-4xl rounded-2xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+      <div class="p-5 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3 bg-slate-50">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center">
+            <i data-lucide="file-spreadsheet" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-base sm:text-lg font-bold text-slate-900">Bulk Student Onboarding & Fee Import</h3>
+            <p class="text-xs text-slate-500">Register students, set fee balances, populate class lists & bus manifests via CSV</p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <button id="btn-download-sample-csv" class="touch-btn h-9 px-3 rounded-xl text-xs font-bold bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 flex items-center gap-1.5 shadow-sm" title="Download official CSV sample template">
+            <i data-lucide="download" class="w-3.5 h-3.5 text-slate-600"></i>
+            <span>Download Sample CSV</span>
+          </button>
+          <button id="btn-close-bulk-import" class="text-slate-400 hover:text-slate-700 p-2 rounded-lg hover:bg-slate-100">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="p-5 overflow-y-auto flex-1 space-y-5">
+        <!-- File Upload Drag & Drop Zone -->
+        <div id="csv-dropzone" class="border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-2xl p-6 sm:p-8 text-center bg-slate-50/60 hover:bg-emerald-50/30 transition-all cursor-pointer">
+          <input type="file" id="csv-file-input" accept=".csv,text/csv" class="hidden">
+          <div class="flex flex-col items-center justify-center space-y-2">
+            <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-1">
+              <i data-lucide="upload-cloud" class="w-6 h-6"></i>
+            </div>
+            <h4 class="text-sm font-bold text-slate-800">Select or Drag & Drop Student CSV File</h4>
+            <p class="text-xs text-slate-500 max-w-md">
+              Headers required: <code class="font-mono text-[11px] bg-slate-200 px-1 py-0.5 rounded text-slate-800">full_name, parent_name, parent_phone, bootcamp_name, pickup_location, requires_transport, total_fee, amount_paid</code>
+            </p>
+            <span class="inline-block mt-2 px-3 py-1 rounded-lg text-xs font-bold bg-emerald-600 text-white shadow-sm pointer-events-none">
+              Browse CSV File
+            </span>
+          </div>
+        </div>
+
+        <!-- Preview Section (Revealed after selecting file) -->
+        <div id="csv-preview-container" class="space-y-3 hidden">
+          <div class="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-slate-100 border border-slate-200">
+            <div class="flex items-center gap-3">
+              <span class="text-xs font-extrabold text-slate-800" id="csv-file-name-label">filename.csv</span>
+              <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-200 text-slate-700" id="csv-total-rows-badge">0 Rows</span>
+              <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300" id="csv-valid-rows-badge">0 Valid</span>
+              <span class="text-xs font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 border border-rose-300 hidden" id="csv-invalid-rows-badge">0 Issues</span>
+            </div>
+
+            <button id="btn-reselect-csv" class="text-xs font-semibold text-slate-600 hover:text-slate-900 underline">
+              Choose different file
+            </button>
+          </div>
+
+          <!-- Preview Table -->
+          <div class="border border-slate-200 rounded-xl overflow-hidden max-h-80 overflow-y-auto">
+            <table class="cloudschool-table text-left border-collapse text-xs w-full">
+              <thead>
+                <tr>
+                  <th class="w-10 text-center">#</th>
+                  <th>Status</th>
+                  <th>Student Name</th>
+                  <th>Parent Contact</th>
+                  <th>Bootcamp Track</th>
+                  <th>Pickup Location</th>
+                  <th>Transport</th>
+                  <th class="text-right">Total Fee</th>
+                  <th class="text-right">Paid</th>
+                  <th class="text-right">Balance</th>
+                </tr>
+              </thead>
+              <tbody id="csv-preview-tbody" class="divide-y divide-slate-100">
+                <!-- Injected via PapaParse preview -->
+              </tbody>
+            </table>
+          </div>
+
+          <div id="csv-validation-warning" class="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 hidden">
+            <span class="font-bold">Notice:</span> Some rows have missing required fields (<code class="font-mono">full_name</code>, <code class="font-mono">parent_phone</code>, or <code class="font-mono">bootcamp_name</code>). Only valid rows will be imported.
+          </div>
+        </div>
+
+        <!-- Confirmation Bar -->
+        <div class="pt-2 flex items-center justify-between gap-3">
+          <button id="btn-cancel-bulk-import" class="touch-btn h-11 px-4 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700">
+            Cancel
+          </button>
+          <button id="btn-confirm-bulk-import" disabled class="touch-btn flex-1 h-11 rounded-xl text-xs font-extrabold bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-600/20 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
+            <i data-lucide="check" class="w-4 h-4"></i>
+            <span id="btn-confirm-bulk-import-text">Import Valid Students</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification Container (Foreground Root Layer, z-[9999]) -->
   <div id="toast-container" class="fixed bottom-20 sm:bottom-6 right-6 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
 
   <!-- Application Logic with cache busting -->
-  <script src="./app.js?v=19"></script>
+  <script src="./app.js?v=20"></script>
 
   <!-- Service Worker Registration for Offline Reliability & 24hr Persistence -->
   <script>

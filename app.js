@@ -40,6 +40,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     manifestLogs: [],
     staff: [],
     auditLogs: [],
+    feePayments: [],
     vehicles: [
       { id: 'veh_bus_1', name: 'Bus 1', type: 'bus', plate: 'KDC 101A', capacity: 35, is_active: true },
       { id: 'veh_bus_2', name: 'Bus 2', type: 'bus', plate: 'KDC 102B', capacity: 35, is_active: true },
@@ -47,21 +48,10 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       { id: 'veh_van_2', name: 'Van 2', type: 'van', plate: 'KDD 202D', capacity: 14, is_active: true }
     ],
     cohorts: {
-      bootcamp: ['August Intake', 'November Intake'],
-      regular: [
-        'January Intake', 'February Intake', 'March Intake',
-        'April Intake', 'May Intake', 'June Intake'
-      ]
+      bootcamp: ['August Bootcamp', 'November Bootcamp', 'Holiday AI Bootcamp', 'Easter Robotics Bootcamp']
     },
     tracks: {
-      bootcamp: ['Junior Robotics', 'Advanced Robotics', 'Web Development'],
-      regular: [
-        'Full-Stack Web Development',
-        'Cybersecurity & Ethical Hacking',
-        'Data Science & Machine Learning',
-        'Cloud & DevOps Engineering',
-        'Mobile App Development'
-      ]
+      bootcamp: ['Junior Robotics', 'Advanced Robotics', 'Web Development', 'AI & Coding', 'Data Science & AI']
     }
   };
 
@@ -70,12 +60,13 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     currentUser: null, // Holds authenticated staff profile
     isPasswordRecoveryActive: IS_RECOVERY_INTENT,
     activeBranch: 'bootcamp',
-    activeCohort: 'August Intake',
+    activeCohort: 'August Bootcamp',
     activeTrack: 'all',
     activeVehicle: 'all',
     activeManifestType: 'morning_pickup',
     activeDate: new Date().toISOString().split('T')[0],
-    activeViewModule: 'manifest_operations', // 'manifest_operations' | 'staff_management' | 'audit_logs'
+    activeViewModule: 'manifest_operations', // 'manifest_operations' | 'fees_payments' | 'staff_management' | 'audit_logs'
+    feesFilter: { query: '', cohort: 'all', status: 'all' },
     searchQuery: '',
     sidebarCollapsed: false,
     supabaseClient: null,
@@ -88,14 +79,53 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
+        const cohortsObj = parsed.cohorts || {};
+        const tracksObj = parsed.tracks || {};
+
+        // 100% Unified Bootcamps: merge any legacy cohorts/tracks into bootcamp arrays
+        let bootcampCohorts = DEFAULT_STATE.cohorts.bootcamp;
+        if (Array.isArray(cohortsObj.bootcamp) && cohortsObj.bootcamp.length > 0) {
+          bootcampCohorts = cohortsObj.bootcamp;
+        } else if (Array.isArray(cohortsObj)) {
+          bootcampCohorts = cohortsObj;
+        }
+
+        let bootcampTracks = DEFAULT_STATE.tracks.bootcamp;
+        if (Array.isArray(tracksObj.bootcamp) && tracksObj.bootcamp.length > 0) {
+          bootcampTracks = tracksObj.bootcamp;
+        } else if (Array.isArray(tracksObj)) {
+          bootcampTracks = tracksObj;
+        }
+
+        // Normalize students: ensure fee balances and bootcamp branch
+        const rawStudents = Array.isArray(parsed.students) ? parsed.students : [];
+        const students = rawStudents.map(s => {
+          const totalFee = Number(s.total_fee !== undefined ? s.total_fee : 15000);
+          const amountPaid = Number(s.amount_paid !== undefined ? s.amount_paid : 0);
+          const balanceDue = Number(totalFee - amountPaid);
+          let paymentStatus = s.payment_status;
+          if (!paymentStatus) {
+            paymentStatus = (amountPaid >= totalFee && totalFee > 0) ? 'Paid' : (amountPaid > 0 ? 'Partial' : 'Unpaid');
+          }
+          return {
+            ...s,
+            branch: 'bootcamp',
+            total_fee: totalFee,
+            amount_paid: amountPaid,
+            balance_due: balanceDue,
+            payment_status: paymentStatus
+          };
+        });
+
         return {
-          students: Array.isArray(parsed.students) ? parsed.students : [],
+          students: students,
           manifestLogs: Array.isArray(parsed.manifestLogs) ? parsed.manifestLogs : [],
           staff: Array.isArray(parsed.staff) ? parsed.staff : [],
           auditLogs: Array.isArray(parsed.auditLogs) ? parsed.auditLogs : [],
+          feePayments: Array.isArray(parsed.feePayments) ? parsed.feePayments : [],
           vehicles: Array.isArray(parsed.vehicles) && parsed.vehicles.length > 0 ? parsed.vehicles : DEFAULT_STATE.vehicles,
-          cohorts: parsed.cohorts || DEFAULT_STATE.cohorts,
-          tracks: parsed.tracks || DEFAULT_STATE.tracks
+          cohorts: { bootcamp: bootcampCohorts },
+          tracks: { bootcamp: bootcampTracks }
         };
       }
     } catch (e) {
@@ -219,6 +249,27 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         } else if (item.type === 'INSERT_AUDIT_LOG') {
           const { error } = await state.supabaseClient.from('audit_logs').insert([item.payload]);
           if (!error) success = true;
+        } else if (item.type === 'INSERT_PAYMENT') {
+          const { error } = await state.supabaseClient.from('fee_payments').insert([item.payload]);
+          if (!error) {
+            const std = state.data.students.find(s => s.id === item.payload.student_id);
+            if (std) {
+              await state.supabaseClient.from('students').update({
+                amount_paid: std.amount_paid,
+                payment_status: std.payment_status
+              }).eq('id', std.id);
+            }
+            success = true;
+          }
+        } else if (item.type === 'BULK_IMPORT_STUDENTS') {
+          const { students, payments } = item.payload;
+          if (students && students.length > 0) {
+            const { error: sErr } = await state.supabaseClient.from('students').upsert(students, { onConflict: 'id' });
+            if (!sErr) success = true;
+          }
+          if (payments && payments.length > 0) {
+            await state.supabaseClient.from('fee_payments').insert(payments);
+          }
         } else if (item.type === 'PROVISION_STAFF') {
           const p = item.payload;
           const clientConfig = {
@@ -452,19 +503,33 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     }
 
     try {
-      const [studentsRes, logsRes, profilesRes, auditRes, vehiclesRes] = await Promise.all([
+      const [studentsRes, logsRes, profilesRes, auditRes, vehiclesRes, paymentsRes] = await Promise.all([
         state.supabaseClient.from('students').select('*'),
         state.supabaseClient.from('manifest_logs').select('*'),
         state.supabaseClient.from('profiles').select('*'),
         state.supabaseClient.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(100),
-        state.supabaseClient.from('vehicles').select('*').catch(() => ({ data: null }))
+        state.supabaseClient.from('vehicles').select('*').catch(() => ({ data: null })),
+        state.supabaseClient.from('fee_payments').select('*').order('created_at', { ascending: false }).catch(() => ({ data: null }))
       ]);
 
       const queue = getOutboxQueue();
 
       // 1. Safe Students Merge: Never overwrite students pending sync in the outbox
       if (studentsRes.data && !studentsRes.error) {
-        const cloudStudents = studentsRes.data;
+        const cloudStudents = studentsRes.data.map(s => {
+          const totalFee = Number(s.total_fee !== undefined ? s.total_fee : 15000);
+          const amountPaid = Number(s.amount_paid !== undefined ? s.amount_paid : 0);
+          const balanceDue = Number(totalFee - amountPaid);
+          const status = s.payment_status || (amountPaid >= totalFee && totalFee > 0 ? 'Paid' : (amountPaid > 0 ? 'Partial' : 'Unpaid'));
+          return {
+            ...s,
+            branch: 'bootcamp',
+            total_fee: totalFee,
+            amount_paid: amountPaid,
+            balance_due: balanceDue,
+            payment_status: status
+          };
+        });
         const cloudIdSet = new Set(cloudStudents.map(s => s.id));
         const pendingStudentIds = new Set(
           queue.filter(item => item.type === 'INSERT_STUDENT').map(item => item.payload.id)
@@ -482,6 +547,17 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         const filteredCloud = cloudStudents.filter(s => !deletedStudentIds.has(s.id));
 
         state.data.students = [...filteredCloud, ...pendingLocalStudents];
+      }
+
+      // 1B. Safe Fee Payments Merge
+      if (paymentsRes && paymentsRes.data && !paymentsRes.error) {
+        const cloudPayments = paymentsRes.data;
+        const cloudPaymentIds = new Set(cloudPayments.map(p => p.id));
+        const pendingPayments = queue
+          .filter(item => item.type === 'INSERT_PAYMENT')
+          .map(item => item.payload)
+          .filter(p => !cloudPaymentIds.has(p.id));
+        state.data.feePayments = [...cloudPayments, ...pendingPayments];
       }
 
       // 2. Safe Manifest Logs Merge: Never overwrite local pending status changes
@@ -571,6 +647,9 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, payload => {
           handleProfileRealtimeChange(payload);
         })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'fee_payments' }, payload => {
+          handleFeePaymentRealtimeChange(payload);
+        })
         .subscribe();
     } catch (e) {
       console.warn('Realtime subscription error:', e);
@@ -609,6 +688,21 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       const idx = state.data.staff.findIndex(s => s.id === payload.new.id);
       if (idx >= 0) state.data.staff[idx] = payload.new;
       else state.data.staff.push(payload.new);
+    }
+    saveStoredData();
+    renderApp();
+  }
+
+  function handleFeePaymentRealtimeChange(payload) {
+    if (payload.eventType === 'INSERT') {
+      if (!state.data.feePayments.some(p => p.id === payload.new.id)) {
+        state.data.feePayments.unshift(payload.new);
+      }
+    } else if (payload.eventType === 'UPDATE') {
+      const idx = state.data.feePayments.findIndex(p => p.id === payload.new.id);
+      if (idx >= 0) state.data.feePayments[idx] = payload.new;
+    } else if (payload.eventType === 'DELETE') {
+      state.data.feePayments = state.data.feePayments.filter(p => p.id !== payload.old.id);
     }
     saveStoredData();
     renderApp();
@@ -1106,13 +1200,30 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       state.activeViewModule = 'manifest_operations';
     }
 
-    // 2. Admissions & Records (New Student Admission Desk)
+    // 2. Finance & Fee Management (Super Admin & Receptionist only)
+    const canAccessFees = isSuperAdmin || isReceptionist;
+    const navFinance = document.getElementById('nav-section-finance');
+    const dockBtnFees = document.getElementById('dock-btn-fees');
+    if (navFinance) navFinance.style.display = canAccessFees ? 'block' : 'none';
+    if (dockBtnFees) dockBtnFees.style.display = canAccessFees ? 'flex' : 'none';
+    if (!canAccessFees && state.activeViewModule === 'fees_payments') {
+      state.activeViewModule = 'manifest_operations';
+    }
+
+    // 3. Admissions & Records (New Student Admission Desk & Bulk CSV Import)
     // Only Super Admin and Receptionist have admissions privileges
     const canAdmitStudents = isSuperAdmin || isReceptionist;
+    const headerBtnBulkImport = document.getElementById('header-btn-bulk-import');
+    const toolbarBtnBulkImport = document.getElementById('toolbar-btn-bulk-import');
+    const sidebarBtnBulkImport = document.getElementById('btn-sidebar-bulk-import');
+
     if (btnOpenOnboard) btnOpenOnboard.style.display = canAdmitStudents ? 'flex' : 'none';
     if (headerBtnOnboard) headerBtnOnboard.style.display = canAdmitStudents ? 'inline-flex' : 'none';
     if (btnEmptyOnboard) btnEmptyOnboard.style.display = canAdmitStudents ? 'inline-flex' : 'none';
     if (dockBtnAdd) dockBtnAdd.style.display = canAdmitStudents ? 'flex' : 'none';
+    if (headerBtnBulkImport) headerBtnBulkImport.style.display = canAdmitStudents ? 'inline-flex' : 'none';
+    if (toolbarBtnBulkImport) toolbarBtnBulkImport.style.display = canAdmitStudents ? 'inline-flex' : 'none';
+    if (sidebarBtnBulkImport) sidebarBtnBulkImport.style.display = canAdmitStudents ? 'flex' : 'none';
 
     // Student record deletion: Super Admin only
     if (thRemoveCol) thRemoveCol.style.display = isSuperAdmin ? 'table-cell' : 'none';
@@ -1199,21 +1310,31 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     const viewManifest = document.getElementById('view-manifest-operations');
     const viewStaff = document.getElementById('view-staff-management');
     const viewAudit = document.getElementById('view-audit-logs');
+    const viewFees = document.getElementById('view-fees-payments');
 
     if (state.activeViewModule === 'staff_management') {
       if (viewManifest) viewManifest.classList.add('hidden');
       if (viewStaff) viewStaff.classList.remove('hidden');
       if (viewAudit) viewAudit.classList.add('hidden');
+      if (viewFees) viewFees.classList.add('hidden');
       renderStaffTable();
     } else if (state.activeViewModule === 'audit_logs') {
       if (viewManifest) viewManifest.classList.add('hidden');
       if (viewStaff) viewStaff.classList.add('hidden');
       if (viewAudit) viewAudit.classList.remove('hidden');
+      if (viewFees) viewFees.classList.add('hidden');
       renderAuditLogsTable();
+    } else if (state.activeViewModule === 'fees_payments') {
+      if (viewManifest) viewManifest.classList.add('hidden');
+      if (viewStaff) viewStaff.classList.add('hidden');
+      if (viewAudit) viewAudit.classList.add('hidden');
+      if (viewFees) viewFees.classList.remove('hidden');
+      renderFeesDashboard();
     } else {
       if (viewManifest) viewManifest.classList.remove('hidden');
       if (viewStaff) viewStaff.classList.add('hidden');
       if (viewAudit) viewAudit.classList.add('hidden');
+      if (viewFees) viewFees.classList.add('hidden');
       renderManifestTable();
       updateKPIs();
       updateSidebarBadges();
@@ -1252,43 +1373,32 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
   }
 
   function renderNavigation() {
-    const isBootcamp = state.activeBranch === 'bootcamp';
-    const btnBootcamp = document.getElementById('branch-nav-bootcamp');
-    const btnRegular = document.getElementById('branch-nav-regular');
     const dockBootcamp = document.getElementById('dock-btn-bootcamp');
-    const dockRegular = document.getElementById('dock-btn-regular');
+    const dockFees = document.getElementById('dock-btn-fees');
 
-    if (isBootcamp) {
-      btnBootcamp?.classList.add('bg-gradient-to-r', 'from-sky-600', 'to-blue-600', 'text-white', 'shadow-sm');
-      btnBootcamp?.classList.remove('text-slate-600');
-      btnRegular?.classList.remove('bg-gradient-to-r', 'from-sky-600', 'to-blue-600', 'text-white', 'shadow-sm');
-      btnRegular?.classList.add('text-slate-600');
-
-      dockBootcamp?.classList.add('text-sky-600');
-      dockBootcamp?.classList.remove('text-slate-500');
-      dockRegular?.classList.remove('text-sky-600');
-      dockRegular?.classList.add('text-slate-500');
-    } else {
-      btnRegular?.classList.add('bg-gradient-to-r', 'from-purple-600', 'to-indigo-600', 'text-white', 'shadow-sm');
-      btnRegular?.classList.remove('text-slate-600');
-      btnBootcamp?.classList.remove('bg-gradient-to-r', 'from-purple-600', 'to-indigo-600', 'text-white', 'shadow-sm');
-      btnBootcamp?.classList.add('text-slate-600');
-
-      dockRegular?.classList.add('text-sky-600');
-      dockRegular?.classList.remove('text-slate-500');
+    if (state.activeViewModule === 'fees_payments') {
+      dockFees?.classList.add('text-emerald-600');
+      dockFees?.classList.remove('text-slate-500');
       dockBootcamp?.classList.remove('text-sky-600');
       dockBootcamp?.classList.add('text-slate-500');
+    } else {
+      dockBootcamp?.classList.add('text-sky-600');
+      dockBootcamp?.classList.remove('text-slate-500');
+      dockFees?.classList.remove('text-emerald-600');
+      dockFees?.classList.add('text-slate-500');
     }
 
     const topTitle = document.getElementById('top-view-title');
     const topBranchPill = document.getElementById('top-branch-pill');
 
     if (topBranchPill) {
-      topBranchPill.textContent = isBootcamp ? 'Boot Camp' : 'Regular Programs';
+      topBranchPill.textContent = 'Tech & AI Bootcamps';
     }
 
     if (topTitle) {
-      if (state.activeViewModule === 'staff_management') {
+      if (state.activeViewModule === 'fees_payments') {
+        topTitle.textContent = 'Bootcamp Fees & Revenue Operations';
+      } else if (state.activeViewModule === 'staff_management') {
         topTitle.textContent = 'Staff & Authorization Management';
       } else if (state.activeViewModule === 'audit_logs') {
         topTitle.textContent = 'Institutional Security & Audit Trail';
@@ -1320,6 +1430,12 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
     const staffTab = document.getElementById('tab-nav-staff');
     const auditTab = document.getElementById('tab-nav-audit');
+    const feesTab = document.getElementById('tab-nav-fees');
+
+    if (feesTab) {
+      if (state.activeViewModule === 'fees_payments') feesTab.classList.add('active');
+      else feesTab.classList.remove('active');
+    }
     if (staffTab) {
       if (state.activeViewModule === 'staff_management') staffTab.classList.add('active');
       else staffTab.classList.remove('active');
@@ -1331,7 +1447,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
   }
 
   function updateSidebarBadges() {
-    const students = state.data.students.filter(s => s.branch === state.activeBranch && (!state.activeCohort || s.cohort === state.activeCohort));
+    const students = state.data.students.filter(s => !state.activeCohort || s.cohort === state.activeCohort);
 
     const morningCount = students.filter(s => s.transport_mode === 'morning_bus' || s.transport_mode === 'both').length;
     const eveningCount = students.filter(s => s.transport_mode === 'evening_bus' || s.transport_mode === 'both').length;
@@ -1342,11 +1458,17 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     const bEvening = document.getElementById('badge-nav-evening');
     const bGate = document.getElementById('badge-nav-gate');
     const bClass = document.getElementById('badge-nav-class');
+    const bFees = document.getElementById('badge-nav-fees');
 
     if (bMorning) bMorning.textContent = morningCount;
     if (bEvening) bEvening.textContent = eveningCount;
     if (bGate) bGate.textContent = gateCount;
     if (bClass) bClass.textContent = classCount;
+
+    if (bFees) {
+      const unpaidCount = state.data.students.filter(s => (s.balance_due || 0) > 0).length;
+      bFees.textContent = unpaidCount > 0 ? `${unpaidCount} Due` : 'KES';
+    }
   }
 
   function getActiveVehicles() {
@@ -1357,21 +1479,20 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
   }
 
   function renderBranchControls() {
-    const isBootcamp = state.activeBranch === 'bootcamp';
     const isAttendance = state.activeManifestType === 'class_attendance';
-    const isTransportManifest = isBootcamp && !isAttendance && (state.activeManifestType === 'morning_pickup' || state.activeManifestType === 'evening_dropoff');
+    const isTransportManifest = !isAttendance && (state.activeManifestType === 'morning_pickup' || state.activeManifestType === 'evening_dropoff');
 
     // Cohorts
     const cohortContainer = document.getElementById('cohort-switcher-container');
     if (cohortContainer) {
       cohortContainer.innerHTML = '';
-      const cohorts = state.data.cohorts[state.activeBranch] || [];
+      const cohorts = state.data.cohorts.bootcamp || [];
       cohorts.forEach(cohort => {
         const isActive = state.activeCohort === cohort;
         const btn = document.createElement('button');
         btn.className = `touch-btn h-8 px-3 rounded-lg text-xs font-bold transition-all ${
           isActive
-            ? (isBootcamp ? 'bg-sky-600 text-white shadow-sm' : 'bg-indigo-600 text-white shadow-sm')
+            ? 'bg-sky-600 text-white shadow-sm'
             : 'bg-slate-100 text-slate-700 hover:text-slate-900 hover:bg-slate-200 border border-slate-200'
         }`;
         btn.textContent = cohort;
@@ -1391,7 +1512,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       const allBtn = document.createElement('button');
       allBtn.className = `touch-btn h-8 px-3 rounded-lg text-xs font-bold transition-all ${
         state.activeTrack === 'all'
-          ? (isBootcamp ? 'bg-indigo-600 text-white shadow-sm' : 'bg-purple-600 text-white shadow-sm')
+          ? 'bg-indigo-600 text-white shadow-sm'
           : 'bg-slate-100 text-slate-700 hover:text-slate-900 hover:bg-slate-200 border border-slate-200'
       }`;
       allBtn.textContent = 'All Tracks';
@@ -1401,13 +1522,13 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       };
       trackContainer.appendChild(allBtn);
 
-      const tracks = state.data.tracks[state.activeBranch] || [];
+      const tracks = state.data.tracks.bootcamp || [];
       tracks.forEach(track => {
         const isActive = state.activeTrack === track;
         const btn = document.createElement('button');
         btn.className = `touch-btn h-8 px-3 rounded-lg text-xs font-bold transition-all ${
           isActive
-            ? (isBootcamp ? 'bg-indigo-600 text-white shadow-sm' : 'bg-purple-600 text-white shadow-sm')
+            ? 'bg-indigo-600 text-white shadow-sm'
             : 'bg-slate-100 text-slate-700 hover:text-slate-900 hover:bg-slate-200 border border-slate-200'
         }`;
         btn.textContent = track;
@@ -1454,9 +1575,8 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
       activeVehicles.forEach(veh => {
         const isActive = state.activeVehicle === veh.name;
-        // Count how many students assigned to this vehicle in this intake/cohort
+        // Count how many students assigned to this vehicle in this cohort
         const assignedCount = state.data.students.filter(s => 
-          s.branch === state.activeBranch &&
           (!state.activeCohort || s.cohort === state.activeCohort) &&
           (s.assigned_vehicle === veh.name) &&
           (s.transport_mode === 'both' || s.transport_mode === 'morning_bus' || s.transport_mode === 'evening_bus')
@@ -1482,14 +1602,12 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
   }
 
   function getFilteredStudents() {
-    const isBootcamp = state.activeBranch === 'bootcamp';
     const isAttendance = state.activeManifestType === 'class_attendance';
-    const isTransportManifest = isBootcamp && !isAttendance && (state.activeManifestType === 'morning_pickup' || state.activeManifestType === 'evening_dropoff');
+    const isTransportManifest = !isAttendance && (state.activeManifestType === 'morning_pickup' || state.activeManifestType === 'evening_dropoff');
     const user = state.currentUser;
 
     return state.data.students
       .filter(s => {
-        if (s.branch !== state.activeBranch) return false;
         if (state.activeCohort && s.cohort !== state.activeCohort) return false;
         if (state.activeTrack !== 'all' && s.track !== state.activeTrack) return false;
 
@@ -1498,14 +1616,12 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
           if (!user.assigned_tracks.includes(s.track)) return false;
         }
 
-        if (isBootcamp) {
-          if (state.activeManifestType === 'morning_pickup') {
-            if (s.transport_mode !== 'morning_bus' && s.transport_mode !== 'both') return false;
-          } else if (state.activeManifestType === 'evening_dropoff') {
-            if (s.transport_mode !== 'evening_bus' && s.transport_mode !== 'both') return false;
-          } else if (state.activeManifestType === 'gate_pickup') {
-            if (s.transport_mode !== 'parent_pickup' && s.transport_mode !== 'self_arrival') return false;
-          }
+        if (state.activeManifestType === 'morning_pickup') {
+          if (s.transport_mode !== 'morning_bus' && s.transport_mode !== 'both') return false;
+        } else if (state.activeManifestType === 'evening_dropoff') {
+          if (s.transport_mode !== 'evening_bus' && s.transport_mode !== 'both') return false;
+        } else if (state.activeManifestType === 'gate_pickup') {
+          if (s.transport_mode !== 'parent_pickup' && s.transport_mode !== 'self_arrival') return false;
         }
 
         // Vehicle Filter on Transport Manifests
@@ -1515,10 +1631,10 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
         if (state.searchQuery.trim()) {
           const q = state.searchQuery.toLowerCase().trim();
-          const matchName = s.name.toLowerCase().includes(q);
-          const matchPhone = s.phone.toLowerCase().includes(q);
-          const matchRes = s.residence.toLowerCase().includes(q);
-          const matchTrack = s.track.toLowerCase().includes(q);
+          const matchName = (s.name || '').toLowerCase().includes(q);
+          const matchPhone = (s.phone || '').toLowerCase().includes(q);
+          const matchRes = (s.residence || '').toLowerCase().includes(q);
+          const matchTrack = (s.track || '').toLowerCase().includes(q);
           const matchVeh = (s.assigned_vehicle || '').toLowerCase().includes(q);
           if (!matchName && !matchPhone && !matchRes && !matchTrack && !matchVeh) return false;
         }
@@ -1606,7 +1722,6 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     const thChecklistCol = document.getElementById('th-checklist-col');
     const thRemoveCol = document.getElementById('th-remove-col');
 
-    const isBootcamp = state.activeBranch === 'bootcamp';
     const isAttendance = state.activeManifestType === 'class_attendance';
     const students = getFilteredStudents();
     const user = state.currentUser;
@@ -1619,43 +1734,35 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     }
 
     transportHeaderCols.forEach(col => {
-      if (isBootcamp && !isAttendance) {
+      if (!isAttendance) {
         col.classList.remove('hidden');
       } else {
         col.classList.add('hidden');
       }
     });
 
-    if (isBootcamp) {
-      if (state.activeManifestType === 'morning_pickup') {
-        headingText.textContent = 'Morning Pick-up Bus Manifest';
-        headingIcon.innerHTML = '<i data-lucide="bus" class="w-5 h-5 text-sky-600"></i>';
-        subheadingText.textContent = 'EldoHub Fleet Operations • Alphabetical (A–Z) Checklist';
-        if (batchActionLabel) batchActionLabel.textContent = 'Mark All Picked Up';
-        if (thChecklistCol) thChecklistCol.textContent = 'Pick-up Checklist';
-      } else if (state.activeManifestType === 'evening_dropoff') {
-        headingText.textContent = 'Evening Drop-off Bus Manifest';
-        headingIcon.innerHTML = '<i data-lucide="bus-front" class="w-5 h-5 text-blue-600"></i>';
-        subheadingText.textContent = 'EldoHub Dismissal Boarding • Alphabetical (A–Z) Checklist';
-        if (batchActionLabel) batchActionLabel.textContent = 'Mark All Dropped Off';
-        if (thChecklistCol) thChecklistCol.textContent = 'Drop-off Checklist';
-      } else if (state.activeManifestType === 'gate_pickup') {
-        headingText.textContent = 'Gate / Parent Carline Register';
-        headingIcon.innerHTML = '<i data-lucide="shield-check" class="w-5 h-5 text-emerald-600"></i>';
-        subheadingText.textContent = 'Gate Arrival & Dismissal Checklist • Alphabetical (A–Z)';
-        if (batchActionLabel) batchActionLabel.textContent = 'Mark All Checked In';
-        if (thChecklistCol) thChecklistCol.textContent = 'Gate Check-in';
-      } else {
-        headingText.textContent = 'Class Attendance Register (Kids Boot Camp)';
-        headingIcon.innerHTML = '<i data-lucide="clipboard-check" class="w-5 h-5 text-purple-600"></i>';
-        subheadingText.textContent = 'Daily Class Attendance • Two-Box Checklist (Present / Absent)';
-        if (batchActionLabel) batchActionLabel.textContent = 'Mark All Present';
-        if (thChecklistCol) thChecklistCol.textContent = 'Attendance (Present / Absent)';
-      }
+    if (state.activeManifestType === 'morning_pickup') {
+      headingText.textContent = 'Morning Pick-up Bus Manifest';
+      headingIcon.innerHTML = '<i data-lucide="bus" class="w-5 h-5 text-sky-600"></i>';
+      subheadingText.textContent = 'EldoHub Fleet Operations • Alphabetical (A–Z) Checklist';
+      if (batchActionLabel) batchActionLabel.textContent = 'Mark All Picked Up';
+      if (thChecklistCol) thChecklistCol.textContent = 'Pick-up Checklist';
+    } else if (state.activeManifestType === 'evening_dropoff') {
+      headingText.textContent = 'Evening Drop-off Bus Manifest';
+      headingIcon.innerHTML = '<i data-lucide="bus-front" class="w-5 h-5 text-blue-600"></i>';
+      subheadingText.textContent = 'EldoHub Dismissal Boarding • Alphabetical (A–Z) Checklist';
+      if (batchActionLabel) batchActionLabel.textContent = 'Mark All Dropped Off';
+      if (thChecklistCol) thChecklistCol.textContent = 'Drop-off Checklist';
+    } else if (state.activeManifestType === 'gate_pickup') {
+      headingText.textContent = 'Gate / Parent Carline Register';
+      headingIcon.innerHTML = '<i data-lucide="shield-check" class="w-5 h-5 text-emerald-600"></i>';
+      subheadingText.textContent = 'Gate Arrival & Dismissal Checklist • Alphabetical (A–Z)';
+      if (batchActionLabel) batchActionLabel.textContent = 'Mark All Checked In';
+      if (thChecklistCol) thChecklistCol.textContent = 'Gate Check-in';
     } else {
-      headingText.textContent = 'Regular Programs Class Register';
+      headingText.textContent = 'Bootcamp Class Attendance Register';
       headingIcon.innerHTML = '<i data-lucide="clipboard-check" class="w-5 h-5 text-purple-600"></i>';
-      subheadingText.textContent = 'Daily Academic Attendance • Two-Box Checklist (Present / Absent)';
+      subheadingText.textContent = 'Daily Bootcamp Class Attendance • Two-Box Checklist (Present / Absent)';
       if (batchActionLabel) batchActionLabel.textContent = 'Mark All Present';
       if (thChecklistCol) thChecklistCol.textContent = 'Attendance (Present / Absent)';
     }
@@ -1682,6 +1789,17 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       else if (student.transport_mode === 'evening_bus') routeCode = 'BUS PM-01';
       else if (student.transport_mode === 'parent_pickup') routeCode = 'CARLINE-GATE';
       else if (student.transport_mode === 'self_arrival') routeCode = 'WALKER';
+
+      // Inline Fee Status Badge
+      const feeStatus = student.payment_status || ((student.amount_paid || 0) >= (student.total_fee || 15000) ? 'Paid' : ((student.amount_paid || 0) > 0 ? 'Partial' : 'Unpaid'));
+      let feeBadgeHTML = '';
+      if (feeStatus === 'Paid') {
+        feeBadgeHTML = '<span class="badge-fee-paid text-[10px] px-2 py-0.5 rounded-full font-bold">Paid</span>';
+      } else if (feeStatus === 'Partial') {
+        feeBadgeHTML = `<span class="badge-fee-partial text-[10px] px-2 py-0.5 rounded-full font-bold">Bal KES ${(student.balance_due || 0).toLocaleString()}</span>`;
+      } else {
+        feeBadgeHTML = '<span class="badge-fee-unpaid text-[10px] px-2 py-0.5 rounded-full font-bold">Unpaid</span>';
+      }
 
       if (tbody) {
         const tr = document.createElement('tr');
@@ -1765,8 +1883,9 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
           <td class="py-3.5 px-4 text-center font-mono text-xs text-slate-400 font-bold">${index + 1}</td>
           
           <td class="py-3.5 px-4">
-            <div class="font-extrabold text-slate-900 flex items-center gap-2">
-              <span>${escapeHTML(student.name)}</span>
+            <div class="font-extrabold text-slate-900 flex items-center gap-2 flex-wrap">
+              <span class="student-clickable-name text-slate-900 hover:text-sky-600 cursor-pointer transition-colors underline-offset-2 hover:underline" data-profile-id="${student.id}" title="View Student Profile & Fee Ledger">${escapeHTML(student.name)}</span>
+              ${feeBadgeHTML}
               ${student.notes ? `<span title="${escapeHTML(student.notes)}" class="cursor-help text-sky-600 text-xs"><i data-lucide="info" class="w-3.5 h-3.5 inline"></i></span>` : ''}
             </div>
             <div class="text-[11px] text-slate-500 flex items-center gap-1.5 mt-0.5 font-semibold">
@@ -1794,7 +1913,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
             </span>
           </td>
 
-          ${isBootcamp && !isAttendance ? `
+          ${!isAttendance ? `
             <td class="py-3.5 px-4 text-xs text-slate-700 th-transport-col">
               <div class="flex items-center gap-1.5">
                 ${canManageFleet ? `
@@ -1826,6 +1945,14 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         `;
         tbody.appendChild(tr);
       }
+    });
+
+    // Wire student profile click handlers
+    document.querySelectorAll('.student-clickable-name').forEach(el => {
+      el.addEventListener('click', () => {
+        const studentId = el.getAttribute('data-profile-id');
+        openStudentProfileDrawer(studentId);
+      });
     });
 
     // Wire assigned vehicle selectors
@@ -2287,10 +2414,10 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     ];
     const closeBtn = document.getElementById('btn-close-onboarding');
     const form = document.getElementById('student-onboarding-form');
-    const branchRadios = document.querySelectorAll('input[name="onboard-branch"]');
     const cohortSelect = document.getElementById('onboard-cohort');
     const trackSelect = document.getElementById('onboard-track');
     const transportGroup = document.getElementById('onboard-transport-group');
+    const openBulkBtn = document.getElementById('btn-onboard-open-bulk');
 
     function openModal() {
       const user = state.currentUser;
@@ -2308,22 +2435,21 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     }
 
     function updateSelectOptions() {
-      const selectedBranch = document.querySelector('input[name="onboard-branch"]:checked')?.value || 'bootcamp';
-
       if (cohortSelect) {
         cohortSelect.innerHTML = '';
-        const cohorts = state.data.cohorts[selectedBranch] || [];
+        const cohorts = state.data.cohorts.bootcamp || ['August Bootcamp', 'December Bootcamp', 'April Bootcamp'];
         cohorts.forEach(c => {
           const opt = document.createElement('option');
           opt.value = c;
           opt.textContent = c;
+          if (c === state.activeCohort) opt.selected = true;
           cohortSelect.appendChild(opt);
         });
       }
 
       if (trackSelect) {
         trackSelect.innerHTML = '';
-        const tracks = state.data.tracks[selectedBranch] || [];
+        const tracks = state.data.tracks.bootcamp || ['Junior Robotics', 'Web Development', 'AI & Coding', 'Mobile App Dev', 'Data Science & AI'];
         tracks.forEach(t => {
           const opt = document.createElement('option');
           opt.value = t;
@@ -2333,22 +2459,17 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       }
 
       if (transportGroup) {
-        if (selectedBranch === 'bootcamp') {
-          transportGroup.classList.remove('hidden');
-          // Populate vehicle selector
-          const vehSelect = document.getElementById('onboard-vehicle');
-          if (vehSelect) {
-            vehSelect.innerHTML = '<option value="">Select Transport Unit / Vehicle (Optional)</option>';
-            const activeVehicles = getActiveVehicles();
-            activeVehicles.forEach(v => {
-              const opt = document.createElement('option');
-              opt.value = v.name;
-              opt.textContent = `${v.name} (${v.type.toUpperCase()}${v.capacity ? ' • ' + v.capacity + ' seats' : ''})`;
-              vehSelect.appendChild(opt);
-            });
-          }
-        } else {
-          transportGroup.classList.add('hidden');
+        transportGroup.classList.remove('hidden');
+        const vehSelect = document.getElementById('onboard-vehicle');
+        if (vehSelect) {
+          vehSelect.innerHTML = '<option value="">Select Transport Unit / Vehicle (Optional)</option>';
+          const activeVehicles = getActiveVehicles();
+          activeVehicles.forEach(v => {
+            const opt = document.createElement('option');
+            opt.value = v.name;
+            opt.textContent = `${v.name} (${v.type.toUpperCase()}${v.capacity ? ' • ' + v.capacity + ' seats' : ''})`;
+            vehSelect.appendChild(opt);
+          });
         }
       }
     }
@@ -2356,58 +2477,93 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     openBtns.forEach(b => b?.addEventListener('click', openModal));
     closeBtn?.addEventListener('click', closeModal);
 
-    branchRadios.forEach(radio => {
-      radio.addEventListener('change', updateSelectOptions);
+    openBulkBtn?.addEventListener('click', () => {
+      closeModal();
+      openBulkImportModal();
     });
 
     form?.addEventListener('submit', async (e) => {
       e.preventDefault();
 
+      const user = state.currentUser;
       const name = document.getElementById('onboard-name').value.trim();
       const phone = document.getElementById('onboard-phone').value.trim();
       const residence = document.getElementById('onboard-residence').value.trim();
-      const branch = document.querySelector('input[name="onboard-branch"]:checked').value;
       const cohort = cohortSelect.value;
       const track = trackSelect.value;
-      const transport = branch === 'bootcamp' ? document.getElementById('onboard-transport').value : 'none';
-      const assignedVehicle = (branch === 'bootcamp' && (transport === 'both' || transport === 'morning_bus' || transport === 'evening_bus'))
+      const transport = document.getElementById('onboard-transport').value;
+      const assignedVehicle = (transport === 'both' || transport === 'morning_bus' || transport === 'evening_bus')
         ? (document.getElementById('onboard-vehicle')?.value || '')
         : '';
       const notes = document.getElementById('onboard-notes').value.trim();
 
+      const totalFee = Math.max(0, parseFloat(document.getElementById('onboard-total-fee')?.value || 15000));
+      const amountPaid = Math.max(0, parseFloat(document.getElementById('onboard-amount-paid')?.value || 0));
+      const balanceDue = Math.max(0, totalFee - amountPaid);
+      const paymentStatus = amountPaid >= totalFee && totalFee > 0 ? 'Paid' : (amountPaid > 0 ? 'Partial' : 'Unpaid');
+
+      const studentId = crypto.randomUUID ? crypto.randomUUID() : 'std_' + Date.now();
+
       const newStudent = {
-        id: crypto.randomUUID ? crypto.randomUUID() : 'std_' + Date.now(),
+        id: studentId,
         name: name,
         phone: phone,
         residence: residence,
-        branch: branch,
+        branch: 'bootcamp',
         cohort: cohort,
         track: track,
         transport_mode: transport,
         assigned_vehicle: assignedVehicle,
+        total_fee: totalFee,
+        amount_paid: amountPaid,
+        balance_due: balanceDue,
+        payment_status: paymentStatus,
         notes: notes,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       };
 
       state.data.students.push(newStudent);
+
+      // If initial payment was made during registration, record a payment transaction
+      let initialPayment = null;
+      if (amountPaid > 0) {
+        initialPayment = {
+          id: crypto.randomUUID ? crypto.randomUUID() : 'pay_' + Date.now(),
+          student_id: studentId,
+          student_name: name,
+          amount: amountPaid,
+          payment_date: new Date().toISOString().split('T')[0],
+          payment_method: 'M-Pesa',
+          reference_code: 'INIT-' + Math.random().toString(36).substring(2, 8).toUpperCase(),
+          notes: 'Initial fee payment during student registration',
+          recorded_by: user ? user.id : null,
+          recorded_by_name: user ? user.full_name : 'Reception Desk',
+          created_at: new Date().toISOString()
+        };
+        state.data.feePayments.unshift(initialPayment);
+        enqueueOutbox('INSERT_PAYMENT', initialPayment);
+      }
+
       saveStoredData();
 
       logAuditAction('REGISTER_STUDENT', 'student', newStudent.id, {
         name: name,
-        branch: branch,
         cohort: cohort,
-        track: track
+        track: track,
+        total_fee: totalFee,
+        amount_paid: amountPaid,
+        balance_due: balanceDue
       });
 
       enqueueOutbox('INSERT_STUDENT', newStudent);
       flushOutboxQueue();
 
-      notify(`Student "${name}" successfully enrolled into ${cohort}!`, 'success');
+      notify(`Student "${name}" successfully registered for ${cohort} (${track})!`, 'success');
       form.reset();
       closeModal();
-      state.activeBranch = branch;
       state.activeCohort = cohort;
+      state.activeTrack = track;
       renderApp();
     });
   }
@@ -2437,7 +2593,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         else if (state.activeManifestType === 'gate_pickup') manifestTitle = 'Gate & Carline Dismissal Register';
       }
       document.getElementById('print-doc-manifest').textContent = manifestTitle;
-      document.getElementById('print-doc-branch').textContent = isBootcamp ? 'Kids Boot Camp (Seasonal)' : 'Regular Programs (Adults/Youth)';
+      document.getElementById('print-doc-branch').textContent = 'Tech & AI Bootcamps';
       document.getElementById('print-doc-cohort').textContent = state.activeCohort;
       document.getElementById('print-doc-track').textContent = state.activeTrack === 'all' ? 'All Tracks' : state.activeTrack;
 
@@ -2733,7 +2889,1238 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
   }
 
   // ============================================================================
-  // 11. GENERAL LISTENERS & SETTINGS MODAL
+  // 11. FEES & REVENUE MANAGEMENT MODULE
+  // ============================================================================
+
+  function initFeesManagement() {
+    const searchInput = document.getElementById('fees-search-input');
+    const cohortFilter = document.getElementById('fees-cohort-filter');
+    const statusFilter = document.getElementById('fees-status-filter');
+    const btnOpenRecord = document.getElementById('btn-record-payment-open');
+    const btnExportCSV = document.getElementById('btn-fees-export-csv');
+    const btnExportPDF = document.getElementById('btn-fees-export-pdf');
+
+    searchInput?.addEventListener('input', (e) => {
+      state.feesFilter.query = e.target.value;
+      renderFeesDashboard();
+    });
+
+    cohortFilter?.addEventListener('change', (e) => {
+      state.feesFilter.cohort = e.target.value;
+      renderFeesDashboard();
+    });
+
+    statusFilter?.addEventListener('change', (e) => {
+      state.feesFilter.status = e.target.value;
+      renderFeesDashboard();
+    });
+
+    btnOpenRecord?.addEventListener('click', () => {
+      openRecordPaymentModal();
+    });
+
+    // CSV Export for Fees
+    btnExportCSV?.addEventListener('click', () => {
+      const students = state.data.students || [];
+      if (students.length === 0) {
+        notify('No student fee records to export.', 'info');
+        return;
+      }
+
+      const sanitizeCSVCell = (val) => {
+        if (val === null || val === undefined) return '""';
+        let str = String(val);
+        if (/^[=+\-@\t\r]/.test(str)) str = "'" + str;
+        return `"${str.replace(/"/g, '""')}"`;
+      };
+
+      const headers = ['Serial', 'Student Name', 'Parent Phone', 'Residence', 'Bootcamp Cohort', 'Track', 'Total Fee (KES)', 'Amount Paid (KES)', 'Balance Due (KES)', 'Payment Status'];
+      const rows = students.map((s, idx) => {
+        const totalFee = Number(s.total_fee !== undefined ? s.total_fee : 15000);
+        const amountPaid = Number(s.amount_paid !== undefined ? s.amount_paid : 0);
+        const balanceDue = Number(s.balance_due !== undefined ? s.balance_due : Math.max(0, totalFee - amountPaid));
+        const status = s.payment_status || (amountPaid >= totalFee && totalFee > 0 ? 'Paid' : (amountPaid > 0 ? 'Partial' : 'Unpaid'));
+
+        return [
+          idx + 1,
+          sanitizeCSVCell(s.name),
+          sanitizeCSVCell(s.phone),
+          sanitizeCSVCell(s.residence),
+          sanitizeCSVCell(s.cohort),
+          sanitizeCSVCell(s.track),
+          totalFee,
+          amountPaid,
+          balanceDue,
+          sanitizeCSVCell(status)
+        ];
+      });
+
+      const csvContent = '\uFEFF' + [
+        'EldoHub Tech & AI Academy - Student Fees & Accounts Receivable Ledger',
+        `Generated: ${new Date().toLocaleString('en-KE')} | Academic Term: Bootcamps`,
+        headers.join(','),
+        ...rows.map(r => r.join(','))
+      ].join('\r\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `EldoHub_Fees_Ledger_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      notify('Student fee ledger exported as CSV successfully!', 'success');
+    });
+
+    // PDF Export for Fees Ledger
+    btnExportPDF?.addEventListener('click', () => {
+      const students = state.data.students || [];
+      if (students.length === 0) {
+        notify('No student fee records to export.', 'info');
+        return;
+      }
+
+      if (!window.jspdf || !window.jspdf.jsPDF) {
+        notify('PDF engine initializing, please retry...', 'info');
+        return;
+      }
+
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('p', 'mm', 'a4');
+
+      // Header Banner
+      doc.setFillColor(15, 23, 42);
+      doc.rect(0, 0, 210, 26, 'F');
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(13);
+      doc.setTextColor(255, 255, 255);
+      doc.text('ELDOHUB TECH & AI ACADEMY', 14, 11);
+
+      doc.setFontSize(8.5);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(56, 189, 248);
+      doc.text('BOOTCAMP FEES & ACCOUNTS RECEIVABLE REPORT', 14, 18);
+
+      doc.setFontSize(8);
+      doc.setTextColor(203, 213, 225);
+      doc.text(`Generated: ${new Date().toLocaleString('en-KE')}`, 196, 15, { align: 'right' });
+
+      // Financial Summary Box
+      let totalExp = 0, totalCol = 0;
+      students.forEach(s => {
+        totalExp += Number(s.total_fee || 15000);
+        totalCol += Number(s.amount_paid || 0);
+      });
+      const totalBal = Math.max(0, totalExp - totalCol);
+      const pct = totalExp > 0 ? Math.round((totalCol / totalExp) * 100) : 0;
+
+      doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(226, 232, 240);
+      doc.roundedRect(14, 30, 182, 16, 2, 2, 'FD');
+
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(71, 85, 105);
+      doc.text(`TOTAL EXPECTED: KES ${totalExp.toLocaleString()}`, 20, 40);
+      doc.setTextColor(5, 150, 105);
+      doc.text(`COLLECTED: KES ${totalCol.toLocaleString()} (${pct}%)`, 80, 40);
+      doc.setTextColor(225, 29, 72);
+      doc.text(`BALANCE DUE: KES ${totalBal.toLocaleString()}`, 145, 40);
+
+      // AutoTable
+      const tableData = students.map((s, i) => {
+        const fee = Number(s.total_fee || 15000);
+        const paid = Number(s.amount_paid || 0);
+        const bal = Number(s.balance_due !== undefined ? s.balance_due : Math.max(0, fee - paid));
+        const st = s.payment_status || (paid >= fee && fee > 0 ? 'Paid' : (paid > 0 ? 'Partial' : 'Unpaid'));
+        return [
+          i + 1,
+          s.name,
+          `${s.cohort}\n${s.track}`,
+          `KES ${fee.toLocaleString()}`,
+          `KES ${paid.toLocaleString()}`,
+          `KES ${bal.toLocaleString()}`,
+          st
+        ];
+      });
+
+      doc.autoTable({
+        startY: 50,
+        head: [['#', 'Student Name', 'Cohort & Track', 'Total Fee', 'Paid', 'Balance', 'Status']],
+        body: tableData,
+        theme: 'striped',
+        headStyles: {
+          fillColor: [15, 23, 42],
+          textColor: [255, 255, 255],
+          fontSize: 8.5,
+          fontStyle: 'bold'
+        },
+        bodyStyles: {
+          fontSize: 8,
+          textColor: [30, 41, 59]
+        },
+        margin: { left: 14, right: 14 }
+      });
+
+      doc.save(`EldoHub_Bootcamp_Fees_Ledger_${new Date().toISOString().split('T')[0]}.pdf`);
+      notify('Student fee ledger PDF generated successfully!', 'success');
+    });
+  }
+
+  function renderFeesDashboard() {
+    const user = state.currentUser;
+    const canAccess = user && (user.role === 'super_admin' || user.role === 'receptionist');
+    if (!canAccess) {
+      notify('Access Denied: Fees & Payments view is restricted to Super Admin and Receptionist.', 'error');
+      state.activeViewModule = 'manifest_operations';
+      renderApp();
+      return;
+    }
+
+    const students = state.data.students || [];
+
+    // Cohort filter selector population
+    const cohortFilter = document.getElementById('fees-cohort-filter');
+    if (cohortFilter && cohortFilter.options.length <= 1) {
+      cohortFilter.innerHTML = '<option value="all">All Bootcamp Cohorts</option>';
+      const cohorts = state.data.cohorts.bootcamp || ['August Bootcamp', 'December Bootcamp', 'April Bootcamp'];
+      cohorts.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = c;
+        if (state.feesFilter.cohort === c) opt.selected = true;
+        cohortFilter.appendChild(opt);
+      });
+    }
+
+    // Filter students based on state.feesFilter
+    const filtered = students.filter(s => {
+      if (state.feesFilter.cohort !== 'all' && s.cohort !== state.feesFilter.cohort) return false;
+      if (state.feesFilter.status !== 'all') {
+        const status = s.payment_status || (s.amount_paid >= s.total_fee && s.total_fee > 0 ? 'Paid' : (s.amount_paid > 0 ? 'Partial' : 'Unpaid'));
+        if (status.toLowerCase() !== state.feesFilter.status.toLowerCase()) return false;
+      }
+      if (state.feesFilter.query && state.feesFilter.query.trim()) {
+        const q = state.feesFilter.query.toLowerCase().trim();
+        const matchName = (s.name || '').toLowerCase().includes(q);
+        const matchPhone = (s.phone || '').toLowerCase().includes(q);
+        const matchRes = (s.residence || '').toLowerCase().includes(q);
+        const matchTrack = (s.track || '').toLowerCase().includes(q);
+        const matchCohort = (s.cohort || '').toLowerCase().includes(q);
+        if (!matchName && !matchPhone && !matchRes && !matchTrack && !matchCohort) return false;
+      }
+      return true;
+    }).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+
+    // Overall KPI calculation (using current cohort filter or all students)
+    const kpiSource = state.feesFilter.cohort !== 'all' 
+      ? students.filter(s => s.cohort === state.feesFilter.cohort)
+      : students;
+
+    let totalExpected = 0;
+    let totalCollected = 0;
+    let unpaidOrPartialCount = 0;
+
+    kpiSource.forEach(s => {
+      const fee = Number(s.total_fee !== undefined ? s.total_fee : 15000);
+      const paid = Number(s.amount_paid !== undefined ? s.amount_paid : 0);
+      totalExpected += fee;
+      totalCollected += paid;
+      if ((fee - paid) > 0) unpaidOrPartialCount++;
+    });
+
+    const totalBalance = Math.max(0, totalExpected - totalCollected);
+    const collectedPct = totalExpected > 0 ? Math.round((totalCollected / totalExpected) * 100) : 0;
+
+    // Update KPI Elements
+    const elExp = document.getElementById('kpi-fees-expected');
+    const elCol = document.getElementById('kpi-fees-collected');
+    const elPct = document.getElementById('kpi-fees-collected-pct');
+    const elBal = document.getElementById('kpi-fees-balance');
+    const elUnpaid = document.getElementById('kpi-fees-unpaid-count');
+    const countPill = document.getElementById('fees-count-pill');
+    const emptyState = document.getElementById('fees-empty-state');
+    const tbody = document.getElementById('fees-table-body');
+
+    if (elExp) elExp.textContent = `KES ${totalExpected.toLocaleString()}`;
+    if (elCol) elCol.textContent = `KES ${totalCollected.toLocaleString()}`;
+    if (elPct) elPct.textContent = `${collectedPct}% Collection Rate`;
+    if (elBal) elBal.textContent = `KES ${totalBalance.toLocaleString()}`;
+    if (elUnpaid) elUnpaid.textContent = `${unpaidOrPartialCount} Student${unpaidOrPartialCount === 1 ? '' : 's'} with Outstanding Balance`;
+    if (countPill) countPill.textContent = `${filtered.length} Student${filtered.length === 1 ? '' : 's'}`;
+
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    if (filtered.length === 0) {
+      emptyState?.classList.remove('hidden');
+      return;
+    }
+    emptyState?.classList.add('hidden');
+
+    filtered.forEach((s, idx) => {
+      const totalFee = Number(s.total_fee !== undefined ? s.total_fee : 15000);
+      const amountPaid = Number(s.amount_paid !== undefined ? s.amount_paid : 0);
+      const balanceDue = Number(s.balance_due !== undefined ? s.balance_due : Math.max(0, totalFee - amountPaid));
+      const status = s.payment_status || (amountPaid >= totalFee && totalFee > 0 ? 'Paid' : (amountPaid > 0 ? 'Partial' : 'Unpaid'));
+
+      let statusBadge = '';
+      if (status === 'Paid') {
+        statusBadge = '<span class="badge-fee-paid inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold"><i data-lucide="check-circle" class="w-3 h-3"></i>Paid</span>';
+      } else if (status === 'Partial') {
+        statusBadge = '<span class="badge-fee-partial inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold"><i data-lucide="clock" class="w-3 h-3"></i>Partial</span>';
+      } else {
+        statusBadge = '<span class="badge-fee-unpaid inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold"><i data-lucide="alert-circle" class="w-3 h-3"></i>Unpaid</span>';
+      }
+
+      const tr = document.createElement('tr');
+      tr.className = 'hover:bg-slate-50 transition-colors border-b border-slate-100';
+
+      tr.innerHTML = `
+        <td class="py-3.5 px-4 text-center font-mono text-xs text-slate-400 font-bold">${idx + 1}</td>
+        
+        <td class="py-3.5 px-4">
+          <div class="font-extrabold text-slate-900">
+            <span class="student-clickable-name text-slate-900 hover:text-sky-600 cursor-pointer transition-colors underline-offset-2 hover:underline" data-profile-id="${s.id}" title="View Student Profile">${escapeHTML(s.name)}</span>
+          </div>
+          <div class="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5 font-medium">
+            <a href="tel:${escapeHTML(s.phone)}" class="text-sky-600 hover:underline font-mono">${escapeHTML(s.phone)}</a>
+            <span>•</span>
+            <span class="truncate max-w-[120px]">${escapeHTML(s.residence || 'Campus')}</span>
+          </div>
+        </td>
+
+        <td class="py-3.5 px-4">
+          <div class="font-bold text-xs text-slate-800">${escapeHTML(s.cohort)}</div>
+          <div class="text-[11px] text-indigo-600 font-semibold mt-0.5">${escapeHTML(s.track)}</div>
+        </td>
+
+        <td class="py-3.5 px-4 font-mono text-xs font-bold text-slate-700">
+          KES ${totalFee.toLocaleString()}
+        </td>
+
+        <td class="py-3.5 px-4 font-mono text-xs font-extrabold text-emerald-700">
+          KES ${amountPaid.toLocaleString()}
+        </td>
+
+        <td class="py-3.5 px-4 font-mono text-xs font-black ${balanceDue > 0 ? 'text-rose-600' : 'text-slate-400'}">
+          KES ${balanceDue.toLocaleString()}
+        </td>
+
+        <td class="py-3.5 px-4 text-center">
+          ${statusBadge}
+        </td>
+
+        <td class="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
+          <button data-pay-student-id="${s.id}" class="btn-table-pay touch-btn h-8 px-2.5 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors inline-flex items-center gap-1 shadow-sm" title="Record New Payment">
+            <i data-lucide="credit-card" class="w-3.5 h-3.5"></i>
+            <span>Pay</span>
+          </button>
+          <button data-receipt-student-id="${s.id}" class="btn-table-receipt touch-btn h-8 px-2.5 rounded-lg text-xs font-bold bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200 transition-colors inline-flex items-center gap-1 shadow-sm" title="View Fee Receipt">
+            <i data-lucide="receipt" class="w-3.5 h-3.5"></i>
+            <span>Receipt</span>
+          </button>
+          <button data-profile-id="${s.id}" class="student-clickable-name touch-btn h-8 px-2 rounded-lg text-xs font-medium text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors inline-flex items-center" title="Student Dossier">
+            <i data-lucide="user" class="w-3.5 h-3.5"></i>
+          </button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // Wire button events in table
+    tbody.querySelectorAll('.btn-table-pay').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const studentId = btn.getAttribute('data-pay-student-id');
+        openRecordPaymentModal(studentId);
+      });
+    });
+
+    tbody.querySelectorAll('.btn-table-receipt').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const studentId = btn.getAttribute('data-receipt-student-id');
+        openReceiptModal(studentId);
+      });
+    });
+
+    tbody.querySelectorAll('.student-clickable-name').forEach(el => {
+      el.addEventListener('click', () => {
+        const studentId = el.getAttribute('data-profile-id');
+        openStudentProfileDrawer(studentId);
+      });
+    });
+
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  // ============================================================================
+  // 11B. RECORD PAYMENT MODAL ENGINE
+  // ============================================================================
+
+  function initRecordPaymentModal() {
+    const modal = document.getElementById('modal-record-payment');
+    const closeBtn = document.getElementById('btn-close-record-payment');
+    const cancelBtn = document.getElementById('btn-cancel-record-payment');
+    const form = document.getElementById('record-payment-form');
+    const studentSelect = document.getElementById('pay-student-select');
+
+    closeBtn?.addEventListener('click', () => modal?.classList.add('hidden'));
+    cancelBtn?.addEventListener('click', () => modal?.classList.add('hidden'));
+
+    studentSelect?.addEventListener('change', (e) => {
+      updatePaymentSummaryCard(e.target.value);
+    });
+
+    form?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const user = state.currentUser;
+      const studentId = studentSelect?.value;
+      const amount = Math.max(0, parseFloat(document.getElementById('pay-amount')?.value || 0));
+      const paymentDate = document.getElementById('pay-date')?.value || new Date().toISOString().split('T')[0];
+      const paymentMethod = document.getElementById('pay-method')?.value || 'M-Pesa';
+      const referenceCode = (document.getElementById('pay-reference')?.value || '').trim() || ('MP-' + Math.random().toString(36).substring(2, 8).toUpperCase());
+      const notes = (document.getElementById('pay-notes')?.value || '').trim();
+
+      if (!studentId) {
+        notify('Please select a student.', 'error');
+        return;
+      }
+
+      if (amount <= 0) {
+        notify('Please enter a valid payment amount greater than zero.', 'error');
+        return;
+      }
+
+      const student = state.data.students.find(s => s.id === studentId);
+      if (!student) {
+        notify('Selected student not found in academy records.', 'error');
+        return;
+      }
+
+      // Update student financial ledger
+      const currentPaid = Number(student.amount_paid || 0);
+      const totalFee = Number(student.total_fee || 15000);
+      const newPaid = currentPaid + amount;
+      const newBalance = Math.max(0, totalFee - newPaid);
+      const newStatus = newPaid >= totalFee && totalFee > 0 ? 'Paid' : (newPaid > 0 ? 'Partial' : 'Unpaid');
+
+      student.amount_paid = newPaid;
+      student.balance_due = newBalance;
+      student.payment_status = newStatus;
+      student.updated_at = new Date().toISOString();
+
+      // Create payment transaction log
+      const paymentId = crypto.randomUUID ? crypto.randomUUID() : 'pay_' + Date.now();
+      const paymentRecord = {
+        id: paymentId,
+        student_id: student.id,
+        student_name: student.name,
+        amount: amount,
+        payment_date: paymentDate,
+        payment_method: paymentMethod,
+        reference_code: referenceCode.toUpperCase(),
+        notes: notes,
+        recorded_by: user ? user.id : null,
+        recorded_by_name: user ? user.full_name : 'Staff',
+        created_at: new Date().toISOString()
+      };
+
+      if (!state.data.feePayments) state.data.feePayments = [];
+      state.data.feePayments.unshift(paymentRecord);
+
+      saveStoredData();
+
+      // Enqueue sync tasks
+      enqueueOutbox('INSERT_PAYMENT', paymentRecord);
+      enqueueOutbox('INSERT_STUDENT', student);
+      flushOutboxQueue();
+
+      logAuditAction('RECORD_PAYMENT', 'fee_payment', paymentId, {
+        student_name: student.name,
+        amount: amount,
+        reference_code: referenceCode,
+        payment_method: paymentMethod,
+        balance_remaining: newBalance
+      });
+
+      notify(`Payment of KES ${amount.toLocaleString()} recorded for ${student.name}!`, 'success');
+      form.reset();
+      modal?.classList.add('hidden');
+
+      // Refresh UI
+      renderApp();
+
+      // Offer immediate receipt view
+      openReceiptModal(student.id, paymentId);
+    });
+  }
+
+  function updatePaymentSummaryCard(studentId) {
+    const card = document.getElementById('pay-student-summary-card');
+    const elName = document.getElementById('pay-summary-name');
+    const elCohortTrack = document.getElementById('pay-summary-cohort-track');
+    const elTotal = document.getElementById('pay-summary-total');
+    const elPaid = document.getElementById('pay-summary-paid');
+    const elBal = document.getElementById('pay-summary-balance');
+    const amountInput = document.getElementById('pay-amount');
+
+    if (!studentId) {
+      card?.classList.add('hidden');
+      return;
+    }
+
+    const student = state.data.students.find(s => s.id === studentId);
+    if (!student) {
+      card?.classList.add('hidden');
+      return;
+    }
+
+    const totalFee = Number(student.total_fee !== undefined ? student.total_fee : 15000);
+    const amountPaid = Number(student.amount_paid !== undefined ? student.amount_paid : 0);
+    const balanceDue = Number(student.balance_due !== undefined ? student.balance_due : Math.max(0, totalFee - amountPaid));
+
+    if (elName) elName.textContent = student.name;
+    if (elCohortTrack) elCohortTrack.textContent = `${student.cohort} • ${student.track}`;
+    if (elTotal) elTotal.textContent = `KES ${totalFee.toLocaleString()}`;
+    if (elPaid) elPaid.textContent = `KES ${amountPaid.toLocaleString()}`;
+    if (elBal) elBal.textContent = `KES ${balanceDue.toLocaleString()}`;
+
+    // Suggest remaining balance as payment amount
+    if (amountInput) {
+      amountInput.value = balanceDue > 0 ? balanceDue : '';
+    }
+
+    card?.classList.remove('hidden');
+  }
+
+  function openRecordPaymentModal(studentId = null) {
+    const user = state.currentUser;
+    if (user && user.role !== 'super_admin' && user.role !== 'receptionist') {
+      notify('Access Denied: Only Super Admin and Receptionist can record fee payments.', 'error');
+      return;
+    }
+
+    const modal = document.getElementById('modal-record-payment');
+    const studentSelect = document.getElementById('pay-student-select');
+    const dateInput = document.getElementById('pay-date');
+    const refInput = document.getElementById('pay-reference');
+
+    if (studentSelect) {
+      studentSelect.innerHTML = '<option value="">-- Choose Student to Record Payment --</option>';
+      const students = (state.data.students || []).slice().sort((a, b) => a.name.localeCompare(b.name));
+      students.forEach(s => {
+        const bal = Number(s.balance_due !== undefined ? s.balance_due : Math.max(0, (s.total_fee || 15000) - (s.amount_paid || 0)));
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = `${s.name} (${s.cohort} - ${s.track}) • Due: KES ${bal.toLocaleString()}`;
+        if (studentId && s.id === studentId) opt.selected = true;
+        studentSelect.appendChild(opt);
+      });
+    }
+
+    if (dateInput) {
+      dateInput.value = state.activeDate || new Date().toISOString().split('T')[0];
+    }
+
+    if (refInput) {
+      refInput.value = 'MP-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    }
+
+    updatePaymentSummaryCard(studentId || studentSelect?.value);
+    modal?.classList.remove('hidden');
+  }
+
+  // ============================================================================
+  // 11C. OFFICIAL FEE RECEIPT ENGINE (MODAL, PRINT & PDF)
+  // ============================================================================
+
+  function initReceiptModal() {
+    const modal = document.getElementById('modal-receipt');
+    const closeBtn = document.getElementById('btn-close-receipt');
+    const doneBtn = document.getElementById('btn-done-receipt');
+    const printBtn = document.getElementById('btn-print-receipt');
+    const downloadBtn = document.getElementById('btn-download-receipt-pdf');
+
+    closeBtn?.addEventListener('click', () => modal?.classList.add('hidden'));
+    doneBtn?.addEventListener('click', () => modal?.classList.add('hidden'));
+
+    printBtn?.addEventListener('click', () => {
+      document.body.classList.add('printing-receipt');
+      window.print();
+      setTimeout(() => {
+        document.body.classList.remove('printing-receipt');
+      }, 1000);
+    });
+
+    downloadBtn?.addEventListener('click', () => {
+      generateReceiptPDFFromActiveState();
+    });
+  }
+
+  let activeReceiptContext = null;
+
+  function openReceiptModal(studentId, paymentId = null) {
+    const student = state.data.students.find(s => s.id === studentId);
+    if (!student) {
+      notify('Student record not found.', 'error');
+      return;
+    }
+
+    let payment = null;
+    if (paymentId) {
+      payment = (state.data.feePayments || []).find(p => p.id === paymentId);
+    }
+    if (!payment) {
+      payment = (state.data.feePayments || []).find(p => p.student_id === studentId);
+    }
+
+    activeReceiptContext = { student, payment };
+
+    const modal = document.getElementById('modal-receipt');
+    const totalFee = Number(student.total_fee !== undefined ? student.total_fee : 15000);
+    const amountPaidCumulative = Number(student.amount_paid !== undefined ? student.amount_paid : 0);
+    const balanceDue = Number(student.balance_due !== undefined ? student.balance_due : Math.max(0, totalFee - amountPaidCumulative));
+
+    const receiptAmount = payment ? Number(payment.amount) : amountPaidCumulative;
+    const refCode = payment ? payment.reference_code : ('REC-' + student.id.substring(0, 8).toUpperCase());
+    const payDate = payment ? payment.payment_date : (state.activeDate || new Date().toISOString().split('T')[0]);
+    const payMethod = payment ? payment.payment_method : 'M-Pesa / Bank';
+    const recordedBy = payment ? payment.recorded_by_name : (state.currentUser?.full_name || 'Accounts Desk');
+
+    // Populate Modal Preview
+    const elNum = document.getElementById('receipt-number');
+    const elDate = document.getElementById('receipt-date');
+    const elStudent = document.getElementById('receipt-student-name');
+    const elPhone = document.getElementById('receipt-parent-phone');
+    const elCohort = document.getElementById('receipt-cohort-track');
+    const elAmt = document.getElementById('receipt-amount-paid');
+    const elMethod = document.getElementById('receipt-payment-method');
+    const elRef = document.getElementById('receipt-reference-code');
+    const elTotal = document.getElementById('receipt-total-fee');
+    const elBal = document.getElementById('receipt-balance-due');
+    const elBy = document.getElementById('receipt-recorded-by');
+
+    if (elNum) elNum.textContent = refCode;
+    if (elDate) elDate.textContent = payDate;
+    if (elStudent) elStudent.textContent = student.name;
+    if (elPhone) elPhone.textContent = student.phone;
+    if (elCohort) elCohort.textContent = `${student.cohort} • ${student.track}`;
+    if (elAmt) elAmt.textContent = `KES ${receiptAmount.toLocaleString()}`;
+    if (elMethod) elMethod.textContent = payMethod;
+    if (elRef) elRef.textContent = refCode;
+    if (elTotal) elTotal.textContent = `KES ${totalFee.toLocaleString()}`;
+    if (elBal) elBal.textContent = `KES ${balanceDue.toLocaleString()}`;
+    if (elBy) elBy.textContent = recordedBy;
+
+    // Populate Hidden Native Print Document Layout (#print-receipt-document)
+    const pNum = document.getElementById('print-rec-number');
+    const pDate = document.getElementById('print-rec-date');
+    const pStudent = document.getElementById('print-rec-student');
+    const pPhone = document.getElementById('print-rec-phone');
+    const pCohort = document.getElementById('print-rec-cohort');
+    const pTrack = document.getElementById('print-rec-track');
+    const pMethod = document.getElementById('print-rec-method');
+    const pRef = document.getElementById('print-rec-ref');
+    const pAmt = document.getElementById('print-rec-amount');
+    const pTotal = document.getElementById('print-rec-total-fee');
+    const pPaid = document.getElementById('print-rec-cumulative-paid');
+    const pBal = document.getElementById('print-rec-balance-due');
+    const pCashier = document.getElementById('print-rec-cashier');
+
+    if (pNum) pNum.textContent = refCode;
+    if (pDate) pDate.textContent = payDate;
+    if (pStudent) pStudent.textContent = student.name;
+    if (pPhone) pPhone.textContent = student.phone;
+    if (pCohort) pCohort.textContent = student.cohort;
+    if (pTrack) pTrack.textContent = student.track;
+    if (pMethod) pMethod.textContent = payMethod;
+    if (pRef) pRef.textContent = refCode;
+    if (pAmt) pAmt.textContent = `KES ${receiptAmount.toLocaleString()}`;
+    if (pTotal) pTotal.textContent = `KES ${totalFee.toLocaleString()}`;
+    if (pPaid) pPaid.textContent = `KES ${amountPaidCumulative.toLocaleString()}`;
+    if (pBal) pBal.textContent = `KES ${balanceDue.toLocaleString()}`;
+    if (pCashier) pCashier.textContent = recordedBy;
+
+    modal?.classList.remove('hidden');
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  function generateReceiptPDFFromActiveState() {
+    if (!activeReceiptContext || !activeReceiptContext.student) {
+      notify('No active receipt loaded.', 'error');
+      return;
+    }
+
+    if (!window.jspdf || !window.jspdf.jsPDF) {
+      notify('PDF engine initializing, please retry...', 'info');
+      return;
+    }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('p', 'mm', 'a5'); // 148mm x 210mm
+    const student = activeReceiptContext.student;
+    const payment = activeReceiptContext.payment;
+
+    const totalFee = Number(student.total_fee || 15000);
+    const amountPaidCumulative = Number(student.amount_paid || 0);
+    const balanceDue = Number(student.balance_due !== undefined ? student.balance_due : Math.max(0, totalFee - amountPaidCumulative));
+    const receiptAmount = payment ? Number(payment.amount) : amountPaidCumulative;
+    const refCode = payment ? payment.reference_code : ('REC-' + student.id.substring(0, 8).toUpperCase());
+    const payDate = payment ? payment.payment_date : new Date().toISOString().split('T')[0];
+    const payMethod = payment ? payment.payment_method : 'M-Pesa / Bank';
+    const recordedBy = payment ? payment.recorded_by_name : (state.currentUser?.full_name || 'Accounts Desk');
+
+    // Header Band
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, 148, 24, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(255, 255, 255);
+    doc.text('ELDOHUB TECH & AI ACADEMY', 12, 11);
+
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(56, 189, 248);
+    doc.text('OFFICIAL STUDENT FEE PAYMENT RECEIPT', 12, 17);
+
+    doc.setTextColor(203, 213, 225);
+    doc.text(`Receipt #: ${refCode}`, 136, 11, { align: 'right' });
+    doc.text(`Date: ${payDate}`, 136, 17, { align: 'right' });
+
+    // Student & Program Details Box
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(12, 28, 124, 26, 2, 2, 'FD');
+
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(71, 85, 105);
+    doc.text('STUDENT:', 16, 36);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text(student.name, 45, 36);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(71, 85, 105);
+    doc.text('GUARDIAN PHONE:', 16, 42);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(15, 23, 42);
+    doc.text(student.phone, 45, 42);
+
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(71, 85, 105);
+    doc.text('BOOTCAMP PROGRAM:', 16, 48);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(79, 70, 229);
+    doc.text(`${student.cohort} • ${student.track}`, 45, 48);
+
+    // Payment Item Table
+    doc.autoTable({
+      startY: 58,
+      head: [['Description', 'Payment Mode', 'Reference', 'Amount Paid']],
+      body: [
+        [
+          `Bootcamp Tuition & Materials Fee\n(${student.track})`,
+          payMethod,
+          refCode,
+          `KES ${receiptAmount.toLocaleString()}`
+        ]
+      ],
+      theme: 'grid',
+      headStyles: {
+        fillColor: [15, 23, 42],
+        textColor: [255, 255, 255],
+        fontSize: 8,
+        fontStyle: 'bold'
+      },
+      bodyStyles: {
+        fontSize: 8,
+        textColor: [15, 23, 42]
+      },
+      margin: { left: 12, right: 12 }
+    });
+
+    const finalY = doc.lastAutoTable.finalY || 80;
+
+    // Financial Balances Summary
+    doc.setFillColor(241, 245, 249);
+    doc.rect(70, finalY + 4, 66, 28, 'F');
+
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(71, 85, 105);
+    doc.text('Total Course Fee:', 74, finalY + 11);
+    doc.text(`KES ${totalFee.toLocaleString()}`, 132, finalY + 11, { align: 'right' });
+
+    doc.text('Cumulative Paid:', 74, finalY + 18);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(5, 150, 105);
+    doc.text(`KES ${amountPaidCumulative.toLocaleString()}`, 132, finalY + 18, { align: 'right' });
+
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(225, 29, 72);
+    doc.text('Remaining Balance:', 74, finalY + 25);
+    doc.text(`KES ${balanceDue.toLocaleString()}`, 132, finalY + 25, { align: 'right' });
+
+    // Official Stamp & Signature Lines
+    doc.setDrawColor(203, 213, 225);
+    doc.line(12, finalY + 45, 60, finalY + 45);
+    doc.line(86, finalY + 45, 136, finalY + 45);
+
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text(`Issued By: ${recordedBy}`, 12, finalY + 49);
+    doc.text('Authorized Finance Stamp', 86, finalY + 49);
+
+    doc.setFontSize(6.5);
+    doc.text('This is an official computer-generated receipt from EldoHub Academy.', 74, 202, { align: 'center' });
+
+    doc.save(`EldoHub_Fee_Receipt_${refCode}_${student.name.replace(/\s+/g, '_')}.pdf`);
+    notify('Official fee receipt PDF generated successfully!', 'success');
+  }
+
+  // ============================================================================
+  // 11D. STUDENT PROFILE DOSSIER DRAWER
+  // ============================================================================
+
+  function initStudentProfileDrawer() {
+    const drawer = document.getElementById('drawer-student-profile');
+    const closeBtn = document.getElementById('btn-close-student-profile');
+    const btnRecordPay = document.getElementById('profile-btn-record-payment');
+
+    closeBtn?.addEventListener('click', () => drawer?.classList.add('hidden'));
+
+    btnRecordPay?.addEventListener('click', () => {
+      const studentId = btnRecordPay.getAttribute('data-student-id');
+      drawer?.classList.add('hidden');
+      if (studentId) openRecordPaymentModal(studentId);
+    });
+  }
+
+  function openStudentProfileDrawer(studentId) {
+    const student = state.data.students.find(s => s.id === studentId);
+    if (!student) {
+      notify('Student profile not found.', 'error');
+      return;
+    }
+
+    const drawer = document.getElementById('drawer-student-profile');
+    const initial = (student.name || 'S').charAt(0).toUpperCase();
+
+    const totalFee = Number(student.total_fee !== undefined ? student.total_fee : 15000);
+    const amountPaid = Number(student.amount_paid !== undefined ? student.amount_paid : 0);
+    const balanceDue = Number(student.balance_due !== undefined ? student.balance_due : Math.max(0, totalFee - amountPaid));
+    const status = student.payment_status || (amountPaid >= totalFee && totalFee > 0 ? 'Paid' : (amountPaid > 0 ? 'Partial' : 'Unpaid'));
+
+    // Populate Dossier
+    const elInit = document.getElementById('profile-avatar-initial');
+    const elName = document.getElementById('profile-student-name');
+    const elTrack = document.getElementById('profile-student-track');
+    const elBadge = document.getElementById('profile-fee-status-badge');
+    const elTotal = document.getElementById('profile-total-fee');
+    const elPaid = document.getElementById('profile-amount-paid');
+    const elBal = document.getElementById('profile-balance-due');
+    const elPhone = document.getElementById('profile-parent-phone');
+    const elRes = document.getElementById('profile-residence');
+    const elCohort = document.getElementById('profile-cohort');
+    const elMode = document.getElementById('profile-transport-mode');
+    const elVeh = document.getElementById('profile-vehicle');
+    const btnRecordPay = document.getElementById('profile-btn-record-payment');
+
+    if (elInit) elInit.textContent = initial;
+    if (elName) elName.textContent = student.name;
+    if (elTrack) elTrack.textContent = `${student.cohort} • ${student.track}`;
+
+    if (elBadge) {
+      if (status === 'Paid') {
+        elBadge.className = 'badge-fee-paid inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold';
+        elBadge.innerHTML = '<i data-lucide="check-circle" class="w-3.5 h-3.5"></i><span>Paid in Full</span>';
+      } else if (status === 'Partial') {
+        elBadge.className = 'badge-fee-partial inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold';
+        elBadge.innerHTML = `<i data-lucide="clock" class="w-3.5 h-3.5"></i><span>Partial (Due KES ${balanceDue.toLocaleString()})</span>`;
+      } else {
+        elBadge.className = 'badge-fee-unpaid inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold';
+        elBadge.innerHTML = '<i data-lucide="alert-circle" class="w-3.5 h-3.5"></i><span>Unpaid</span>';
+      }
+    }
+
+    if (elTotal) elTotal.textContent = `KES ${totalFee.toLocaleString()}`;
+    if (elPaid) elPaid.textContent = `KES ${amountPaid.toLocaleString()}`;
+    if (elBal) elBal.textContent = `KES ${balanceDue.toLocaleString()}`;
+
+    if (elPhone) {
+      elPhone.textContent = student.phone;
+      elPhone.href = `tel:${student.phone}`;
+    }
+    if (elRes) elRes.textContent = student.residence || 'Campus / Walk-in';
+    if (elCohort) elCohort.textContent = student.cohort;
+    if (elMode) elMode.textContent = student.transport_mode ? student.transport_mode.replace(/_/g, ' ').toUpperCase() : 'NONE';
+    if (elVeh) elVeh.textContent = student.assigned_vehicle || 'Unassigned / Local';
+
+    if (btnRecordPay) {
+      btnRecordPay.setAttribute('data-student-id', student.id);
+      const user = state.currentUser;
+      btnRecordPay.style.display = (user && (user.role === 'super_admin' || user.role === 'receptionist')) ? 'flex' : 'none';
+    }
+
+    // Populate Payment History Table
+    const historyBody = document.getElementById('profile-payment-history-body');
+    const noMsg = document.getElementById('profile-no-payments-msg');
+    const studentPayments = (state.data.feePayments || []).filter(p => p.student_id === student.id);
+
+    if (historyBody) {
+      historyBody.innerHTML = '';
+      if (studentPayments.length === 0) {
+        noMsg?.classList.remove('hidden');
+      } else {
+        noMsg?.classList.add('hidden');
+        studentPayments.forEach(p => {
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-slate-50 transition-colors border-b border-slate-100 text-xs';
+          tr.innerHTML = `
+            <td class="py-2.5 px-3 font-mono text-slate-600">${escapeHTML(p.payment_date || '')}</td>
+            <td class="py-2.5 px-3 font-semibold text-slate-800">${escapeHTML(p.payment_method || 'M-Pesa')}</td>
+            <td class="py-2.5 px-3 font-mono font-bold text-slate-700">${escapeHTML(p.reference_code || '')}</td>
+            <td class="py-2.5 px-3 font-mono font-extrabold text-emerald-700">KES ${Number(p.amount || 0).toLocaleString()}</td>
+            <td class="py-2.5 px-3 text-right">
+              <button data-receipt-payment-id="${p.id}" class="btn-profile-receipt p-1.5 rounded-lg text-sky-600 hover:bg-sky-50 transition-colors touch-btn" title="View Payment Receipt">
+                <i data-lucide="receipt" class="w-3.5 h-3.5"></i>
+              </button>
+            </td>
+          `;
+          historyBody.appendChild(tr);
+        });
+
+        historyBody.querySelectorAll('.btn-profile-receipt').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const payId = btn.getAttribute('data-receipt-payment-id');
+            openReceiptModal(student.id, payId);
+          });
+        });
+      }
+    }
+
+    drawer?.classList.remove('hidden');
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  // ============================================================================
+  // 12. BULK CSV UPLOAD FOR STUDENT ONBOARDING & FEES (PAPAPARSE)
+  // ============================================================================
+
+  let parsedBulkData = [];
+
+  function initBulkCSVImport() {
+    const modal = document.getElementById('modal-bulk-import');
+    const closeBtn = document.getElementById('btn-close-bulk-import');
+    const cancelBtn = document.getElementById('btn-cancel-bulk-import');
+    const sampleBtn = document.getElementById('btn-download-sample-csv');
+    const dropzone = document.getElementById('bulk-csv-dropzone');
+    const fileInput = document.getElementById('bulk-csv-file-input');
+    const browseBtn = document.getElementById('bulk-csv-browse-btn');
+    const confirmBtn = document.getElementById('btn-confirm-bulk-import');
+
+    closeBtn?.addEventListener('click', () => modal?.classList.add('hidden'));
+    cancelBtn?.addEventListener('click', () => modal?.classList.add('hidden'));
+
+    // Download Sample Template
+    sampleBtn?.addEventListener('click', () => {
+      const sampleCSV = `full_name,parent_name,parent_phone,bootcamp_name,pickup_location,requires_transport,total_fee,amount_paid
+Liam Kipchumba,Mary Kipchumba,+254 712 345 678,Junior Robotics,Elgon View,Yes,15000,15000
+Zawadi Chebet,David Chebet,+254 722 987 654,Web Development,Rupa Mall,Yes,15000,7500
+Amani Ochieng,Grace Ochieng,+254 733 112 233,AI & Coding,West Indies,No,15000,0
+Baraka Kiprono,John Kiprono,+254 701 555 444,Mobile App Dev,Pioneer,Yes,15000,10000
+Nia Wanjiku,Esther Wanjiku,+254 799 888 777,Data Science & AI,Annex,No,15000,15000`;
+
+      const blob = new Blob([sampleCSV], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'eldohub_bootcamp_students_sample.csv';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      notify('Sample CSV template downloaded!', 'success');
+    });
+
+    browseBtn?.addEventListener('click', () => fileInput?.click());
+    dropzone?.addEventListener('click', (e) => {
+      if (e.target !== browseBtn) fileInput?.click();
+    });
+
+    dropzone?.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropzone.classList.add('border-sky-500', 'bg-sky-50/50');
+    });
+
+    dropzone?.addEventListener('dragleave', () => {
+      dropzone.classList.remove('border-sky-500', 'bg-sky-50/50');
+    });
+
+    dropzone?.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('border-sky-500', 'bg-sky-50/50');
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleBulkCSVFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    fileInput?.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        handleBulkCSVFile(e.target.files[0]);
+      }
+    });
+
+    confirmBtn?.addEventListener('click', async () => {
+      await executeBulkImportCommit();
+    });
+  }
+
+  function handleBulkCSVFile(file) {
+    if (!file || !file.name.endsWith('.csv')) {
+      notify('Please select a valid .csv file.', 'error');
+      return;
+    }
+
+    if (!window.Papa) {
+      notify('CSV parsing engine loading, please retry in a moment...', 'error');
+      return;
+    }
+
+    window.Papa.parse(file, {
+      header: true,
+      skipEmptyLines: 'greedy',
+      transformHeader: h => h.trim().toLowerCase().replace(/\s+/g, '_'),
+      complete: function(results) {
+        processParsedCSVRows(results.data);
+      },
+      error: function(err) {
+        notify('Failed to parse CSV file: ' + err.message, 'error');
+      }
+    });
+  }
+
+  function processParsedCSVRows(rows) {
+    parsedBulkData = [];
+    let validCount = 0;
+    let invalidCount = 0;
+
+    rows.forEach((row, idx) => {
+      const name = (row.full_name || row.student_name || row.name || '').trim();
+      const parentName = (row.parent_name || row.guardian_name || row.parent || '').trim();
+      const phone = (row.parent_phone || row.phone || row.guardian_phone || row.contact || '').trim();
+      const bootcamp = (row.bootcamp_name || row.bootcamp || row.track || row.course || '').trim();
+      const location = (row.pickup_location || row.residence || row.location || 'Campus / Walk-in').trim();
+      const transportRaw = (row.requires_transport || row.transport || '').toString().toLowerCase().trim();
+      const requiresTransport = transportRaw === 'yes' || transportRaw === 'true' || transportRaw === '1' || transportRaw === 'y';
+
+      const totalFee = Math.max(0, parseFloat(row.total_fee || row.fee || 15000) || 15000);
+      const amountPaid = Math.max(0, parseFloat(row.amount_paid || row.paid || 0) || 0);
+      const balanceDue = Math.max(0, totalFee - amountPaid);
+      const paymentStatus = amountPaid >= totalFee && totalFee > 0 ? 'Paid' : (amountPaid > 0 ? 'Partial' : 'Unpaid');
+
+      // Validation
+      const errors = [];
+      if (!name || name.length < 2) errors.push('Missing Student Name');
+      if (!phone || phone.length < 5) errors.push('Missing Parent Phone');
+      if (!bootcamp || bootcamp.length < 2) errors.push('Missing Bootcamp Name');
+
+      const isValid = errors.length === 0;
+      if (isValid) validCount++;
+      else invalidCount++;
+
+      parsedBulkData.push({
+        index: idx + 1,
+        name,
+        parentName,
+        phone,
+        bootcamp,
+        location,
+        requiresTransport,
+        totalFee,
+        amountPaid,
+        balanceDue,
+        paymentStatus,
+        isValid,
+        errors
+      });
+    });
+
+    renderBulkPreviewTable(validCount, invalidCount);
+  }
+
+  function renderBulkPreviewTable(validCount, invalidCount) {
+    const previewContainer = document.getElementById('bulk-preview-container');
+    const tbody = document.getElementById('bulk-preview-table-body');
+    const elValid = document.getElementById('bulk-valid-count');
+    const elInvalid = document.getElementById('bulk-invalid-count');
+    const elTotal = document.getElementById('bulk-total-count');
+    const confirmBtn = document.getElementById('btn-confirm-bulk-import');
+
+    if (elValid) elValid.textContent = `${validCount} Valid`;
+    if (elInvalid) elInvalid.textContent = `${invalidCount} Invalid`;
+    if (elTotal) elTotal.textContent = `${parsedBulkData.length} Total`;
+
+    if (confirmBtn) {
+      confirmBtn.disabled = validCount === 0;
+      confirmBtn.innerHTML = validCount > 0 
+        ? `<i data-lucide="check" class="w-4 h-4"></i><span>Import ${validCount} Valid Student${validCount === 1 ? '' : 's'}</span>`
+        : '<span>No Valid Records to Import</span>';
+    }
+
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    parsedBulkData.forEach(item => {
+      const tr = document.createElement('tr');
+      tr.className = item.isValid ? 'hover:bg-slate-50 transition-colors border-b border-slate-100 text-xs' : 'bg-rose-50/50 hover:bg-rose-50 transition-colors border-b border-rose-100 text-xs';
+
+      const validationBadge = item.isValid
+        ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800"><i data-lucide="check" class="w-3 h-3"></i>Valid</span>'
+        : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800" title="${item.errors.join(', ')}"><i data-lucide="alert-circle" class="w-3 h-3"></i>${item.errors.join(', ')}</span>`;
+
+      tr.innerHTML = `
+        <td class="py-2.5 px-3 font-mono text-center text-slate-400 font-bold">${item.index}</td>
+        <td class="py-2.5 px-3 font-bold text-slate-900">${escapeHTML(item.name || '—')}</td>
+        <td class="py-2.5 px-3 text-slate-600 font-mono">${escapeHTML(item.phone || '—')}</td>
+        <td class="py-2.5 px-3 font-semibold text-indigo-700">${escapeHTML(item.bootcamp || '—')}</td>
+        <td class="py-2.5 px-3 text-slate-600">${escapeHTML(item.location || 'Campus')}</td>
+        <td class="py-2.5 px-3 font-medium text-slate-700">${item.requiresTransport ? '<span class="text-amber-700 font-bold">Bus / Van</span>' : 'Self / Gate'}</td>
+        <td class="py-2.5 px-3 font-mono font-bold text-slate-700">KES ${item.totalFee.toLocaleString()}</td>
+        <td class="py-2.5 px-3 font-mono font-bold text-emerald-700">KES ${item.amountPaid.toLocaleString()}</td>
+        <td class="py-2.5 px-3 text-center">${validationBadge}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    previewContainer?.classList.remove('hidden');
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  async function executeBulkImportCommit() {
+    const user = state.currentUser;
+    const validRows = parsedBulkData.filter(d => d.isValid);
+    if (validRows.length === 0) {
+      notify('No valid student rows to import.', 'error');
+      return;
+    }
+
+    const confirmBtn = document.getElementById('btn-confirm-bulk-import');
+    if (confirmBtn) {
+      confirmBtn.disabled = true;
+      confirmBtn.innerHTML = '<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i><span>Importing Students & Fees...</span>';
+      if (window.lucide) window.lucide.createIcons();
+    }
+
+    const activeVehicles = getActiveVehicles();
+    const defaultVehicle = activeVehicles.length > 0 ? activeVehicles[0].name : 'Bus 01';
+    const activeCohort = state.activeCohort || 'August Bootcamp';
+
+    const newStudents = [];
+    const newPayments = [];
+
+    validRows.forEach(row => {
+      // Ensure track exists in state
+      if (!state.data.tracks.bootcamp.includes(row.bootcamp)) {
+        state.data.tracks.bootcamp.push(row.bootcamp);
+      }
+
+      const studentId = crypto.randomUUID ? crypto.randomUUID() : 'std_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+      const student = {
+        id: studentId,
+        name: row.name,
+        phone: row.phone,
+        residence: row.location || 'Eldoret Campus',
+        branch: 'bootcamp',
+        cohort: activeCohort,
+        track: row.bootcamp,
+        transport_mode: row.requiresTransport ? 'both' : 'parent_pickup',
+        assigned_vehicle: row.requiresTransport ? defaultVehicle : '',
+        total_fee: row.totalFee,
+        amount_paid: row.amountPaid,
+        balance_due: row.balanceDue,
+        payment_status: row.paymentStatus,
+        notes: row.parentName ? `Parent: ${row.parentName}` : '',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      newStudents.push(student);
+      state.data.students.push(student);
+
+      // If initial fee was paid, create transaction
+      if (row.amountPaid > 0) {
+        const paymentRecord = {
+          id: crypto.randomUUID ? crypto.randomUUID() : 'pay_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+          student_id: studentId,
+          student_name: row.name,
+          amount: row.amountPaid,
+          payment_date: new Date().toISOString().split('T')[0],
+          payment_method: 'M-Pesa / Initial',
+          reference_code: 'BULK-' + Math.random().toString(36).substring(2, 8).toUpperCase(),
+          notes: 'Bulk onboarding enrollment initial fee',
+          recorded_by: user ? user.id : null,
+          recorded_by_name: user ? user.full_name : 'Bulk Importer',
+          created_at: new Date().toISOString()
+        };
+        newPayments.push(paymentRecord);
+        if (!state.data.feePayments) state.data.feePayments = [];
+        state.data.feePayments.unshift(paymentRecord);
+      }
+    });
+
+    saveStoredData();
+
+    // Outbox & Realtime Sync
+    enqueueOutbox('BULK_IMPORT_STUDENTS', { students: newStudents, payments: newPayments });
+    flushOutboxQueue();
+
+    logAuditAction('BULK_IMPORT_STUDENTS', 'student_batch', 'batch_' + Date.now(), {
+      count: newStudents.length,
+      total_fees_expected: newStudents.reduce((sum, s) => sum + s.total_fee, 0),
+      total_fees_collected: newPayments.reduce((sum, p) => sum + p.amount, 0),
+      cohort: activeCohort
+    });
+
+    notify(`Successfully imported ${newStudents.length} students into ${activeCohort}!`, 'success');
+
+    // Reset Modal
+    parsedBulkData = [];
+    const modal = document.getElementById('modal-bulk-import');
+    const previewContainer = document.getElementById('bulk-preview-container');
+    const fileInput = document.getElementById('bulk-csv-file-input');
+    if (fileInput) fileInput.value = '';
+    previewContainer?.classList.add('hidden');
+    modal?.classList.add('hidden');
+
+    renderApp();
+  }
+
+  function openBulkImportModal() {
+    const user = state.currentUser;
+    if (user && user.role !== 'super_admin' && user.role !== 'receptionist') {
+      notify('Access Denied: Only Super Admin and Receptionist can perform bulk CSV student onboarding.', 'error');
+      return;
+    }
+
+    const modal = document.getElementById('modal-bulk-import');
+    const previewContainer = document.getElementById('bulk-preview-container');
+    const fileInput = document.getElementById('bulk-csv-file-input');
+    if (fileInput) fileInput.value = '';
+    previewContainer?.classList.add('hidden');
+    parsedBulkData = [];
+    modal?.classList.remove('hidden');
+  }
+
+  // ============================================================================
+  // 13. GENERAL LISTENERS & SETTINGS MODAL
   // ============================================================================
 
   function initGeneralListeners() {
@@ -2766,40 +4153,45 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     closeSidebarMobile?.addEventListener('click', closeMobileDrawer);
     backdrop?.addEventListener('click', closeMobileDrawer);
 
-    // Branch switcher
-    document.getElementById('branch-nav-bootcamp')?.addEventListener('click', () => {
-      state.activeBranch = 'bootcamp';
-      state.activeCohort = state.data.cohorts.bootcamp[0] || 'August Intake';
-      state.activeTrack = 'all';
-      state.activeViewModule = 'manifest_operations';
+    // Primary Top Navigation & Views
+    document.getElementById('tab-nav-fees')?.addEventListener('click', () => {
+      const user = state.currentUser;
+      if (user && user.role !== 'super_admin' && user.role !== 'receptionist') {
+        notify('Access Denied: Fees & Payments view is restricted to Super Admin and Receptionist.', 'error');
+        return;
+      }
+      state.activeViewModule = 'fees_payments';
       closeMobileDrawer();
       renderApp();
     });
 
-    document.getElementById('branch-nav-regular')?.addEventListener('click', () => {
-      state.activeBranch = 'regular';
-      state.activeCohort = state.data.cohorts.regular[0] || 'January Intake';
-      state.activeTrack = 'all';
-      state.activeViewModule = 'manifest_operations';
-      closeMobileDrawer();
+    document.getElementById('dock-btn-fees')?.addEventListener('click', () => {
+      const user = state.currentUser;
+      if (user && user.role !== 'super_admin' && user.role !== 'receptionist') {
+        notify('Access Denied: Fees & Payments view is restricted to Super Admin and Receptionist.', 'error');
+        return;
+      }
+      state.activeViewModule = 'fees_payments';
       renderApp();
     });
 
-    // Mobile dock buttons
     document.getElementById('dock-btn-bootcamp')?.addEventListener('click', () => {
       state.activeBranch = 'bootcamp';
-      state.activeCohort = state.data.cohorts.bootcamp[0] || 'August Intake';
-      state.activeTrack = 'all';
       state.activeViewModule = 'manifest_operations';
       renderApp();
     });
 
-    document.getElementById('dock-btn-regular')?.addEventListener('click', () => {
-      state.activeBranch = 'regular';
-      state.activeCohort = state.data.cohorts.regular[0] || 'January Intake';
-      state.activeTrack = 'all';
-      state.activeViewModule = 'manifest_operations';
-      renderApp();
+    // Bulk Import Triggers
+    const bulkImportTriggers = [
+      document.getElementById('header-btn-bulk-import'),
+      document.getElementById('toolbar-btn-bulk-import'),
+      document.getElementById('btn-sidebar-bulk-import')
+    ];
+    bulkImportTriggers.forEach(btn => {
+      btn?.addEventListener('click', () => {
+        closeMobileDrawer();
+        openBulkImportModal();
+      });
     });
 
     // Manifest Tab buttons
@@ -3305,6 +4697,11 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     initDynamicItemCreator();
     initFleetManagement();
     initExportEngine();
+    initFeesManagement();
+    initRecordPaymentModal();
+    initReceiptModal();
+    initStudentProfileDrawer();
+    initBulkCSVImport();
     initSettingsModal();
     initStaffManagement();
     initSupabase();
