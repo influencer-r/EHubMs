@@ -3831,7 +3831,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
     // Download Sample Template
     sampleBtn?.addEventListener('click', () => {
-      const sampleCSV = `full_name,parent_name,parent_phone,bootcamp_name,pickup_location,requires_transport,total_fee,amount_paid
+      const sampleCSV = `full_name,parent_name,parent_phone,track,pickup_location,requires_transport,total_fee,amount_paid
 Liam Kipchumba,Mary Kipchumba,+254 712 345 678,Junior Robotics,Elgon View,Yes,15000,15000
 Zawadi Chebet,David Chebet,+254 722 987 654,Web Development,Rupa Mall,Yes,15000,7500
 Amani Ochieng,Grace Ochieng,+254 733 112 233,AI & Coding,West Indies,No,15000,0
@@ -3930,7 +3930,7 @@ Nia Wanjiku,Esther Wanjiku,+254 799 888 777,Data Science & AI,Annex,No,15000,150
       const errors = [];
       if (!name || name.length < 2) errors.push('Missing Student Name');
       if (!phone || phone.length < 5) errors.push('Missing Parent Phone');
-      if (!bootcamp || bootcamp.length < 2) errors.push('Missing Bootcamp Name');
+      if (!bootcamp || bootcamp.length < 2) errors.push('Missing Track');
 
       const isValid = errors.length === 0;
       if (isValid) validCount++;
