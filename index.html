@@ -77,7 +77,7 @@
   <script src="https://unpkg.com/lucide@0.460.0"></script>
 
   <!-- Custom Stylesheet with cache busting -->
-  <link rel="stylesheet" href="./style.css?v=21">
+  <link rel="stylesheet" href="./style.css?v=22">
 </head>
 <body class="text-slate-900 min-h-screen flex flex-col antialiased selection:bg-[#008E80] selection:text-white">
 
@@ -238,32 +238,32 @@
     <aside class="app-sidebar z-50" id="app-sidebar">
       
       <!-- Sidebar Header with Official EldoHub Logo -->
-      <div class="p-4 border-b border-slate-200 flex items-center justify-between">
+      <div class="sidebar-header p-4 border-b border-white/15 flex items-center justify-between">
         <div class="flex items-center gap-2.5">
-          <div class="h-11 px-2.5 py-1 bg-white rounded-xl border border-slate-200 shadow-sm flex items-center justify-center shrink-0">
+          <div class="h-11 px-2.5 py-1 bg-white rounded-xl border border-white/20 shadow-sm flex items-center justify-center shrink-0">
             <img id="academy-logo-img" src="./images/eldohub-academy-logo.png" alt="EldoHub Tech & AI Academy Logo" class="h-7 w-auto object-contain">
           </div>
           <div class="sidebar-text-hide overflow-hidden">
-            <h1 class="font-extrabold text-sm tracking-tight text-slate-900 truncate">Tech & AI Academy</h1>
-            <p class="text-[10px] text-sky-600 font-bold tracking-wide uppercase">EldoHub Operations</p>
+            <h1 class="font-extrabold text-sm tracking-tight text-white truncate">Tech & AI Academy</h1>
+            <p class="text-[10px] text-[#F2D36B] font-bold tracking-wide uppercase">EldoHub Operations</p>
           </div>
         </div>
 
         <!-- Mobile drawer close button -->
-        <button id="btn-close-sidebar-mobile" class="lg:hidden text-slate-400 hover:text-slate-700 p-1 rounded-lg">
+        <button id="btn-close-sidebar-mobile" class="lg:hidden text-white/80 hover:text-white p-1 rounded-lg" title="Close navigation menu">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
 
       <!-- Tech & AI Bootcamps Status Ribbon -->
-      <div class="p-3 border-b border-slate-100 sidebar-text-hide" id="sidebar-branch-ribbon">
-        <div class="flex items-center gap-2 p-2 rounded-xl bg-gradient-to-r from-[#f0fdf9] to-[#f3f8f6] border border-[#008E80]/20">
-          <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#0C3B2E] to-[#008E80] text-white flex items-center justify-center shrink-0 shadow-sm">
+      <div class="p-3 border-b border-white/10 sidebar-text-hide" id="sidebar-branch-ribbon">
+        <div class="flex items-center gap-2 p-2 rounded-xl bg-black/25 border border-white/15">
+          <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#D4AF37] to-[#F2D36B] text-[#081F19] font-black flex items-center justify-center shrink-0 shadow-sm">
             <i data-lucide="zap" class="w-4 h-4"></i>
           </div>
           <div class="flex-1 min-w-0">
-            <span class="text-xs font-black text-slate-900 block truncate">Tech & AI Bootcamps</span>
-            <span class="text-[9.5px] text-sky-700 font-semibold block">100% Cohort Integrated</span>
+            <span class="text-xs font-black text-white block truncate">Tech & AI Bootcamps</span>
+            <span class="text-[9.5px] text-[#a7f3d0] font-semibold block">100% Cohort Integrated</span>
           </div>
         </div>
       </div>
@@ -273,83 +273,83 @@
         
         <!-- Section: Daily Logistics & Transport Manifests -->
         <div class="space-y-1" id="nav-section-logistics">
-          <span class="sidebar-text-hide text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3 select-none">
+          <span class="sidebar-text-hide sidebar-section-title text-[10px] font-extrabold uppercase tracking-wider text-[#ccfbef] px-3 select-none">
             Daily Operations & Fleet
           </span>
 
           <nav class="space-y-1">
             <button id="tab-logistics-morning" class="sidebar-nav-item w-full active" data-manifest="morning_pickup">
-              <i data-lucide="bus" class="w-4 h-4 text-sky-600 shrink-0"></i>
+              <i data-lucide="bus" class="w-4 h-4 shrink-0"></i>
               <span class="sidebar-text-hide flex-1 text-left">Morning Bus Pick-up</span>
-              <span id="badge-nav-morning" class="sidebar-text-hide text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 border border-sky-200">0</span>
+              <span id="badge-nav-morning" class="sidebar-text-hide text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
             </button>
 
             <button id="tab-logistics-evening" class="sidebar-nav-item w-full" data-manifest="evening_dropoff">
-              <i data-lucide="bus-front" class="w-4 h-4 text-blue-600 shrink-0"></i>
+              <i data-lucide="bus-front" class="w-4 h-4 shrink-0"></i>
               <span class="sidebar-text-hide flex-1 text-left">Evening Bus Drop-off</span>
-              <span id="badge-nav-evening" class="sidebar-text-hide text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">0</span>
+              <span id="badge-nav-evening" class="sidebar-text-hide text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
             </button>
 
             <button id="tab-logistics-gate" class="sidebar-nav-item w-full" data-manifest="gate_pickup">
-              <i data-lucide="shield-check" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+              <i data-lucide="shield-check" class="w-4 h-4 shrink-0"></i>
               <span class="sidebar-text-hide flex-1 text-left">Gate / Parent Carline</span>
-              <span id="badge-nav-gate" class="sidebar-text-hide text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">0</span>
+              <span id="badge-nav-gate" class="sidebar-text-hide text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
             </button>
 
             <button id="tab-logistics-class" class="sidebar-nav-item w-full" data-manifest="class_attendance">
-              <i data-lucide="clipboard-check" class="w-4 h-4 text-purple-600 shrink-0"></i>
+              <i data-lucide="clipboard-check" class="w-4 h-4 shrink-0"></i>
               <span class="sidebar-text-hide flex-1 text-left">Class Attendance</span>
-              <span id="badge-nav-class" class="sidebar-text-hide text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">0</span>
+              <span id="badge-nav-class" class="sidebar-text-hide text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
             </button>
           </nav>
         </div>
 
         <!-- Section: Finance & Fee Management (Super Admin & Receptionist) -->
         <div class="space-y-1" id="nav-section-finance">
-          <span class="sidebar-text-hide text-[10px] font-bold uppercase tracking-wider text-emerald-600 px-3 select-none">
+          <span class="sidebar-text-hide sidebar-section-title text-[10px] font-extrabold uppercase tracking-wider text-[#F2D36B] px-3 select-none">
             Finance & Accounts
           </span>
 
           <nav class="space-y-1">
-            <button id="tab-nav-fees" class="sidebar-nav-item w-full text-slate-700 hover:text-slate-900" title="Bootcamp Student Fees & Payment Installments">
-              <i data-lucide="receipt" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+            <button id="tab-nav-fees" class="sidebar-nav-item w-full" title="Bootcamp Student Fees & Payment Installments">
+              <i data-lucide="receipt" class="w-4 h-4 shrink-0"></i>
               <span class="sidebar-text-hide flex-1 text-left font-bold">Fees & Payments</span>
-              <span id="badge-nav-fees" class="sidebar-text-hide text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">KES</span>
+              <span id="badge-nav-fees" class="sidebar-text-hide text-[10px] font-bold px-2 py-0.5 rounded-full">KES</span>
             </button>
           </nav>
         </div>
 
         <!-- Section: Administration & Reception Desk -->
         <div class="space-y-1" id="nav-section-reception">
-          <span class="sidebar-text-hide text-[10px] font-bold uppercase tracking-wider text-slate-400 px-3 select-none">
+          <span class="sidebar-text-hide sidebar-section-title text-[10px] font-extrabold uppercase tracking-wider text-[#ccfbef] px-3 select-none">
             Reception & Records
           </span>
 
           <nav class="space-y-1">
-            <button id="btn-open-onboarding" class="sidebar-nav-item w-full text-slate-700 hover:text-slate-900">
-              <i data-lucide="user-plus" class="w-4 h-4 text-sky-600 shrink-0"></i>
+            <button id="btn-open-onboarding" class="sidebar-nav-item w-full">
+              <i data-lucide="user-plus" class="w-4 h-4 shrink-0"></i>
               <span class="sidebar-text-hide flex-1 text-left font-bold">New Student Admission</span>
-              <span class="sidebar-text-hide text-[9px] font-bold px-1.5 py-0.5 rounded bg-sky-600 text-white uppercase">Desk</span>
+              <span class="sidebar-text-hide badge-desk text-[9px] font-bold px-1.5 py-0.5 rounded uppercase">Desk</span>
             </button>
 
-            <button id="btn-sidebar-bulk-import" class="sidebar-nav-item w-full text-slate-700 hover:text-slate-900" title="Bulk Import Students & Fees from CSV">
-              <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+            <button id="btn-sidebar-bulk-import" class="sidebar-nav-item w-full" title="Bulk Import Students & Fees from CSV">
+              <i data-lucide="file-spreadsheet" class="w-4 h-4 shrink-0"></i>
               <span class="sidebar-text-hide flex-1 text-left font-bold">Bulk Import (CSV)</span>
-              <span class="sidebar-text-hide text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 uppercase">Fast</span>
+              <span class="sidebar-text-hide badge-fast text-[9px] font-bold px-1.5 py-0.5 rounded uppercase">Fast</span>
             </button>
 
-            <button id="btn-trigger-print" class="sidebar-nav-item w-full text-slate-700 hover:text-slate-900" title="Print official formatted manifest">
-              <i data-lucide="printer" class="w-4 h-4 text-slate-500 shrink-0"></i>
+            <button id="btn-trigger-print" class="sidebar-nav-item w-full" title="Print official formatted manifest">
+              <i data-lucide="printer" class="w-4 h-4 shrink-0"></i>
               <span class="sidebar-text-hide flex-1 text-left">Print Official Manifest</span>
             </button>
 
-            <button id="btn-export-csv" class="sidebar-nav-item w-full text-slate-700 hover:text-slate-900" title="Download Excel/CSV Spreadsheet">
-              <i data-lucide="file-spreadsheet" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+            <button id="btn-export-csv" class="sidebar-nav-item w-full" title="Download Excel/CSV Spreadsheet">
+              <i data-lucide="file-spreadsheet" class="w-4 h-4 shrink-0"></i>
               <span class="sidebar-text-hide flex-1 text-left">Export Excel / CSV</span>
             </button>
 
-            <button id="btn-export-pdf" class="sidebar-nav-item w-full text-slate-700 hover:text-slate-900" title="Download Official PDF Document">
-              <i data-lucide="file-text" class="w-4 h-4 text-rose-600 shrink-0"></i>
+            <button id="btn-export-pdf" class="sidebar-nav-item w-full" title="Download Official PDF Document">
+              <i data-lucide="file-text" class="w-4 h-4 shrink-0"></i>
               <span class="sidebar-text-hide flex-1 text-left">Export Official PDF</span>
             </button>
           </nav>
@@ -357,26 +357,26 @@
 
         <!-- Section: Super Administrator Only -->
         <div class="space-y-1" id="nav-section-admin">
-          <span class="sidebar-text-hide text-[10px] font-bold uppercase tracking-wider text-[#B89024] px-3 select-none">
+          <span class="sidebar-text-hide sidebar-section-title text-[10px] font-extrabold uppercase tracking-wider text-[#F2D36B] px-3 select-none">
             Institutional Admin
           </span>
 
           <nav class="space-y-1">
-            <button id="tab-nav-staff" class="sidebar-nav-item w-full text-slate-700 hover:text-slate-900">
-              <i data-lucide="users" class="w-4 h-4 text-[#0C3B2E] shrink-0"></i>
+            <button id="tab-nav-staff" class="sidebar-nav-item w-full">
+              <i data-lucide="users" class="w-4 h-4 shrink-0"></i>
               <span class="sidebar-text-hide flex-1 text-left font-bold">Staff & Permissions</span>
-              <span class="sidebar-text-hide text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#D4AF37]/15 text-[#B89024] border border-[#D4AF37]/35 uppercase">Admin</span>
+              <span class="sidebar-text-hide badge-admin text-[9px] font-bold px-1.5 py-0.5 rounded uppercase">Admin</span>
             </button>
 
-            <button id="tab-nav-audit" class="sidebar-nav-item w-full text-slate-700 hover:text-slate-900">
-              <i data-lucide="shield-alert" class="w-4 h-4 text-amber-600 shrink-0"></i>
+            <button id="tab-nav-audit" class="sidebar-nav-item w-full">
+              <i data-lucide="shield-alert" class="w-4 h-4 shrink-0"></i>
               <span class="sidebar-text-hide flex-1 text-left">Security & Audit Logs</span>
             </button>
 
-            <button id="btn-open-settings" class="sidebar-nav-item w-full text-slate-700 hover:text-slate-900" title="System Cloud Sync & Backup">
-              <i data-lucide="cloud" class="w-4 h-4 text-sky-600 shrink-0"></i>
+            <button id="btn-open-settings" class="sidebar-nav-item w-full" title="System Cloud Sync & Backup">
+              <i data-lucide="cloud" class="w-4 h-4 shrink-0"></i>
               <span class="sidebar-text-hide flex-1 text-left">Cloud Sync & Backup</span>
-              <span id="sidebar-db-dot" class="w-2 h-2 rounded-full bg-emerald-500 shrink-0"></span>
+              <span id="sidebar-db-dot" class="w-2 h-2 rounded-full bg-emerald-400 shrink-0"></span>
             </button>
           </nav>
         </div>
@@ -384,18 +384,18 @@
       </div>
 
       <!-- Sidebar Footer: Active Staff Pill -->
-      <div class="p-3 border-t border-slate-200 bg-slate-50/80 sidebar-text-hide">
-        <div class="p-2.5 rounded-xl bg-white border border-slate-200 flex items-center justify-between text-xs shadow-sm">
+      <div class="sidebar-footer p-3 border-t border-white/10 bg-black/25 sidebar-text-hide">
+        <div class="sidebar-footer-card p-2.5 rounded-xl bg-white/10 border border-white/20 flex items-center justify-between text-xs shadow-sm">
           <div class="flex items-center gap-2 overflow-hidden">
-            <div class="w-6 h-6 rounded-full bg-sky-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0" id="sidebar-staff-avatar">
+            <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-[#D4AF37] to-[#F2D36B] text-[#081F19] font-black text-[10px] flex items-center justify-center shrink-0 shadow-sm" id="sidebar-staff-avatar">
               A
             </div>
             <div class="truncate">
-              <span id="sidebar-staff-name" class="font-bold text-[11px] text-slate-900 block truncate">Administrator</span>
-              <span id="sidebar-staff-role" class="text-[9.5px] text-sky-600 font-extrabold uppercase">Super Admin</span>
+              <span id="sidebar-staff-name" class="font-bold text-[11px] text-white block truncate">Administrator</span>
+              <span id="sidebar-staff-role" class="text-[9.5px] text-[#F2D36B] font-extrabold uppercase">Super Admin</span>
             </div>
           </div>
-          <button id="btn-sidebar-signout" class="text-rose-600 hover:text-rose-700 p-1" title="Sign Out">
+          <button id="btn-sidebar-signout" class="text-rose-300 hover:text-white p-1 transition-colors" title="Sign Out">
             <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
           </button>
         </div>
@@ -414,7 +414,7 @@
           
           <!-- Left: Sidebar Toggle & Operational Module Title -->
           <div class="flex items-center gap-3">
-            <button id="btn-toggle-sidebar" class="touch-btn w-10 h-10 rounded-xl bg-slate-100 text-slate-700 hover:text-slate-900 flex items-center justify-center border border-slate-200" title="Toggle Sidebar">
+            <button id="btn-toggle-sidebar" class="touch-btn is-open w-10 h-10 rounded-xl flex items-center justify-center" title="Toggle Navigation Sidebar" aria-expanded="true" aria-controls="app-sidebar">
               <i data-lucide="menu" class="w-5 h-5"></i>
             </button>
 
@@ -1896,7 +1896,7 @@
   <div id="toast-container" class="fixed bottom-20 sm:bottom-6 right-6 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
 
   <!-- Application Logic with cache busting -->
-  <script src="./app.js?v=21"></script>
+  <script src="./app.js?v=22"></script>
 
   <!-- Service Worker Registration for Offline Reliability & 24hr Persistence -->
   <script>

@@ -25,7 +25,7 @@
 
   /* Authentic Light SaaS Theme (EldoHub Visual Identity) */
   --bg-canvas: #f8faf9;
-  --surface-sidebar: #ffffff;
+  --surface-sidebar: #008E80;
   --surface-card: #ffffff;
   --surface-card-subtle: #f3f8f6;
   --surface-border: rgba(12, 59, 46, 0.12);
@@ -123,13 +123,13 @@ body {
 }
 
 /* ==============================================================================
-   2. Cloud School System: Clean Institutional Navigation Sidebar
+   2. EldoHub Official Teal Institutional Navigation Sidebar & Drawer
    ============================================================================== */
 .app-sidebar {
   width: var(--sidebar-width);
-  background: #ffffff;
-  border-right: 1px solid var(--surface-border);
-  box-shadow: 2px 0 16px rgba(15, 23, 42, 0.04);
+  background: linear-gradient(180deg, #008E80 0%, #00766a 36%, #0C3B2E 100%);
+  border-right: 1px solid rgba(0, 142, 128, 0.28);
+  box-shadow: 4px 0 24px rgba(8, 31, 25, 0.18);
   display: flex;
   flex-direction: column;
   position: fixed;
@@ -138,6 +138,245 @@ body {
   left: 0;
   z-index: 50;
   transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  color: #ffffff;
+}
+
+/* Sidebar Custom Scrollbar */
+.app-sidebar *::-webkit-scrollbar {
+  width: 5px;
+}
+.app-sidebar *::-webkit-scrollbar-track {
+  background: transparent;
+}
+.app-sidebar *::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 9999px;
+}
+.app-sidebar *::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+/* Sidebar Header Area */
+.app-sidebar .sidebar-header {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14) !important;
+  background: rgba(8, 31, 25, 0.22);
+  backdrop-filter: blur(8px);
+}
+.app-sidebar .sidebar-header h1 {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  text-shadow: 0 1px 2px rgba(8, 31, 25, 0.3);
+}
+.app-sidebar .sidebar-header p {
+  color: #F2D36B !important; /* EldoHub Warm Gold */
+  font-weight: 800 !important;
+  letter-spacing: 0.06em !important;
+  text-shadow: 0 1px 2px rgba(8, 31, 25, 0.3);
+}
+#btn-close-sidebar-mobile {
+  color: rgba(255, 255, 255, 0.85) !important;
+  border-radius: 0.5rem;
+  transition: all 0.15s ease;
+}
+#btn-close-sidebar-mobile:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.16) !important;
+}
+
+/* Bootcamp Status Ribbon */
+#sidebar-branch-ribbon {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background: rgba(8, 31, 25, 0.18);
+}
+#sidebar-branch-ribbon > div {
+  background: rgba(8, 31, 25, 0.42) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  backdrop-filter: blur(6px);
+}
+#sidebar-branch-ribbon > div > div:first-child {
+  background: linear-gradient(135deg, #D4AF37 0%, #F2D36B 100%) !important;
+  color: #081F19 !important;
+  box-shadow: 0 2px 8px rgba(8, 31, 25, 0.25) !important;
+}
+#sidebar-branch-ribbon span.text-slate-900 {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  text-shadow: 0 1px 2px rgba(8, 31, 25, 0.2);
+}
+#sidebar-branch-ribbon span.text-sky-700 {
+  color: #a7f3d0 !important; /* Soft bright mint */
+  font-weight: 700 !important;
+}
+
+/* Section Headings on Teal Sidebar */
+.app-sidebar .sidebar-section-title,
+.app-sidebar [id^="nav-section-"] > span {
+  color: #ccfbef !important;
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  opacity: 0.95 !important;
+  text-shadow: 0 1px 2px rgba(8, 31, 25, 0.3) !important;
+}
+.app-sidebar #nav-section-finance > span,
+.app-sidebar #nav-section-admin > span {
+  color: #F2D36B !important; /* Warm gold for Finance & Admin */
+  opacity: 1 !important;
+}
+
+/* Sidebar navigation link items (Ensuring absolute clarity of everything on that side) */
+.sidebar-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.7rem 1rem;
+  border-radius: 0.625rem;
+  color: rgba(255, 255, 255, 0.92) !important;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  cursor: pointer;
+  position: relative;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid transparent;
+}
+
+.sidebar-nav-item:hover {
+  color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.14) !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  transform: translateX(2px);
+}
+
+.sidebar-nav-item:not(.active) span {
+  color: rgba(255, 255, 255, 0.95) !important;
+}
+
+/* Non-active item icons with bright readable palette */
+.sidebar-nav-item:not(.active) i {
+  color: #5eead4 !important; /* Bright mint cyan for maximum pop */
+  filter: drop-shadow(0 1px 2px rgba(8, 31, 25, 0.3));
+  transition: transform 0.2s ease, color 0.2s ease;
+}
+.sidebar-nav-item:not(.active):hover i {
+  color: #ffffff !important;
+  transform: scale(1.08);
+}
+
+/* Specific icon accent colors for category distinction */
+#tab-nav-fees:not(.active) i,
+#btn-sidebar-bulk-import:not(.active) i {
+  color: #F2D36B !important; /* Gold */
+}
+#tab-logistics-class:not(.active) i {
+  color: #c084fc !important; /* Light purple */
+}
+#btn-export-pdf:not(.active) i {
+  color: #fca5a5 !important; /* Soft rose */
+}
+#tab-nav-audit:not(.active) i {
+  color: #fbbf24 !important; /* Amber */
+}
+#tab-nav-staff:not(.active) i {
+  color: #F2D36B !important; /* Gold */
+}
+
+/* ACTIVE NAV ITEM: Clean White Hero Card with Deep Pine Typography - Maximum Contrast */
+.sidebar-nav-item.active {
+  color: #0C3B2E !important;
+  background: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.8) !important;
+  box-shadow: 0 4px 16px rgba(8, 31, 25, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.6) !important;
+  font-weight: 800 !important;
+  transform: translateX(3px);
+}
+
+.sidebar-nav-item.active i {
+  color: #008E80 !important; /* EldoHub Teal icon on white */
+  filter: none !important;
+}
+
+.sidebar-nav-item.active span {
+  color: #0C3B2E !important;
+  font-weight: 800 !important;
+}
+
+/* Badges on Navigation Items */
+.app-sidebar .sidebar-nav-item:not(.active) span[id^="badge-nav-"] {
+  background: rgba(8, 31, 25, 0.5) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  font-weight: 700 !important;
+}
+
+.app-sidebar .sidebar-nav-item.active span[id^="badge-nav-"] {
+  background: #008E80 !important;
+  color: #ffffff !important;
+  border: 1px solid #008E80 !important;
+  font-weight: 800 !important;
+}
+
+/* Custom Specialty Badges */
+#badge-nav-fees {
+  background: #D4AF37 !important;
+  color: #081F19 !important;
+  border: 1px solid #F2D36B !important;
+  font-weight: 800 !important;
+}
+
+.sidebar-nav-item .badge-desk {
+  background: rgba(255, 255, 255, 0.22) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  font-weight: 800 !important;
+}
+
+.sidebar-nav-item .badge-fast,
+.sidebar-nav-item .badge-admin {
+  background: #D4AF37 !important;
+  color: #081F19 !important;
+  border: 1px solid #F2D36B !important;
+  font-weight: 800 !important;
+}
+
+/* Sidebar Footer: Active Staff Card */
+.app-sidebar .sidebar-footer {
+  border-top: 1px solid rgba(255, 255, 255, 0.14) !important;
+  background: rgba(8, 31, 25, 0.38) !important;
+  backdrop-filter: blur(8px);
+}
+.app-sidebar .sidebar-footer-card {
+  background: rgba(255, 255, 255, 0.12) !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  box-shadow: 0 2px 8px rgba(8, 31, 25, 0.2) !important;
+}
+#sidebar-staff-avatar {
+  background: linear-gradient(135deg, #D4AF37 0%, #F2D36B 100%) !important;
+  color: #081F19 !important;
+  font-weight: 800 !important;
+  box-shadow: 0 2px 6px rgba(8, 31, 25, 0.3) !important;
+}
+#sidebar-staff-name {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  text-shadow: 0 1px 2px rgba(8, 31, 25, 0.3) !important;
+}
+#sidebar-staff-role {
+  color: #F2D36B !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.05em !important;
+  text-shadow: 0 1px 2px rgba(8, 31, 25, 0.3) !important;
+}
+#btn-sidebar-signout {
+  color: #fca5a5 !important;
+  border-radius: 0.375rem;
+  transition: all 0.15s ease;
+}
+#btn-sidebar-signout:hover {
+  color: #ffffff !important;
+  background: rgba(239, 68, 68, 0.3) !important;
 }
 
 /* Collapsed Sidebar on Desktop */
@@ -153,21 +392,31 @@ body {
   justify-content: center;
   padding-left: 0;
   padding-right: 0;
+  border-radius: 0.75rem;
+}
+
+.app-sidebar.collapsed .sidebar-nav-item.active {
+  width: 44px;
+  height: 44px;
+  margin: 0 auto;
+  border-radius: 0.75rem;
+  padding: 0;
+  justify-content: center;
 }
 
 /* Mobile Off-canvas Drawer */
 @media (max-width: 1024px) {
   .app-sidebar {
     transform: translateX(-100%);
-    box-shadow: 10px 0 40px rgba(15, 23, 42, 0.2);
+    box-shadow: 12px 0 48px rgba(8, 31, 25, 0.45);
     z-index: 50 !important;
-    background: #ffffff !important;
+    background: linear-gradient(180deg, #008E80 0%, #00766a 36%, #0C3B2E 100%) !important;
   }
   
   .app-sidebar.mobile-open {
     transform: translateX(0) !important;
     z-index: 50 !important;
-    background: #ffffff !important;
+    background: linear-gradient(180deg, #008E80 0%, #00766a 36%, #0C3B2E 100%) !important;
   }
 
   .app-sidebar.mobile-open .sidebar-text-hide {
@@ -177,47 +426,45 @@ body {
   .sidebar-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.5);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    background: rgba(8, 31, 25, 0.72);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     z-index: 40 !important;
     cursor: pointer;
   }
 }
 
-/* Sidebar navigation link item (Cloud School System Clean Navigation) */
-.sidebar-nav-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  border-radius: 0.625rem;
-  color: var(--text-secondary);
-  font-size: 0.8125rem;
-  font-weight: 600;
+/* Hamburger Toggle Button - Teal Brand Aesthetics & Active State */
+#btn-toggle-sidebar {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  user-select: none;
-  cursor: pointer;
-  position: relative;
-  background: transparent;
+  color: var(--primary-brand);
+  background: rgba(0, 142, 128, 0.08);
+  border: 1px solid rgba(0, 142, 128, 0.25);
+  box-shadow: 0 1px 2px rgba(8, 31, 25, 0.04);
 }
 
-.sidebar-nav-item:hover {
-  color: var(--primary-navy);
-  background: #f3f8f6;
+#btn-toggle-sidebar:hover {
+  background: rgba(0, 142, 128, 0.16);
+  color: #0C3B2E;
+  border-color: rgba(0, 142, 128, 0.4);
 }
 
-.sidebar-nav-item.active {
-  color: #ffffff;
-  background: linear-gradient(135deg, #0C3B2E 0%, #008E80 100%);
-  box-shadow: 0 4px 14px rgba(12, 59, 46, 0.25);
+#btn-toggle-sidebar.is-open,
+#btn-toggle-sidebar.active {
+  background: var(--primary-brand) !important;
+  color: #ffffff !important;
+  border-color: var(--primary-brand) !important;
+  box-shadow: 0 4px 14px rgba(0, 142, 128, 0.38) !important;
 }
 
-.sidebar-nav-item.active i {
+#btn-toggle-sidebar.is-open i,
+#btn-toggle-sidebar.active i {
   color: #ffffff !important;
 }
 
-.sidebar-nav-item.active span {
+#btn-toggle-sidebar.is-open:hover,
+#btn-toggle-sidebar.active:hover {
+  background: #007a6e !important;
   color: #ffffff !important;
 }
 

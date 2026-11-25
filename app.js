@@ -4149,10 +4149,28 @@ Nia Wanjiku,Esther Wanjiku,+254 799 888 777,Data Science & AI,Pioneer,15000,1500
     const backdrop = document.getElementById('sidebar-backdrop');
     const sidebar = document.getElementById('app-sidebar');
 
+    function syncSidebarToggleState() {
+      if (!toggleBtn || !sidebar) return;
+      let isOpen = false;
+      if (window.innerWidth <= 1024) {
+        isOpen = sidebar.classList.contains('mobile-open');
+      } else {
+        isOpen = !sidebar.classList.contains('collapsed');
+      }
+      if (isOpen) {
+        toggleBtn.classList.add('is-open');
+        toggleBtn.setAttribute('aria-expanded', 'true');
+      } else {
+        toggleBtn.classList.remove('is-open');
+        toggleBtn.setAttribute('aria-expanded', 'false');
+      }
+    }
+
     function closeMobileDrawer() {
       if (window.innerWidth <= 1024) {
         sidebar?.classList.remove('mobile-open');
         backdrop?.classList.add('hidden');
+        syncSidebarToggleState();
       }
     }
 
@@ -4166,11 +4184,16 @@ Nia Wanjiku,Esther Wanjiku,+254 799 888 777,Data Science & AI,Pioneer,15000,1500
         backdrop?.classList.add('hidden');
         sidebar?.classList.toggle('collapsed');
       }
+      syncSidebarToggleState();
     }
 
     toggleBtn?.addEventListener('click', toggleSidebar);
     closeSidebarMobile?.addEventListener('click', closeMobileDrawer);
     backdrop?.addEventListener('click', closeMobileDrawer);
+    window.addEventListener('resize', syncSidebarToggleState);
+
+    // Sync initial hamburger button & sidebar state
+    syncSidebarToggleState();
 
     // Primary Top Navigation & Views
     document.getElementById('tab-nav-fees')?.addEventListener('click', () => {
