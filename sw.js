@@ -1,5 +1,5 @@
 ﻿// Service Worker for EldoHub Tech & AI Academy Portal (Cache v25)
-const CACHE_NAME = 'eldohub-academy-v29';
+const CACHE_NAME = 'eldohub-academy-v30';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',
@@ -85,6 +85,7 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
+
 
 
 

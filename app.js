@@ -89,14 +89,23 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     });
   }
 
+  function ensureValidUUID(id) {
+    if (typeof id === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return id;
+    }
+    return generateUUID();
+  }
+
   function sanitizeStudentForSupabase(s) {
+    const validId = ensureValidUUID(s.id);
+    s.id = validId;
     return {
-      id: s.id,
+      id: validId,
       name: s.name,
       phone: s.phone || null,
       residence: s.residence || null,
       branch: s.branch || 'bootcamp',
-      cohort: s.cohort || 'August Bootcamp',
+      cohort: s.cohort || 'Bootcamp 2026',
       track: s.track || 'General Track',
       transport_mode: s.transport_mode || 'self_arrival',
       total_fee: Number(s.total_fee || 0),
@@ -109,9 +118,13 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
   }
 
   function sanitizePaymentForSupabase(p) {
+    const validId = ensureValidUUID(p.id);
+    const validStudentId = ensureValidUUID(p.student_id);
+    p.id = validId;
+    p.student_id = validStudentId;
     return {
-      id: p.id,
-      student_id: p.student_id,
+      id: validId,
+      student_id: validStudentId,
       amount: Number(p.amount || 0),
       payment_date: p.payment_date || new Date().toISOString().split('T')[0],
       payment_method: p.payment_method || 'M-Pesa',
@@ -165,6 +178,26 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
             payment_status: paymentStatus
           };
         });
+
+        // Ensure all students have valid PostgreSQL UUIDs
+        const idMap = new Map();
+        students.forEach(s => {
+          if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.id)) {
+            const newId = generateUUID();
+            idMap.set(s.id, newId);
+            s.id = newId;
+          }
+        });
+        if (idMap.size > 0 && Array.isArray(parsed.manifestLogs)) {
+          parsed.manifestLogs.forEach(l => {
+            if (idMap.has(l.student_id)) l.student_id = idMap.get(l.student_id);
+          });
+        }
+        if (idMap.size > 0 && Array.isArray(parsed.feePayments)) {
+          parsed.feePayments.forEach(p => {
+            if (idMap.has(p.student_id)) p.student_id = idMap.get(p.student_id);
+          });
+        }
 
         // Filter out any legacy dummy vehicles
         const rawVehicles = Array.isArray(parsed.vehicles) ? parsed.vehicles : [];
@@ -528,12 +561,19 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         });
 
         // Attach auth state listener immediately upon client creation
-        state.supabaseClient.auth.onAuthStateChange((event, session) => {
+        state.supabaseClient.auth.onAuthStateChange(async (event, session) => {
           console.log('[Supabase Auth Event]:', event, session);
           if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && state.isPasswordRecoveryActive)) {
             state.isPasswordRecoveryActive = true;
             if (typeof window.showPasswordRecoveryModeGlobal === 'function') {
               window.showPasswordRecoveryModeGlobal();
+            }
+          }
+          if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
+            if (session?.user) {
+              await flushOutboxQueue();
+              await fetchSupabaseData(true);
+              renderApp();
             }
           }
         });
@@ -1206,7 +1246,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
         triggerWelcomeConfetti();
 
-        setTimeout(() => {
+        setTimeout(async () => {
           applyRolePermissions();
           renderApp();
           if (submitBtn) {
@@ -1214,6 +1254,9 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
             submitBtn.innerHTML = '<span>Authenticate & Enter</span><i data-lucide="arrow-right" class="w-4 h-4"></i>';
             if (window.lucide) window.lucide.createIcons();
           }
+          await flushOutboxQueue();
+          await fetchSupabaseData(true);
+          renderApp();
         }, 600);
       } else {
         showAuthError('Invalid credentials or unregistered staff account.');
@@ -5140,10 +5183,23 @@ Another Student,Another Guardian,+254 711 111 111,Junior Robotics,Elgon View,Yes
     setupOfflineNetworkListeners();
     updateSyncIndicator();
 
-    // Wire header sync pill click -> manual flush
-    document.getElementById('header-sync-status-btn')?.addEventListener('click', () => {
-      if (navigator.onLine) flushOutboxQueue();
-      else notify('No internet connection. Changes are safely stored on this device.', 'info');
+    // Wire header sync pill click -> manual flush & cloud reconciliation
+    document.getElementById('header-sync-status-btn')?.addEventListener('click', async () => {
+      if (!navigator.onLine) {
+        notify('No internet connection. Changes are safely stored on this device.', 'info');
+        return;
+      }
+      notify('Synchronizing with Cloud Database...', 'info');
+      if (state.data.students && state.data.students.length > 0) {
+        enqueueOutbox('BULK_IMPORT_STUDENTS', {
+          students: state.data.students,
+          payments: state.data.feePayments || []
+        });
+      }
+      await flushOutboxQueue();
+      await fetchSupabaseData(true);
+      renderApp();
+      notify('Cloud synchronization complete!', 'success');
     });
 
     // Wire PWA install button
