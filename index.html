@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -131,7 +131,7 @@
           </label>
           <div class="relative">
             <i data-lucide="lock" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
-            <input type="password" id="auth-password" required autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="••••••••" class="w-full glass-input rounded-xl pl-10 pr-11 text-sm font-medium">
+            <input type="password" id="auth-password" required autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢" class="w-full glass-input rounded-xl pl-10 pr-11 text-sm font-medium">
             <button type="button" class="btn-toggle-password absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1" data-target="auth-password" aria-label="Toggle password visibility">
               <i data-lucide="eye" class="w-4 h-4"></i>
             </button>
@@ -588,7 +588,7 @@
 
             <div class="flex flex-wrap items-center gap-2">
               <button id="btn-batch-action" class="touch-btn h-11 px-4 rounded-xl text-xs sm:text-sm font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm flex items-center gap-2">
-                <span class="text-base font-black">✔</span>
+                <span class="text-base font-black">âœ”</span>
                 <span id="batch-action-label">Mark All Picked Up</span>
               </button>
 
@@ -629,7 +629,7 @@
                   <span id="heading-text">Morning Pick-up Bus Manifest</span>
                 </h3>
                 <p id="manifest-table-subheading" class="text-xs text-slate-300 mt-0.5 font-medium">
-                  Sorted Alphabetically (A–Z) &bull; Filtered for Morning Bus transport
+                  Sorted Alphabetically (Aâ€“Z) &bull; Filtered for Morning Bus transport
                 </p>
               </div>
 
@@ -1030,7 +1030,7 @@
               <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1" for="onboard-total-fee">
                 Total Fee (KES) <span class="text-sky-600">*</span>
               </label>
-              <input type="number" id="onboard-total-fee" min="0" step="500" value="15000" required placeholder="e.g. 15000" class="w-full glass-input rounded-xl px-3.5 text-sm font-bold bg-white">
+              <input type="number" id="onboard-total-fee" min="0" step="500" value="0" required placeholder="e.g. 15000" class="w-full glass-input rounded-xl px-3.5 text-sm font-bold bg-white">
             </div>
             <div>
               <label class="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1" for="onboard-amount-paid">
@@ -1253,7 +1253,7 @@
               </button>
             </div>
           </div>
-          <p class="text-[11px] text-slate-400">PNG, JPG or SVG. Recommended: 300×80px. Applies across all reports and PDF exports.</p>
+          <p class="text-[11px] text-slate-400">PNG, JPG or SVG. Recommended: 300Ã—80px. Applies across all reports and PDF exports.</p>
         </div>
       </div>
     </div>
@@ -1448,7 +1448,7 @@
         <div style="text-align: right;">
           <div style="font-size: 10pt; font-weight: 800; color: #0f172a;" id="print-receipt-number">REC-2026-0001</div>
           <div style="font-size: 8.5pt; color: #64748b;" id="print-receipt-date">Date: 2026-11-20</div>
-          <div style="font-size: 8pt; color: #10b981; font-weight: bold; margin-top: 2px;">✔ VERIFIED TRANSACTION</div>
+          <div style="font-size: 8pt; color: #10b981; font-weight: bold; margin-top: 2px;">âœ” VERIFIED TRANSACTION</div>
         </div>
       </div>
 
@@ -1877,7 +1877,7 @@
   <div id="toast-container" class="fixed bottom-20 sm:bottom-6 right-6 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
 
   <!-- Application Logic with cache busting -->
-  <script src="./app.js?v=25"></script>
+  <script src="./app.js?v=26"></script>
 
   <!-- Service Worker Registration for Offline Reliability & 24hr Persistence -->
   <script>
@@ -1891,3 +1891,4 @@
   </script>
 </body>
 </html>
+

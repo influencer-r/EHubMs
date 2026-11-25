@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ==============================================================================
  * EldoHub Tech & AI Academy - Operations & Fleet Management System
  * Institutional Authentication, Role-Based Access Control (RBAC) & Audit Integrity
@@ -24,11 +24,11 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
   // 1. GLOBAL STATE & INSTITUTIONAL CONFIGURATION
   // ============================================================================
 
-  const STORAGE_KEY = 'tech_ai_academy_state_v10';
-  const AUTH_STORAGE_KEY = 'eldohub_auth_session_v10';
-  const SUPABASE_CONFIG_KEY = 'tech_ai_academy_supabase_config_v10';
-  const LOGO_STORAGE_KEY = 'tech_ai_academy_custom_logo_v10';
-  const OUTBOX_STORAGE_KEY = 'eldohub_offline_outbox_v10';
+  const STORAGE_KEY = 'tech_ai_academy_state_v11';
+  const AUTH_STORAGE_KEY = 'eldohub_auth_session_v11';
+  const SUPABASE_CONFIG_KEY = 'tech_ai_academy_supabase_config_v11';
+  const LOGO_STORAGE_KEY = 'tech_ai_academy_custom_logo_v11';
+  const OUTBOX_STORAGE_KEY = 'eldohub_offline_outbox_v11';
 
   const DEFAULT_SUPABASE_CONFIG = {
     url: 'https://sopqoumqblhtguprgtwx.supabase.co',
@@ -95,7 +95,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         // Normalize students: ensure fee balances and bootcamp branch
         const rawStudents = Array.isArray(parsed.students) ? parsed.students : [];
         const students = rawStudents.map(s => {
-          const totalFee = Number(s.total_fee !== undefined ? s.total_fee : 15000);
+          const totalFee = Number(s.total_fee !== undefined ? s.total_fee : 0);
           const amountPaid = Number(s.amount_paid !== undefined ? s.amount_paid : 0);
           const balanceDue = Number(totalFee - amountPaid);
           let paymentStatus = s.payment_status;
@@ -519,7 +519,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       // 1. Safe Students Merge: Never overwrite students pending sync in the outbox
       if (studentsRes.data && !studentsRes.error) {
         const cloudStudents = studentsRes.data.map(s => {
-          const totalFee = Number(s.total_fee !== undefined ? s.total_fee : 15000);
+          const totalFee = Number(s.total_fee !== undefined ? s.total_fee : 0);
           const amountPaid = Number(s.amount_paid !== undefined ? s.amount_paid : 0);
           const balanceDue = Number(totalFee - amountPaid);
           const status = s.payment_status || (amountPaid >= totalFee && totalFee > 0 ? 'Paid' : (amountPaid > 0 ? 'Partial' : 'Unpaid'));
@@ -1860,25 +1860,25 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     if (state.activeManifestType === 'morning_pickup') {
       headingText.textContent = 'Morning Pick-up Bus Manifest';
       headingIcon.innerHTML = '<i data-lucide="bus" class="w-5 h-5 text-sky-600"></i>';
-      subheadingText.textContent = 'EldoHub Fleet Operations • Alphabetical (A–Z) Checklist';
+      subheadingText.textContent = 'EldoHub Fleet Operations â€¢ Alphabetical (Aâ€“Z) Checklist';
       if (batchActionLabel) batchActionLabel.textContent = 'Mark All Picked Up';
       if (thChecklistCol) thChecklistCol.textContent = 'Pick-up Checklist';
     } else if (state.activeManifestType === 'evening_dropoff') {
       headingText.textContent = 'Evening Drop-off Bus Manifest';
       headingIcon.innerHTML = '<i data-lucide="bus-front" class="w-5 h-5 text-blue-600"></i>';
-      subheadingText.textContent = 'EldoHub Dismissal Boarding • Alphabetical (A–Z) Checklist';
+      subheadingText.textContent = 'EldoHub Dismissal Boarding â€¢ Alphabetical (Aâ€“Z) Checklist';
       if (batchActionLabel) batchActionLabel.textContent = 'Mark All Dropped Off';
       if (thChecklistCol) thChecklistCol.textContent = 'Drop-off Checklist';
     } else if (state.activeManifestType === 'gate_pickup') {
       headingText.textContent = 'Gate / Parent Carline Register';
       headingIcon.innerHTML = '<i data-lucide="shield-check" class="w-5 h-5 text-emerald-600"></i>';
-      subheadingText.textContent = 'Gate Arrival & Dismissal Checklist • Alphabetical (A–Z)';
+      subheadingText.textContent = 'Gate Arrival & Dismissal Checklist â€¢ Alphabetical (Aâ€“Z)';
       if (batchActionLabel) batchActionLabel.textContent = 'Mark All Checked In';
       if (thChecklistCol) thChecklistCol.textContent = 'Gate Check-in';
     } else {
       headingText.textContent = 'Bootcamp Class Attendance Register';
       headingIcon.innerHTML = '<i data-lucide="clipboard-check" class="w-5 h-5 text-purple-600"></i>';
-      subheadingText.textContent = 'Daily Bootcamp Class Attendance • Two-Box Checklist (Present / Absent)';
+      subheadingText.textContent = 'Daily Bootcamp Class Attendance â€¢ Two-Box Checklist (Present / Absent)';
       if (batchActionLabel) batchActionLabel.textContent = 'Mark All Present';
       if (thChecklistCol) thChecklistCol.textContent = 'Attendance (Present / Absent)';
     }
@@ -1907,7 +1907,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       else if (student.transport_mode === 'self_arrival') routeCode = 'WALKER';
 
       // Inline Fee Status Badge
-      const feeStatus = student.payment_status || ((student.amount_paid || 0) >= (student.total_fee || 15000) ? 'Paid' : ((student.amount_paid || 0) > 0 ? 'Partial' : 'Unpaid'));
+      const feeStatus = student.payment_status || ((student.amount_paid || 0) >= (student.total_fee || 0) ? 'Paid' : ((student.amount_paid || 0) > 0 ? 'Partial' : 'Unpaid'));
       let feeBadgeHTML = '';
       if (feeStatus === 'Paid') {
         feeBadgeHTML = '<span class="badge-fee-paid text-[10px] px-2 py-0.5 rounded-full font-bold">Paid</span>';
@@ -1934,7 +1934,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
                   ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-600'
                   : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-emerald-500 hover:text-emerald-700'
               }" title="Mark Present">
-                <span class="text-sm font-black">${isPresent ? '✔' : '✓'}</span>
+                <span class="text-sm font-black">${isPresent ? 'âœ”' : 'âœ“'}</span>
                 <span>Present</span>
               </button>
 
@@ -1943,7 +1943,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
                   ? 'bg-rose-600 text-white shadow-sm ring-2 ring-rose-600'
                   : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-rose-500 hover:text-rose-700'
               }" title="Mark Absent">
-                <span class="text-sm font-black">✖</span>
+                <span class="text-sm font-black">âœ–</span>
                 <span>Absent</span>
               </button>
             </div>
@@ -1958,7 +1958,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
                   ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm ring-2 ring-emerald-600'
                   : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-2 border-rose-300'
               }" title="Click to toggle Pick-up state">
-                <span class="text-base font-black">${isPickedUp ? '✔' : '✖'}</span>
+                <span class="text-base font-black">${isPickedUp ? 'âœ”' : 'âœ–'}</span>
                 <span>${isPickedUp ? 'Picked Up' : 'Not Picked Up'}</span>
               </button>
             </div>
@@ -1973,7 +1973,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
                   ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm ring-2 ring-emerald-600'
                   : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-2 border-rose-300'
               }" title="Click to toggle Drop-off state">
-                <span class="text-base font-black">${isDroppedOff ? '✔' : '✖'}</span>
+                <span class="text-base font-black">${isDroppedOff ? 'âœ”' : 'âœ–'}</span>
                 <span>${isDroppedOff ? 'Dropped Off' : 'Not Dropped Off'}</span>
               </button>
             </div>
@@ -1988,7 +1988,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
                   ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm ring-2 ring-emerald-600'
                   : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-2 border-rose-300'
               }" title="Click to toggle Gate Check-in state">
-                <span class="text-base font-black">${isCheckedIn ? '✔' : '✖'}</span>
+                <span class="text-base font-black">${isCheckedIn ? 'âœ”' : 'âœ–'}</span>
                 <span>${isCheckedIn ? 'Checked In' : 'Not Checked In'}</span>
               </button>
             </div>
@@ -2198,24 +2198,24 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     if (elCohortLabel) elCohortLabel.textContent = `${state.activeCohort} Roster`;
 
     if (isAttendance) {
-      if (elCompletedLabel) elCompletedLabel.textContent = 'Present (✔)';
+      if (elCompletedLabel) elCompletedLabel.textContent = 'Present (âœ”)';
       if (elCompletedSublabel) elCompletedSublabel.textContent = 'Marked Present';
-      if (elPendingLabel) elPendingLabel.textContent = 'Absent (✖)';
+      if (elPendingLabel) elPendingLabel.textContent = 'Absent (âœ–)';
       if (elPendingSublabel) elPendingSublabel.textContent = 'Marked Absent';
     } else if (isMorning) {
-      if (elCompletedLabel) elCompletedLabel.textContent = 'Picked Up (✔)';
+      if (elCompletedLabel) elCompletedLabel.textContent = 'Picked Up (âœ”)';
       if (elCompletedSublabel) elCompletedSublabel.textContent = 'Bus Boarded';
-      if (elPendingLabel) elPendingLabel.textContent = 'Not Picked Up (✖)';
+      if (elPendingLabel) elPendingLabel.textContent = 'Not Picked Up (âœ–)';
       if (elPendingSublabel) elPendingSublabel.textContent = 'Pending Pick-up';
     } else if (isEvening) {
-      if (elCompletedLabel) elCompletedLabel.textContent = 'Dropped Off (✔)';
+      if (elCompletedLabel) elCompletedLabel.textContent = 'Dropped Off (âœ”)';
       if (elCompletedSublabel) elCompletedSublabel.textContent = 'Safely Disembarked';
-      if (elPendingLabel) elPendingLabel.textContent = 'Not Dropped Off (✖)';
+      if (elPendingLabel) elPendingLabel.textContent = 'Not Dropped Off (âœ–)';
       if (elPendingSublabel) elPendingSublabel.textContent = 'Pending Drop-off';
     } else {
-      if (elCompletedLabel) elCompletedLabel.textContent = 'Checked In (✔)';
+      if (elCompletedLabel) elCompletedLabel.textContent = 'Checked In (âœ”)';
       if (elCompletedSublabel) elCompletedSublabel.textContent = 'Gate Verified';
-      if (elPendingLabel) elPendingLabel.textContent = 'Not Checked In (✖)';
+      if (elPendingLabel) elPendingLabel.textContent = 'Not Checked In (âœ–)';
       if (elPendingSublabel) elPendingSublabel.textContent = 'Pending Arrival';
     }
   }
@@ -2583,7 +2583,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
           activeVehicles.forEach(v => {
             const opt = document.createElement('option');
             opt.value = v.name;
-            opt.textContent = `${v.name} (${v.type.toUpperCase()}${v.capacity ? ' • ' + v.capacity + ' seats' : ''})`;
+            opt.textContent = `${v.name} (${v.type.toUpperCase()}${v.capacity ? ' â€¢ ' + v.capacity + ' seats' : ''})`;
             vehSelect.appendChild(opt);
           });
         }
@@ -2613,7 +2613,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         : '';
       const notes = document.getElementById('onboard-notes').value.trim();
 
-      const totalFee = Math.max(0, parseFloat(document.getElementById('onboard-total-fee')?.value || 15000));
+      const totalFee = Math.max(0, parseFloat(document.getElementById('onboard-total-fee')?.value || 0));
       const amountPaid = Math.max(0, parseFloat(document.getElementById('onboard-amount-paid')?.value || 0));
       const balanceDue = Math.max(0, totalFee - amountPaid);
       const paymentStatus = amountPaid >= totalFee && totalFee > 0 ? 'Paid' : (amountPaid > 0 ? 'Partial' : 'Unpaid');
@@ -2745,7 +2745,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
             <td style="text-align: center; font-weight: bold; color: #b45309;">${escapeHTML(s.assigned_vehicle || (s.transport_mode === 'both' ? 'Bus' : '-'))}</td>
             <td style="text-align: center;">
               <span class="print-badge" style="${isDone ? 'background-color: #dcfce7; border-color: #10b981; color: #166534;' : 'background-color: #fee2e2; border-color: #ef4444; color: #991b1b;'}">
-                ${isDone ? '✔ ' + (st.toUpperCase().replace('_', ' ')) : '✖ NOT VERIFIED'}
+                ${isDone ? 'âœ” ' + (st.toUpperCase().replace('_', ' ')) : 'âœ– NOT VERIFIED'}
               </span>
             </td>
             <td style="border-bottom: 1px dashed #94a3b8;"></td>
@@ -2811,7 +2811,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
           ];
         });
 
-        const csvContent = '﻿' + [
+        const csvContent = 'ï»¿' + [
           'EldoHub Tech & AI Academy - Operations & Fleet Management',
           `Manifest: ${manifestName.replace(/_/g, ' ')} | Date: ${state.activeDate} | Branch: ${state.activeBranch}`,
           headers.join(','),
@@ -2917,11 +2917,11 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         const tableRows = students.map((s, idx) => {
           const status = getStudentStatus(s.id);
           let displayStatus = 'NOT VERIFIED';
-          if (status === 'present') displayStatus = '[✔] PRESENT';
-          else if (status === 'absent') displayStatus = '[✖] ABSENT';
-          else if (status === 'picked_up') displayStatus = '[✔] PICKED UP';
-          else if (status === 'dropped_off') displayStatus = '[✔] DROPPED OFF';
-          else if (status === 'checked_in') displayStatus = '[✔] CHECKED IN';
+          if (status === 'present') displayStatus = '[âœ”] PRESENT';
+          else if (status === 'absent') displayStatus = '[âœ–] ABSENT';
+          else if (status === 'picked_up') displayStatus = '[âœ”] PICKED UP';
+          else if (status === 'dropped_off') displayStatus = '[âœ”] DROPPED OFF';
+          else if (status === 'checked_in') displayStatus = '[âœ”] CHECKED IN';
           return [
             idx + 1,
             s.name,
@@ -3052,7 +3052,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
       const headers = ['Serial', 'Student Name', 'Parent Phone', 'Residence', 'Bootcamp Cohort', 'Track', 'Total Fee (KES)', 'Amount Paid (KES)', 'Balance Due (KES)', 'Payment Status'];
       const rows = students.map((s, idx) => {
-        const totalFee = Number(s.total_fee !== undefined ? s.total_fee : 15000);
+        const totalFee = Number(s.total_fee !== undefined ? s.total_fee : 0);
         const amountPaid = Number(s.amount_paid !== undefined ? s.amount_paid : 0);
         const balanceDue = Number(s.balance_due !== undefined ? s.balance_due : Math.max(0, totalFee - amountPaid));
         const status = s.payment_status || (amountPaid >= totalFee && totalFee > 0 ? 'Paid' : (amountPaid > 0 ? 'Partial' : 'Unpaid'));
@@ -3127,7 +3127,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       // Financial Summary Box
       let totalExp = 0, totalCol = 0;
       students.forEach(s => {
-        totalExp += Number(s.total_fee || 15000);
+        totalExp += Number(s.total_fee || 0);
         totalCol += Number(s.amount_paid || 0);
       });
       const totalBal = Math.max(0, totalExp - totalCol);
@@ -3148,7 +3148,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
       // AutoTable
       const tableData = students.map((s, i) => {
-        const fee = Number(s.total_fee || 15000);
+        const fee = Number(s.total_fee || 0);
         const paid = Number(s.amount_paid || 0);
         const bal = Number(s.balance_due !== undefined ? s.balance_due : Math.max(0, fee - paid));
         const st = s.payment_status || (paid >= fee && fee > 0 ? 'Paid' : (paid > 0 ? 'Partial' : 'Unpaid'));
@@ -3241,7 +3241,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     let unpaidOrPartialCount = 0;
 
     kpiSource.forEach(s => {
-      const fee = Number(s.total_fee !== undefined ? s.total_fee : 15000);
+      const fee = Number(s.total_fee !== undefined ? s.total_fee : 0);
       const paid = Number(s.amount_paid !== undefined ? s.amount_paid : 0);
       totalExpected += fee;
       totalCollected += paid;
@@ -3278,7 +3278,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     emptyState?.classList.add('hidden');
 
     filtered.forEach((s, idx) => {
-      const totalFee = Number(s.total_fee !== undefined ? s.total_fee : 15000);
+      const totalFee = Number(s.total_fee !== undefined ? s.total_fee : 0);
       const amountPaid = Number(s.amount_paid !== undefined ? s.amount_paid : 0);
       const balanceDue = Number(s.balance_due !== undefined ? s.balance_due : Math.max(0, totalFee - amountPaid));
       const status = s.payment_status || (amountPaid >= totalFee && totalFee > 0 ? 'Paid' : (amountPaid > 0 ? 'Partial' : 'Unpaid'));
@@ -3304,7 +3304,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
           </div>
           <div class="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5 font-medium">
             <a href="tel:${escapeHTML(s.phone)}" class="text-sky-600 hover:underline font-mono">${escapeHTML(s.phone)}</a>
-            <span>•</span>
+            <span>â€¢</span>
             <span class="truncate max-w-[120px]">${escapeHTML(s.residence || 'Campus')}</span>
           </div>
         </td>
@@ -3419,7 +3419,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
       // Update student financial ledger
       const currentPaid = Number(student.amount_paid || 0);
-      const totalFee = Number(student.total_fee || 15000);
+      const totalFee = Number(student.total_fee || 0);
       const newPaid = currentPaid + amount;
       const newBalance = Math.max(0, totalFee - newPaid);
       const newStatus = newPaid >= totalFee && totalFee > 0 ? 'Paid' : (newPaid > 0 ? 'Partial' : 'Unpaid');
@@ -3495,12 +3495,12 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       return;
     }
 
-    const totalFee = Number(student.total_fee !== undefined ? student.total_fee : 15000);
+    const totalFee = Number(student.total_fee !== undefined ? student.total_fee : 0);
     const amountPaid = Number(student.amount_paid !== undefined ? student.amount_paid : 0);
     const balanceDue = Number(student.balance_due !== undefined ? student.balance_due : Math.max(0, totalFee - amountPaid));
 
     if (elName) elName.textContent = student.name;
-    if (elCohortTrack) elCohortTrack.textContent = `${student.cohort} • ${student.track}`;
+    if (elCohortTrack) elCohortTrack.textContent = `${student.cohort} â€¢ ${student.track}`;
     if (elTotal) elTotal.textContent = `KES ${totalFee.toLocaleString()}`;
     if (elPaid) elPaid.textContent = `KES ${amountPaid.toLocaleString()}`;
     if (elBal) elBal.textContent = `KES ${balanceDue.toLocaleString()}`;
@@ -3529,10 +3529,10 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       studentSelect.innerHTML = '<option value="">-- Choose Student to Record Payment --</option>';
       const students = (state.data.students || []).slice().sort((a, b) => a.name.localeCompare(b.name));
       students.forEach(s => {
-        const bal = Number(s.balance_due !== undefined ? s.balance_due : Math.max(0, (s.total_fee || 15000) - (s.amount_paid || 0)));
+        const bal = Number(s.balance_due !== undefined ? s.balance_due : Math.max(0, (s.total_fee || 0) - (s.amount_paid || 0)));
         const opt = document.createElement('option');
         opt.value = s.id;
-        opt.textContent = `${s.name} (${s.cohort} - ${s.track}) • Due: KES ${bal.toLocaleString()}`;
+        opt.textContent = `${s.name} (${s.cohort} - ${s.track}) â€¢ Due: KES ${bal.toLocaleString()}`;
         if (studentId && s.id === studentId) opt.selected = true;
         studentSelect.appendChild(opt);
       });
@@ -3597,7 +3597,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     activeReceiptContext = { student, payment };
 
     const modal = document.getElementById('modal-receipt');
-    const totalFee = Number(student.total_fee !== undefined ? student.total_fee : 15000);
+    const totalFee = Number(student.total_fee !== undefined ? student.total_fee : 0);
     const amountPaidCumulative = Number(student.amount_paid !== undefined ? student.amount_paid : 0);
     const balanceDue = Number(student.balance_due !== undefined ? student.balance_due : Math.max(0, totalFee - amountPaidCumulative));
 
@@ -3624,7 +3624,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     if (elDate) elDate.textContent = payDate;
     if (elStudent) elStudent.textContent = student.name;
     if (elPhone) elPhone.textContent = student.phone;
-    if (elCohort) elCohort.textContent = `${student.cohort} • ${student.track}`;
+    if (elCohort) elCohort.textContent = `${student.cohort} â€¢ ${student.track}`;
     if (elAmt) elAmt.textContent = `KES ${receiptAmount.toLocaleString()}`;
     if (elMethod) elMethod.textContent = payMethod;
     if (elRef) elRef.textContent = refCode;
@@ -3681,7 +3681,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     const student = activeReceiptContext.student;
     const payment = activeReceiptContext.payment;
 
-    const totalFee = Number(student.total_fee || 15000);
+    const totalFee = Number(student.total_fee || 0);
     const amountPaidCumulative = Number(student.amount_paid || 0);
     const balanceDue = Number(student.balance_due !== undefined ? student.balance_due : Math.max(0, totalFee - amountPaidCumulative));
     const receiptAmount = payment ? Number(payment.amount) : amountPaidCumulative;
@@ -3733,7 +3733,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     doc.text('BOOTCAMP PROGRAM:', 16, 48);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(12, 59, 46);
-    doc.text(`${student.cohort} • ${student.track}`, 45, 48);
+    doc.text(`${student.cohort} â€¢ ${student.track}`, 45, 48);
 
     // Payment Item Table
     doc.autoTable({
@@ -3829,7 +3829,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     const drawer = document.getElementById('drawer-student-profile');
     const initial = (student.name || 'S').charAt(0).toUpperCase();
 
-    const totalFee = Number(student.total_fee !== undefined ? student.total_fee : 15000);
+    const totalFee = Number(student.total_fee !== undefined ? student.total_fee : 0);
     const amountPaid = Number(student.amount_paid !== undefined ? student.amount_paid : 0);
     const balanceDue = Number(student.balance_due !== undefined ? student.balance_due : Math.max(0, totalFee - amountPaid));
     const status = student.payment_status || (amountPaid >= totalFee && totalFee > 0 ? 'Paid' : (amountPaid > 0 ? 'Partial' : 'Unpaid'));
@@ -3851,7 +3851,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
     if (elInit) elInit.textContent = initial;
     if (elName) elName.textContent = student.name;
-    if (elTrack) elTrack.textContent = `${student.cohort} • ${student.track}`;
+    if (elTrack) elTrack.textContent = `${student.cohort} â€¢ ${student.track}`;
 
     if (elBadge) {
       if (status === 'Paid') {
@@ -4207,9 +4207,9 @@ Another Student,Another Guardian,+254 711 111 111,Junior Robotics,Elgon View,Yes
       tr.innerHTML = `
         <td class="py-2.5 px-3 font-mono text-center text-slate-400 font-bold">${item.index}</td>
         <td class="py-2.5 px-3 text-center">${validationBadge}</td>
-        <td class="py-2.5 px-3 font-bold text-slate-900">${escapeHTML(item.name || '—')}</td>
-        <td class="py-2.5 px-3 text-slate-600 font-mono">${escapeHTML(item.phone || '—')}</td>
-        <td class="py-2.5 px-3 font-semibold text-indigo-700">${escapeHTML(item.bootcamp || '—')}</td>
+        <td class="py-2.5 px-3 font-bold text-slate-900">${escapeHTML(item.name || 'â€”')}</td>
+        <td class="py-2.5 px-3 text-slate-600 font-mono">${escapeHTML(item.phone || 'â€”')}</td>
+        <td class="py-2.5 px-3 font-semibold text-indigo-700">${escapeHTML(item.bootcamp || 'â€”')}</td>
         <td class="py-2.5 px-3 text-slate-600">${escapeHTML(item.location || 'Campus')}</td>
         <td class="py-2.5 px-3 font-medium text-slate-700">${
           item.transportMode === 'both'
@@ -4972,7 +4972,7 @@ Another Student,Another Guardian,+254 711 111 111,Junior Robotics,Elgon View,Yes
     setupOfflineNetworkListeners();
     updateSyncIndicator();
 
-    // Wire header sync pill click → manual flush
+    // Wire header sync pill click â†’ manual flush
     document.getElementById('header-sync-status-btn')?.addEventListener('click', () => {
       if (navigator.onLine) flushOutboxQueue();
       else notify('No internet connection. Changes are safely stored on this device.', 'info');
@@ -4993,3 +4993,4 @@ Another Student,Another Guardian,+254 711 111 111,Junior Robotics,Elgon View,Yes
   });
 
 })();
+
