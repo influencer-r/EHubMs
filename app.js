@@ -2746,7 +2746,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         }
 
         // Header Banner with Official EldoHub Branding
-        doc.setFillColor(15, 23, 42);
+        doc.setFillColor(12, 59, 46);
         doc.rect(0, 0, 210, 26, 'F');
 
         try {
@@ -2764,7 +2764,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
         doc.setFontSize(8.5);
         doc.setFont('helvetica', 'normal');
-        doc.setTextColor(56, 189, 248);
+        doc.setTextColor(0, 142, 128);
         doc.text('OPERATIONS, ATTENDANCE & FLEET LOGISTICS', 64, 18);
 
         doc.setFontSize(8.5);
@@ -2823,7 +2823,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
           body: tableRows,
           theme: 'striped',
           headStyles: {
-            fillColor: [15, 23, 42],
+            fillColor: [12, 59, 46],
             textColor: [255, 255, 255],
             fontSize: 9,
             fontStyle: 'bold'
@@ -2991,7 +2991,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       const doc = new jsPDF('p', 'mm', 'a4');
 
       // Header Banner
-      doc.setFillColor(15, 23, 42);
+      doc.setFillColor(12, 59, 46);
       doc.rect(0, 0, 210, 26, 'F');
 
       doc.setFont('helvetica', 'bold');
@@ -3001,7 +3001,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
       doc.setFontSize(8.5);
       doc.setFont('helvetica', 'normal');
-      doc.setTextColor(56, 189, 248);
+      doc.setTextColor(0, 142, 128);
       doc.text('BOOTCAMP FEES & ACCOUNTS RECEIVABLE REPORT', 14, 18);
 
       doc.setFontSize(8);
@@ -3053,7 +3053,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         body: tableData,
         theme: 'striped',
         headStyles: {
-          fillColor: [15, 23, 42],
+          fillColor: [12, 59, 46],
           textColor: [255, 255, 255],
           fontSize: 8.5,
           fontStyle: 'bold'
@@ -3575,7 +3575,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     const recordedBy = payment ? payment.recorded_by_name : (state.currentUser?.full_name || 'Accounts Desk');
 
     // Header Band
-    doc.setFillColor(15, 23, 42);
+    doc.setFillColor(12, 59, 46);
     doc.rect(0, 0, 148, 24, 'F');
 
     doc.setFont('helvetica', 'bold');
@@ -3585,7 +3585,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
     doc.setFontSize(7.5);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(56, 189, 248);
+    doc.setTextColor(0, 142, 128);
     doc.text('OFFICIAL STUDENT FEE PAYMENT RECEIPT', 12, 17);
 
     doc.setTextColor(203, 213, 225);
@@ -3616,7 +3616,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     doc.setTextColor(71, 85, 105);
     doc.text('BOOTCAMP PROGRAM:', 16, 48);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(79, 70, 229);
+    doc.setTextColor(12, 59, 46);
     doc.text(`${student.cohort} • ${student.track}`, 45, 48);
 
     // Payment Item Table
@@ -3633,7 +3633,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       ],
       theme: 'grid',
       headStyles: {
-        fillColor: [15, 23, 42],
+        fillColor: [12, 59, 46],
         textColor: [255, 255, 255],
         fontSize: 8,
         fontStyle: 'bold'

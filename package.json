@@ -1,0 +1,22 @@
+{
+  "name": "ehub",
+  "version": "1.0.0",
+  "description": "[![Netlify Status](https://api.netlify.com/api/v1/badges/deploy-status?branch=main)](https://app.netlify.com) [![PWA Ready](https://img.shields.io/badge/PWA-Ready-0ea5e9.svg)](https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps) [![Supabase](https://img.shields.io/badge/Database-Supabase%20PostgreSQL-3ECF8E.svg)](https://supabase.com) [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/influencer-r/EHubMs.git"
+  },
+  "keywords": [],
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/influencer-r/EHubMs/issues"
+  },
+  "homepage": "https://github.com/influencer-r/EHubMs#readme",
+  "dependencies": {
+    "papaparse": "^5.7.1"
+  }
+}

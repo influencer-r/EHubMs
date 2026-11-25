@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#0284c7">
+  <meta name="theme-color" content="#0C3B2E">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Tech & AI Academy">
@@ -23,17 +23,41 @@
       theme: {
         extend: {
           colors: {
+            sky: {
+              50: '#f0fdf9',
+              100: '#e6f7f5',
+              200: 'rgba(0, 142, 128, 0.25)',
+              300: '#5eead4',
+              400: '#2dd4bf',
+              500: '#008E80',
+              600: '#008E80',
+              700: '#0C3B2E',
+              800: '#0a3025',
+              900: '#081f19',
+              950: '#04130f',
+            },
             brand: {
-              50: '#f0f9ff',
-              100: '#e0f2fe',
-              200: '#bae6fd',
-              300: '#7dd3fc',
-              400: '#38bdf8',
-              500: '#0ea5e9',
-              600: '#0284c7',
-              700: '#0369a1',
-              800: '#075985',
-              900: '#0c4a6e',
+              50: '#f0fdf9',
+              100: '#e6f7f5',
+              200: '#ccfbef',
+              300: '#99f6df',
+              400: '#5eead4',
+              500: '#008E80',
+              600: '#007a6e',
+              700: '#0C3B2E',
+              800: '#0a3025',
+              900: '#081f19',
+              950: '#04130f',
+            },
+            eldohub: {
+              teal: '#008E80',
+              forest: '#0C3B2E',
+              dark: '#081F19',
+              gold: '#D4AF37',
+              'gold-dark': '#B89024',
+              'gold-light': '#F2D36B',
+              canvas: '#f8faf9',
+              muted: '#f3f8f6',
             }
           },
           fontFamily: {
@@ -53,9 +77,9 @@
   <script src="https://unpkg.com/lucide@0.460.0"></script>
 
   <!-- Custom Stylesheet with cache busting -->
-  <link rel="stylesheet" href="./style.css?v=20">
+  <link rel="stylesheet" href="./style.css?v=21">
 </head>
-<body class="text-slate-900 min-h-screen flex flex-col antialiased selection:bg-sky-500 selection:text-white">
+<body class="text-slate-900 min-h-screen flex flex-col antialiased selection:bg-[#008E80] selection:text-white">
 
   <!-- ==============================================================================
        1. DYNAMIC BACKGROUND SLIDESHOW (PROMINENT WITH TRANSLUCENT FROSTED AMBIENT OVERLAY)
@@ -120,7 +144,7 @@
           <span id="auth-error-text" class="flex-1 leading-relaxed"></span>
         </div>
 
-        <button type="submit" id="btn-auth-submit" class="touch-btn w-full h-12 rounded-xl text-sm font-extrabold bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 text-white shadow-md shadow-sky-600/25 hover:opacity-95 flex items-center justify-center gap-2">
+        <button type="submit" id="btn-auth-submit" class="touch-btn w-full h-12 rounded-xl text-sm font-extrabold bg-gradient-to-r from-[#0C3B2E] via-[#008E80] to-[#008E80] text-white shadow-md shadow-[#0C3B2E]/25 hover:opacity-95 flex items-center justify-center gap-2">
           <i data-lucide="log-in" class="w-4 h-4"></i>
           <span>Sign In to Academy System</span>
         </button>
@@ -233,8 +257,8 @@
 
       <!-- Tech & AI Bootcamps Status Ribbon -->
       <div class="p-3 border-b border-slate-100 sidebar-text-hide" id="sidebar-branch-ribbon">
-        <div class="flex items-center gap-2 p-2 rounded-xl bg-gradient-to-r from-sky-50 via-blue-50 to-indigo-50 border border-sky-200">
-          <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-sky-600 to-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm">
+        <div class="flex items-center gap-2 p-2 rounded-xl bg-gradient-to-r from-[#f0fdf9] to-[#f3f8f6] border border-[#008E80]/20">
+          <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#0C3B2E] to-[#008E80] text-white flex items-center justify-center shrink-0 shadow-sm">
             <i data-lucide="zap" class="w-4 h-4"></i>
           </div>
           <div class="flex-1 min-w-0">
@@ -333,15 +357,15 @@
 
         <!-- Section: Super Administrator Only -->
         <div class="space-y-1" id="nav-section-admin">
-          <span class="sidebar-text-hide text-[10px] font-bold uppercase tracking-wider text-indigo-500 px-3 select-none">
+          <span class="sidebar-text-hide text-[10px] font-bold uppercase tracking-wider text-[#B89024] px-3 select-none">
             Institutional Admin
           </span>
 
           <nav class="space-y-1">
             <button id="tab-nav-staff" class="sidebar-nav-item w-full text-slate-700 hover:text-slate-900">
-              <i data-lucide="users" class="w-4 h-4 text-indigo-600 shrink-0"></i>
+              <i data-lucide="users" class="w-4 h-4 text-[#0C3B2E] shrink-0"></i>
               <span class="sidebar-text-hide flex-1 text-left font-bold">Staff & Permissions</span>
-              <span class="sidebar-text-hide text-[9px] font-bold px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 uppercase">Admin</span>
+              <span class="sidebar-text-hide text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#D4AF37]/15 text-[#B89024] border border-[#D4AF37]/35 uppercase">Admin</span>
             </button>
 
             <button id="tab-nav-audit" class="sidebar-nav-item w-full text-slate-700 hover:text-slate-900">
@@ -448,7 +472,7 @@
             </button>
 
             <!-- Quick Add Student Admission Button -->
-            <button id="header-btn-onboard" class="touch-btn h-10 px-3.5 sm:px-4 rounded-xl text-xs font-extrabold bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 text-white shadow-md shadow-sky-600/20 flex items-center gap-1.5 hover:opacity-95">
+            <button id="header-btn-onboard" class="touch-btn h-10 px-3.5 sm:px-4 rounded-xl text-xs font-extrabold bg-gradient-to-r from-[#0C3B2E] via-[#008E80] to-[#008E80] text-white shadow-md shadow-[#0C3B2E]/20 flex items-center gap-1.5 hover:opacity-95">
               <i data-lucide="plus" class="w-4 h-4"></i>
               <span class="hidden sm:inline">New Student</span>
             </button>
@@ -658,7 +682,7 @@
 
             <!-- Empty State -->
             <div id="manifest-empty-state" class="p-12 text-center flex flex-col items-center justify-center space-y-4 bg-slate-900/40 backdrop-blur-sm">
-              <div class="w-16 h-16 rounded-2xl bg-sky-500/20 border border-sky-400/40 flex items-center justify-center text-sky-300">
+              <div class="w-16 h-16 rounded-2xl bg-[#008E80]/20 border border-[#008E80]/40 flex items-center justify-center text-[#5eead4]">
                 <i data-lucide="users" class="w-8 h-8"></i>
               </div>
               <div class="max-w-md">
@@ -668,7 +692,7 @@
                 </p>
               </div>
               <div class="flex flex-wrap items-center justify-center gap-3">
-                <button id="btn-empty-onboard" class="touch-btn h-11 px-5 rounded-xl text-xs sm:text-sm font-bold bg-gradient-to-r from-sky-600 to-blue-600 text-white shadow-sm flex items-center gap-2">
+                <button id="btn-empty-onboard" class="touch-btn h-11 px-5 rounded-xl text-xs sm:text-sm font-bold bg-gradient-to-r from-[#0C3B2E] to-[#008E80] text-white shadow-sm flex items-center gap-2">
                   <i data-lucide="user-plus" class="w-4 h-4"></i>
                   <span>Add First Student</span>
                 </button>
@@ -685,14 +709,14 @@
           <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
             <div>
               <h3 class="text-lg font-black text-slate-900 flex items-center gap-2">
-                <i data-lucide="users" class="w-5 h-5 text-indigo-600"></i>
+                <i data-lucide="users" class="w-5 h-5 text-[#008E80]"></i>
                 <span>Institutional Staff & RBAC Permissions</span>
               </h3>
               <p class="text-xs text-slate-500 mt-0.5 font-medium">
                 Manage staff accounts, assign curriculum tracks, roles and system authorization.
               </p>
             </div>
-            <button id="btn-open-add-staff" class="touch-btn h-11 px-4 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm flex items-center gap-2">
+            <button id="btn-open-add-staff" class="touch-btn h-11 px-4 rounded-xl text-xs font-bold bg-[#0C3B2E] hover:bg-[#081F19] text-white shadow-sm flex items-center gap-2">
               <i data-lucide="user-plus" class="w-4 h-4"></i>
               <span>Invite New Staff Member</span>
             </button>
@@ -930,7 +954,7 @@
         <span>Fees</span>
       </button>
       <button id="dock-btn-add" class="flex flex-col items-center justify-center text-white text-[10px] font-bold py-1 px-3 -mt-4">
-        <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-sky-600 to-blue-600 flex items-center justify-center shadow-lg shadow-sky-600/30 border-2 border-white">
+        <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-[#0C3B2E] to-[#008E80] flex items-center justify-center shadow-lg shadow-[#0C3B2E]/30 border-2 border-white">
           <i data-lucide="plus" class="w-6 h-6"></i>
         </div>
         <span class="mt-0.5 text-slate-700 font-extrabold">Add</span>
@@ -1068,7 +1092,7 @@
         </div>
 
         <div class="pt-2">
-          <button type="submit" id="btn-submit-onboard" class="touch-btn w-full h-12 rounded-xl text-sm font-extrabold bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-600 text-white shadow-md shadow-sky-600/25 hover:opacity-95 flex items-center justify-center gap-2">
+          <button type="submit" id="btn-submit-onboard" class="touch-btn w-full h-12 rounded-xl text-sm font-extrabold bg-gradient-to-r from-[#0C3B2E] via-[#008E80] to-[#008E80] text-white shadow-md shadow-[#0C3B2E]/25 hover:opacity-95 flex items-center justify-center gap-2">
             <i data-lucide="check" class="w-5 h-5"></i>
             <span>Register Student</span>
           </button>
@@ -1084,7 +1108,7 @@
     <div class="bg-white w-full max-w-md rounded-2xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col">
       <div class="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-600 flex items-center justify-center">
+          <div class="w-10 h-10 rounded-xl bg-[#e6f7f5] border border-[#008E80]/25 text-[#008E80] flex items-center justify-center">
             <i data-lucide="user-plus" class="w-5 h-5"></i>
           </div>
           <div>
@@ -1167,7 +1191,7 @@
         </div>
 
         <div class="pt-2">
-          <button type="submit" id="btn-submit-staff" class="touch-btn w-full h-11 rounded-xl text-xs font-extrabold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm flex items-center justify-center gap-2">
+          <button type="submit" id="btn-submit-staff" class="touch-btn w-full h-11 rounded-xl text-xs font-extrabold bg-[#0C3B2E] hover:bg-[#081F19] text-white shadow-sm flex items-center justify-center gap-2">
             <i data-lucide="user-check" class="w-4 h-4"></i>
             <span>Create & Authorize Staff Member</span>
           </button>
@@ -1437,7 +1461,7 @@
           <img src="./images/eldohub-academy-logo.png" alt="EldoHub Logo" style="height: 48px; max-width: 130px; object-fit: contain;">
           <div>
             <h2 style="font-size: 16pt; font-weight: 800; color: #0f172a; margin: 0;">ELDOHUB TECH & AI ACADEMY</h2>
-            <p style="font-size: 9pt; color: #0284c7; font-weight: 700; margin: 2px 0 0 0; text-transform: uppercase;">Official Student Fee Payment Receipt</p>
+            <p style="font-size: 9pt; color: #008E80; font-weight: 700; margin: 2px 0 0 0; text-transform: uppercase;">Official Student Fee Payment Receipt</p>
             <p style="font-size: 8pt; color: #64748b; margin: 1px 0 0 0;">Eldoret, Kenya &bull; info@eldohub.co.ke</p>
           </div>
         </div>
@@ -1471,7 +1495,7 @@
       <!-- Payment Breakdown Table -->
       <table style="width: 100%; border-collapse: collapse; margin-bottom: 18px; font-size: 9.5pt;">
         <thead>
-          <tr style="background: #0f172a; color: #ffffff;">
+          <tr style="background: #0C3B2E; color: #ffffff;">
             <th style="padding: 8px 12px; text-align: left;">Item Description</th>
             <th style="padding: 8px 12px; text-align: left;">Reference Code</th>
             <th style="padding: 8px 12px; text-align: left;">Method</th>
@@ -1481,7 +1505,7 @@
         <tbody>
           <tr style="border-bottom: 1px solid #e2e8f0;">
             <td style="padding: 10px 12px; font-weight: 700;" id="print-receipt-desc">Bootcamp Tuition & Logistics Installment</td>
-            <td style="padding: 10px 12px; font-family: monospace; font-weight: bold; color: #0284c7;" id="print-receipt-ref">-</td>
+            <td style="padding: 10px 12px; font-family: monospace; font-weight: bold; color: #008E80;" id="print-receipt-ref">-</td>
             <td style="padding: 10px 12px;" id="print-receipt-method">M-Pesa</td>
             <td style="padding: 10px 12px; text-align: right; font-weight: 800; font-size: 11pt; color: #166534;" id="print-receipt-amount">KES 0</td>
           </tr>
@@ -1514,7 +1538,7 @@
         </div>
         <div style="text-align: right;">
           <p style="margin: 0; color: #64748b;">Official Institutional Seal</p>
-          <div style="display: inline-block; margin-top: 6px; border: 2px solid #0284c7; border-radius: 50%; width: 56px; height: 56px; line-height: 52px; text-align: center; font-size: 8pt; font-weight: 800; color: #0284c7; transform: rotate(-10deg);">
+          <div style="display: inline-block; margin-top: 6px; border: 2px solid #008E80; border-radius: 50%; width: 56px; height: 56px; line-height: 52px; text-align: center; font-size: 8pt; font-weight: 800; color: #008E80; transform: rotate(-10deg);">
             PAID
           </div>
         </div>
@@ -1872,7 +1896,7 @@
   <div id="toast-container" class="fixed bottom-20 sm:bottom-6 right-6 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
 
   <!-- Application Logic with cache busting -->
-  <script src="./app.js?v=20"></script>
+  <script src="./app.js?v=21"></script>
 
   <!-- Service Worker Registration for Offline Reliability & 24hr Persistence -->
   <script>
