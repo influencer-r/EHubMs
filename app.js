@@ -620,6 +620,15 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         const filteredCloud = cloudStudents.filter(s => !deletedStudentIds.has(s.id));
 
         state.data.students = [...filteredCloud, ...localStudentsToKeep];
+
+        // AUTO-SYNC: If this device has local students not yet in the cloud, sync them up immediately!
+        if (localStudentsToKeep.length > 0 && navigator.onLine) {
+          enqueueOutbox('BULK_IMPORT_STUDENTS', {
+            students: localStudentsToKeep,
+            payments: state.data.feePayments || []
+          });
+          flushOutboxQueue();
+        }
       }
 
       // 1B. Safe Fee Payments Merge
@@ -630,6 +639,12 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
           p => !cloudPaymentIds.has(p.id)
         );
         state.data.feePayments = [...cloudPayments, ...localPaymentsToKeep];
+
+        // AUTO-SYNC: Push any un-synced fee payments to cloud
+        if (localPaymentsToKeep.length > 0 && navigator.onLine) {
+          localPaymentsToKeep.forEach(p => enqueueOutbox('INSERT_PAYMENT', p));
+          flushOutboxQueue();
+        }
       }
 
       // 2. Safe Manifest Logs Merge: Never overwrite local pending status changes
@@ -1137,6 +1152,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
                 is_active: true,
                 is_first_login: false
               };
+              state.supabaseClient.from('profiles').upsert([authenticatedStaff], { onConflict: 'id' }).then(() => {}).catch(() => {});
             }
           }
         } catch (err) {
@@ -1964,13 +1980,13 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     } else if (state.activeManifestType === 'gate_pickup') {
       headingText.textContent = 'Gate / Parent Carline Register';
       headingIcon.innerHTML = '<i data-lucide="shield-check" class="w-5 h-5 text-emerald-600"></i>';
-      subheadingText.textContent = 'Gate Arrival & Dismissal Checklist • Alphabetical (A"“Z)';
+      subheadingText.textContent = 'Gate Arrival & Dismissal Checklist \u2022 Alphabetical (A\u2013Z)';
       if (batchActionLabel) batchActionLabel.textContent = 'Mark All Checked In';
       if (thChecklistCol) thChecklistCol.textContent = 'Gate Check-in';
     } else {
       headingText.textContent = 'Bootcamp Class Attendance Register';
       headingIcon.innerHTML = '<i data-lucide="clipboard-check" class="w-5 h-5 text-purple-600"></i>';
-      subheadingText.textContent = 'Daily Bootcamp Class Attendance • Two-Box Checklist (Present / Absent)';
+      subheadingText.textContent = 'Daily Bootcamp Class Attendance \u2022 Two-Box Checklist (Present / Absent)';
       if (batchActionLabel) batchActionLabel.textContent = 'Mark All Present';
       if (thChecklistCol) thChecklistCol.textContent = 'Attendance (Present / Absent)';
     }
@@ -1982,6 +1998,33 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     if (students.length === 0) {
       if (tbody) tbody.innerHTML = '';
       emptyState?.classList.remove('hidden');
+
+      const emptyTitle = emptyState?.querySelector('h4');
+      const emptyDesc = emptyState?.querySelector('p');
+      if (state.data.students.length > 0) {
+        if (state.activeManifestType === 'morning_pickup' || state.activeManifestType === 'evening_dropoff') {
+          if (emptyTitle) emptyTitle.textContent = 'No Students on this Bus Manifest';
+          if (emptyDesc) {
+            emptyDesc.innerHTML = `You have <strong class="text-white">${state.data.students.length}</strong> total enrolled student(s). If they arrive by walk-in or parent drop-off, view them on <a href="#" id="link-switch-attendance" class="text-teal-300 font-bold underline">Class Attendance</a> or <a href="#" id="link-switch-gate" class="text-teal-300 font-bold underline">Gate Register</a>.`;
+            document.getElementById('link-switch-attendance')?.addEventListener('click', (e) => {
+              e.preventDefault();
+              state.activeManifestType = 'class_attendance';
+              renderApp();
+            });
+            document.getElementById('link-switch-gate')?.addEventListener('click', (e) => {
+              e.preventDefault();
+              state.activeManifestType = 'gate_pickup';
+              renderApp();
+            });
+          }
+        } else {
+          if (emptyTitle) emptyTitle.textContent = 'No Students in this View';
+          if (emptyDesc) emptyDesc.textContent = 'Try adjusting your track or cohort filters above.';
+        }
+      } else {
+        if (emptyTitle) emptyTitle.textContent = 'No Students in this Manifest';
+        if (emptyDesc) emptyDesc.textContent = 'All rosters start completely clean. Use the Admission Desk or Bulk CSV to register students.';
+      }
       return;
     }
 
