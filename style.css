@@ -127,7 +127,7 @@ body {
    ============================================================================== */
 .app-sidebar {
   width: var(--sidebar-width);
-  background: linear-gradient(180deg, #008E80 0%, #00766a 36%, #0C3B2E 100%);
+  background: linear-gradient(180deg, #008E80 0%, #00766a 36%, #0C3B2E 100%) !important;
   border-right: 1px solid rgba(0, 142, 128, 0.28);
   box-shadow: 4px 0 24px rgba(8, 31, 25, 0.18);
   display: flex;
