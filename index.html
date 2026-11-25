@@ -255,19 +255,6 @@
         </button>
       </div>
 
-      <!-- Tech & AI Bootcamps Status Ribbon -->
-      <div class="p-3 border-b border-white/10 sidebar-text-hide" id="sidebar-branch-ribbon">
-        <div class="flex items-center gap-2 p-2 rounded-xl bg-black/25 border border-white/15">
-          <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-[#D4AF37] to-[#F2D36B] text-[#081F19] font-black flex items-center justify-center shrink-0 shadow-sm">
-            <i data-lucide="zap" class="w-4 h-4"></i>
-          </div>
-          <div class="flex-1 min-w-0">
-            <span class="text-xs font-black text-white block truncate">Tech & AI Bootcamps</span>
-            <span class="text-[9.5px] text-[#a7f3d0] font-semibold block">100% Cohort Integrated</span>
-          </div>
-        </div>
-      </div>
-
       <!-- Navigation Modules List -->
       <div class="flex-1 overflow-y-auto p-3 space-y-6">
         
@@ -329,13 +316,11 @@
             <button id="btn-open-onboarding" class="sidebar-nav-item w-full">
               <i data-lucide="user-plus" class="w-4 h-4 shrink-0"></i>
               <span class="sidebar-text-hide flex-1 text-left font-bold">New Student Admission</span>
-              <span class="sidebar-text-hide badge-desk text-[9px] font-bold px-1.5 py-0.5 rounded uppercase">Desk</span>
             </button>
 
             <button id="btn-sidebar-bulk-import" class="sidebar-nav-item w-full" title="Bulk Import Students & Fees from CSV">
               <i data-lucide="file-spreadsheet" class="w-4 h-4 shrink-0"></i>
               <span class="sidebar-text-hide flex-1 text-left font-bold">Bulk Import (CSV)</span>
-              <span class="sidebar-text-hide badge-fast text-[9px] font-bold px-1.5 py-0.5 rounded uppercase">Fast</span>
             </button>
 
             <button id="btn-trigger-print" class="sidebar-nav-item w-full" title="Print official formatted manifest">
@@ -365,7 +350,6 @@
             <button id="tab-nav-staff" class="sidebar-nav-item w-full">
               <i data-lucide="users" class="w-4 h-4 shrink-0"></i>
               <span class="sidebar-text-hide flex-1 text-left font-bold">Staff & Permissions</span>
-              <span class="sidebar-text-hide badge-admin text-[9px] font-bold px-1.5 py-0.5 rounded uppercase">Admin</span>
             </button>
 
             <button id="tab-nav-audit" class="sidebar-nav-item w-full">
@@ -423,9 +407,6 @@
                 <h2 id="top-view-title" class="text-base sm:text-lg font-black tracking-tight text-slate-900 truncate">
                   Morning Pick-up Bus Manifest
                 </h2>
-                <span id="top-branch-pill" class="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-sky-50 text-sky-700 border border-sky-200">
-                  Tech & AI Bootcamps
-                </span>
               </div>
               <p id="top-view-subheading" class="text-[11px] text-slate-500 hidden sm:block font-medium">
                 EldoHub Tech & AI Academy &bull; Live Fleet & Attendance Operations
@@ -507,10 +488,9 @@
             <div class="bg-gradient-to-br from-emerald-50/90 to-white rounded-2xl p-4 border border-emerald-200 flex flex-col justify-between relative overflow-hidden shadow-sm">
               <div class="flex items-center justify-between">
                 <span id="kpi-completed-label" class="text-[10.5px] font-bold text-emerald-800 uppercase tracking-wider">Picked Up</span>
-                <span class="badge-status bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold">
-                  <span class="pulse-dot bg-emerald-500"></span>
-                  <span>VERIFIED</span>
-                </span>
+                <div class="w-7 h-7 rounded-lg bg-emerald-100 border border-emerald-200 text-emerald-700 flex items-center justify-center">
+                  <i data-lucide="check" class="w-4 h-4"></i>
+                </div>
               </div>
               <div class="mt-2">
                 <span id="kpi-completed" class="text-2xl sm:text-3xl font-black text-emerald-700">0</span>
@@ -1826,8 +1806,9 @@
               <i data-lucide="upload-cloud" class="w-6 h-6"></i>
             </div>
             <h4 class="text-sm font-bold text-slate-800">Select or Drag & Drop Student CSV File</h4>
-            <p class="text-xs text-slate-500 max-w-md">
-              Headers required: <code class="font-mono text-[11px] bg-slate-200 px-1 py-0.5 rounded text-slate-800">full_name, parent_name, parent_phone, bootcamp_name, pickup_location, requires_transport, total_fee, amount_paid</code>
+            <p class="text-xs text-slate-500 max-w-lg">
+              <span class="font-bold text-slate-700">Supported columns:</span> <code class="font-mono text-[11px] bg-slate-200 px-1 py-0.5 rounded text-slate-800">Student Name</code>, <code class="font-mono text-[11px] bg-slate-200 px-1 py-0.5 rounded text-slate-800">Parent Name</code>, <code class="font-mono text-[11px] bg-slate-200 px-1 py-0.5 rounded text-slate-800">Phone</code>, <code class="font-mono text-[11px] bg-slate-200 px-1 py-0.5 rounded text-slate-800">Track</code>.
+              <br><span class="text-slate-400">Optional: pickup location, transport, total fee, amount paid (safe defaults applied automatically if omitted).</span>
             </p>
             <span class="inline-block mt-2 px-3 py-1 rounded-lg text-xs font-bold bg-emerald-600 text-white shadow-sm pointer-events-none">
               Browse CSV File
@@ -1896,7 +1877,7 @@
   <div id="toast-container" class="fixed bottom-20 sm:bottom-6 right-6 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
 
   <!-- Application Logic with cache busting -->
-  <script src="./app.js?v=23"></script>
+  <script src="./app.js?v=25"></script>
 
   <!-- Service Worker Registration for Offline Reliability & 24hr Persistence -->
   <script>

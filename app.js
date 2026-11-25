@@ -41,14 +41,9 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     staff: [],
     auditLogs: [],
     feePayments: [],
-    vehicles: [
-      { id: 'veh_bus_1', name: 'Bus 1', type: 'bus', plate: 'KDC 101A', capacity: 35, is_active: true },
-      { id: 'veh_bus_2', name: 'Bus 2', type: 'bus', plate: 'KDC 102B', capacity: 35, is_active: true },
-      { id: 'veh_van_1', name: 'Van 1', type: 'van', plate: 'KDD 201C', capacity: 14, is_active: true },
-      { id: 'veh_van_2', name: 'Van 2', type: 'van', plate: 'KDD 202D', capacity: 14, is_active: true }
-    ],
+    vehicles: [],
     cohorts: {
-      bootcamp: ['August Bootcamp', 'November Bootcamp', 'Holiday AI Bootcamp', 'Easter Robotics Bootcamp']
+      bootcamp: ['Bootcamp 2026']
     },
     tracks: {
       bootcamp: ['Junior Robotics', 'Advanced Robotics', 'Web Development', 'AI & Coding', 'Data Science & AI']
@@ -60,7 +55,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     currentUser: null, // Holds authenticated staff profile
     isPasswordRecoveryActive: IS_RECOVERY_INTENT,
     activeBranch: 'bootcamp',
-    activeCohort: 'August Bootcamp',
+    activeCohort: 'Bootcamp 2026',
     activeTrack: 'all',
     activeVehicle: 'all',
     activeManifestType: 'morning_pickup',
@@ -117,13 +112,20 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
           };
         });
 
+        // Filter out any legacy dummy vehicles
+        const rawVehicles = Array.isArray(parsed.vehicles) ? parsed.vehicles : [];
+        const cleanedVehicles = rawVehicles.filter(v => 
+          !['veh_bus_1', 'veh_bus_2', 'veh_van_1', 'veh_van_2'].includes(v.id) &&
+          v.plate !== 'KDC 101A' && v.plate !== 'KDC 102B' && v.plate !== 'KDD 201C' && v.plate !== 'KDD 202D'
+        );
+
         return {
           students: students,
           manifestLogs: Array.isArray(parsed.manifestLogs) ? parsed.manifestLogs : [],
           staff: Array.isArray(parsed.staff) ? parsed.staff : [],
           auditLogs: Array.isArray(parsed.auditLogs) ? parsed.auditLogs : [],
           feePayments: Array.isArray(parsed.feePayments) ? parsed.feePayments : [],
-          vehicles: Array.isArray(parsed.vehicles) && parsed.vehicles.length > 0 ? parsed.vehicles : DEFAULT_STATE.vehicles,
+          vehicles: cleanedVehicles,
           cohorts: { bootcamp: bootcampCohorts },
           tracks: { bootcamp: bootcampTracks }
         };
@@ -769,6 +771,118 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     });
   }
 
+  // ============================================================================
+  // BRAND WELCOME CONFETTI MICRO-INTERACTION (NATIVE, ACCESSIBLE, OFFLINE)
+  // ============================================================================
+
+  function triggerWelcomeConfetti() {
+    if (typeof window === 'undefined' || !document.body) return;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.style.position = 'fixed';
+    canvas.style.top = '0';
+    canvas.style.left = '0';
+    canvas.style.width = '100vw';
+    canvas.style.height = '100vh';
+    canvas.style.pointerEvents = 'none';
+    canvas.style.zIndex = '99999';
+    document.body.appendChild(canvas);
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
+      return;
+    }
+
+    const width = (canvas.width = window.innerWidth || 800);
+    const height = (canvas.height = window.innerHeight || 600);
+
+    // EldoHub Academy brand palette
+    const colors = ['#008E80', '#D4AF37', '#5EEAD4', '#10B981', '#F59E0B', '#0C3B2E', '#F2D36B'];
+    const particleCount = 70;
+    const particles = [];
+
+    // Launch two synchronized celebratory fountains from lower left and right
+    for (let i = 0; i < particleCount; i++) {
+      const fromLeft = i % 2 === 0;
+      const angle = fromLeft
+        ? (Math.PI / 4) + (Math.random() * 0.45 - 0.22)
+        : (3 * Math.PI / 4) + (Math.random() * 0.45 - 0.22);
+      const speed = 11 + Math.random() * 11;
+
+      particles.push({
+        x: fromLeft ? width * 0.15 : width * 0.85,
+        y: height * 0.95,
+        vx: Math.cos(angle) * speed,
+        vy: -Math.sin(angle) * speed,
+        size: 5 + Math.random() * 6,
+        isRound: Math.random() > 0.6,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        rotation: Math.random() * 360,
+        rotationSpeed: (Math.random() - 0.5) * 10,
+        wobble: Math.random() * 10,
+        wobbleSpeed: 0.08 + Math.random() * 0.08,
+        opacity: 1,
+        gravity: 0.38,
+        drag: 0.96
+      });
+    }
+
+    let animationFrame;
+    const startTime = performance.now();
+    const duration = 2200;
+
+    function render(currentTime) {
+      const elapsed = currentTime - startTime;
+      ctx.clearRect(0, 0, width, height);
+
+      particles.forEach(p => {
+        p.vx *= p.drag;
+        p.vy = p.vy * p.drag + p.gravity;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.rotation += p.rotationSpeed;
+        p.wobble += p.wobbleSpeed;
+
+        if (elapsed > 1100) {
+          p.opacity = Math.max(0, 1 - (elapsed - 1100) / 1100);
+        }
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate((p.rotation * Math.PI) / 180);
+        ctx.globalAlpha = p.opacity;
+        ctx.fillStyle = p.color;
+
+        const w = p.size * Math.cos(p.wobble);
+        const h = p.size;
+
+        if (p.isRound) {
+          ctx.beginPath();
+          ctx.arc(0, 0, Math.abs(w) / 2, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.fillRect(-w / 2, -h / 2, w, h);
+        }
+        ctx.restore();
+      });
+
+      if (elapsed < duration) {
+        animationFrame = requestAnimationFrame(render);
+      } else {
+        cancelAnimationFrame(animationFrame);
+        if (canvas.parentNode) {
+          canvas.parentNode.removeChild(canvas);
+        }
+      }
+    }
+
+    animationFrame = requestAnimationFrame(render);
+  }
+
   function initAuthSystem() {
     const authGateway = document.getElementById('auth-gateway');
     const loginForm = document.getElementById('auth-login-form');
@@ -992,6 +1106,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authenticatedStaff));
         logAuditAction('STAFF_SIGN_IN', 'auth', authenticatedStaff.id, { email: authenticatedStaff.email });
         notify(`Welcome, ${authenticatedStaff.full_name} (${formatRoleName(authenticatedStaff.role)})!`, 'success');
+        triggerWelcomeConfetti();
         applyRolePermissions();
         renderApp();
       } else {
@@ -1129,6 +1244,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
           }
 
           notify('Password successfully created! Welcome to EldoHub Academy.', 'success');
+          triggerWelcomeConfetti();
           applyRolePermissions();
           renderApp();
         }
@@ -2417,7 +2533,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     const cohortSelect = document.getElementById('onboard-cohort');
     const trackSelect = document.getElementById('onboard-track');
     const transportGroup = document.getElementById('onboard-transport-group');
-    const openBulkBtn = document.getElementById('btn-onboard-open-bulk');
+    const openBulkBtn = document.getElementById('btn-onboard-bulk-csv-link') || document.getElementById('btn-onboard-open-bulk');
 
     function openModal() {
       const user = state.currentUser;
@@ -3821,9 +3937,9 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     const closeBtn = document.getElementById('btn-close-bulk-import');
     const cancelBtn = document.getElementById('btn-cancel-bulk-import');
     const sampleBtn = document.getElementById('btn-download-sample-csv');
-    const dropzone = document.getElementById('bulk-csv-dropzone');
-    const fileInput = document.getElementById('bulk-csv-file-input');
-    const browseBtn = document.getElementById('bulk-csv-browse-btn');
+    const dropzone = document.getElementById('csv-dropzone');
+    const fileInput = document.getElementById('csv-file-input');
+    const reselectBtn = document.getElementById('btn-reselect-csv');
     const confirmBtn = document.getElementById('btn-confirm-bulk-import');
 
     closeBtn?.addEventListener('click', () => modal?.classList.add('hidden'));
@@ -3831,12 +3947,9 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
     // Download Sample Template
     sampleBtn?.addEventListener('click', () => {
-      const sampleCSV = `full_name,parent_name,parent_phone,track,pickup,total_fee,amount_paid
-Liam Kipchumba,Mary Kipchumba,+254 712 345 678,Junior Robotics,Elgon View,15000,15000
-Zawadi Chebet,David Chebet,+254 722 987 654,Web Development,Rupa Mall,15000,7500
-Amani Ochieng,Grace Ochieng,+254 733 112 233,AI & Coding,Self Arrival,15000,0
-Baraka Kiprono,John Kiprono,+254 701 555 444,Mobile App Dev,Parent Pickup,15000,10000
-Nia Wanjiku,Esther Wanjiku,+254 799 888 777,Data Science & AI,Pioneer,15000,15000`;
+      const sampleCSV = `student_name,parent_name,parent_phone,track,pickup_location,requires_transport,total_fee,amount_paid
+Student Full Name,Parent / Guardian Name,+254 700 000 000,Web Development,Eldoret Campus,No,0,0
+Another Student,Another Guardian,+254 711 111 111,Junior Robotics,Elgon View,Yes,15000,5000`;
 
       const blob = new Blob([sampleCSV], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -3850,24 +3963,42 @@ Nia Wanjiku,Esther Wanjiku,+254 799 888 777,Data Science & AI,Pioneer,15000,1500
       notify('Sample CSV template downloaded!', 'success');
     });
 
-    browseBtn?.addEventListener('click', () => fileInput?.click());
-    dropzone?.addEventListener('click', (e) => {
-      if (e.target !== browseBtn) fileInput?.click();
+    // Reselect file button
+    reselectBtn?.addEventListener('click', () => {
+      if (fileInput) fileInput.value = '';
+      parsedBulkData = [];
+      document.getElementById('csv-preview-container')?.classList.add('hidden');
+      document.getElementById('csv-dropzone')?.classList.remove('hidden');
+      fileInput?.click();
     });
 
-    dropzone?.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropzone.classList.add('border-sky-500', 'bg-sky-50/50');
+    // Clicking anywhere on dropzone triggers file picker
+    dropzone?.addEventListener('click', () => {
+      fileInput?.click();
     });
 
-    dropzone?.addEventListener('dragleave', () => {
-      dropzone.classList.remove('border-sky-500', 'bg-sky-50/50');
+    // Drag and drop event listeners on dropzone
+    ['dragenter', 'dragover'].forEach(eventName => {
+      dropzone?.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.add('border-emerald-500', 'bg-emerald-50/50');
+      });
+    });
+
+    ['dragleave', 'dragend'].forEach(eventName => {
+      dropzone?.addEventListener(eventName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        dropzone.classList.remove('border-emerald-500', 'bg-emerald-50/50');
+      });
     });
 
     dropzone?.addEventListener('drop', (e) => {
       e.preventDefault();
-      dropzone.classList.remove('border-sky-500', 'bg-sky-50/50');
-      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      e.stopPropagation();
+      dropzone.classList.remove('border-emerald-500', 'bg-emerald-50/50');
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
         handleBulkCSVFile(e.dataTransfer.files[0]);
       }
     });
@@ -3884,7 +4015,7 @@ Nia Wanjiku,Esther Wanjiku,+254 799 888 777,Data Science & AI,Pioneer,15000,1500
   }
 
   function handleBulkCSVFile(file) {
-    if (!file || !file.name.endsWith('.csv')) {
+    if (!file || !file.name.toLowerCase().endsWith('.csv')) {
       notify('Please select a valid .csv file.', 'error');
       return;
     }
@@ -3894,11 +4025,18 @@ Nia Wanjiku,Esther Wanjiku,+254 799 888 777,Data Science & AI,Pioneer,15000,1500
       return;
     }
 
+    const fileNameLabel = document.getElementById('csv-file-name-label');
+    if (fileNameLabel) fileNameLabel.textContent = file.name;
+
     window.Papa.parse(file, {
       header: true,
       skipEmptyLines: 'greedy',
       transformHeader: h => h.trim().toLowerCase().replace(/\s+/g, '_'),
       complete: function(results) {
+        if (!results.data || results.data.length === 0) {
+          notify('The selected CSV file appears to be empty.', 'error');
+          return;
+        }
         processParsedCSVRows(results.data);
       },
       error: function(err) {
@@ -3912,38 +4050,93 @@ Nia Wanjiku,Esther Wanjiku,+254 799 888 777,Data Science & AI,Pioneer,15000,1500
     let validCount = 0;
     let invalidCount = 0;
 
-    rows.forEach((row, idx) => {
-      const name = (row.full_name || row.student_name || row.name || '').trim();
-      const parentName = (row.parent_name || row.guardian_name || row.parent || '').trim();
-      const phone = (row.parent_phone || row.phone || row.guardian_phone || row.contact || '').trim();
-      const bootcamp = (row.bootcamp_name || row.bootcamp || row.track || row.course || '').trim();
+    const defaultTrack = (state.data.tracks && state.data.tracks.bootcamp && state.data.tracks.bootcamp.length > 0)
+      ? state.data.tracks.bootcamp[0]
+      : 'General Track';
 
-      // Single "pickup" column: derive transport_mode + residence from the value
-      const pickupRaw = (row.pickup || row.pickup_location || row.location || row.residence || '').trim();
+    rows.forEach((row, idx) => {
+      // Lenient column matching for student name
+      const name = (
+        row.full_name || row.student_name || row.name || row.student || 
+        row.learner || row.learner_name || row.pupil || row.child_name || 
+        row.first_name || ''
+      ).trim();
+
+      // Lenient column matching for parent/guardian
+      const parentName = (
+        row.parent_name || row.guardian_name || row.parent || row.guardian || 
+        row.mother || row.father || row.parents_name || row.parent_guardian || ''
+      ).trim();
+
+      // Lenient column matching for parent/guardian contact
+      const phone = (
+        row.parent_phone || row.phone || row.phone_number || row.mobile || 
+        row.mobile_number || row.contact || row.parent_contact || 
+        row.guardian_phone || row.tel || row.telephone || ''
+      ).trim();
+
+      // Lenient column matching for track / course / bootcamp
+      let bootcamp = (
+        row.bootcamp_name || row.bootcamp || row.track || row.course || 
+        row.bootcamp_track || row.course_track || row.class || row.stream || 
+        row.program || ''
+      ).trim();
+
+      // If track is omitted, default to system track instead of rejecting
+      if (!bootcamp) {
+        bootcamp = defaultTrack;
+      }
+
+      // Determine transport mode and location
+      const pickupRaw = (
+        row.pickup_location || row.pickup || row.location || row.residence || 
+        row.stop || row.stage || row.estate || ''
+      ).trim();
       const pickupLower = pickupRaw.toLowerCase();
+      const reqTransport = (
+        row.requires_transport || row.transport || row.transport_mode || 
+        row.bus || row.van || ''
+      ).trim().toLowerCase();
+
       let transportMode, location;
-      if (!pickupRaw || pickupLower === 'self arrival' || pickupLower === 'self' || pickupLower === 'walk in' || pickupLower === 'walk-in') {
+      if (row.transport_mode && ['both', 'morning_bus', 'evening_bus', 'parent_pickup', 'self_arrival'].includes(row.transport_mode)) {
+        transportMode = row.transport_mode;
+        location = pickupRaw || (transportMode === 'self_arrival' ? 'Campus / Walk-in' : 'Eldoret');
+      } else if (reqTransport === 'no' || reqTransport === 'false' || reqTransport === 'none' || pickupLower === 'self arrival' || pickupLower === 'self' || pickupLower === 'walk in' || pickupLower === 'walk-in') {
         transportMode = 'self_arrival';
-        location = 'Campus / Walk-in';
+        location = pickupRaw || 'Campus / Walk-in';
+      } else if (reqTransport === 'both' || pickupLower.includes('both')) {
+        transportMode = 'both';
+        location = pickupRaw || 'Eldoret';
       } else if (pickupLower === 'parent pickup' || pickupLower === 'parent' || pickupLower === 'parent drop' || pickupLower === 'parent drop-off') {
         transportMode = 'parent_pickup';
         location = pickupRaw;
-      } else {
-        // Any real location name → bus pickup
+      } else if (pickupRaw && pickupRaw !== '') {
+        // Any specific location name defaults to morning bus pickup
         transportMode = 'morning_bus';
         location = pickupRaw;
+      } else {
+        transportMode = 'self_arrival';
+        location = 'Campus / Walk-in';
       }
 
-      const totalFee = Math.max(0, parseFloat(row.total_fee || row.fee || 15000) || 15000);
-      const amountPaid = Math.max(0, parseFloat(row.amount_paid || row.paid || 0) || 0);
-      const balanceDue = Math.max(0, totalFee - amountPaid);
-      const paymentStatus = amountPaid >= totalFee && totalFee > 0 ? 'Paid' : (amountPaid > 0 ? 'Partial' : 'Unpaid');
+      const totalFee = Math.max(0, parseFloat(
+        row.total_fee || row.fee || row.fees || row.tuition || row.amount || row.total || 0
+      ) || 0);
 
-      // Validation
+      const amountPaid = Math.max(0, parseFloat(
+        row.amount_paid || row.paid || row.deposit || row.initial_payment || 0
+      ) || 0);
+
+      const balanceDue = Math.max(0, totalFee - amountPaid);
+      const paymentStatus = totalFee > 0
+        ? (amountPaid >= totalFee ? 'Paid' : (amountPaid > 0 ? 'Partial' : 'Unpaid'))
+        : (amountPaid > 0 ? 'Paid' : 'Cleared');
+
+      // Validation: Only student name is strictly required
       const errors = [];
       if (!name || name.length < 2) errors.push('Missing Student Name');
-      if (!phone || phone.length < 5) errors.push('Missing Parent Phone');
-      if (!bootcamp || bootcamp.length < 2) errors.push('Missing Track');
+      if (phone && phone.length < 5) errors.push('Invalid Parent Phone');
 
       const isValid = errors.length === 0;
       if (isValid) validCount++;
@@ -3970,22 +4163,34 @@ Nia Wanjiku,Esther Wanjiku,+254 799 888 777,Data Science & AI,Pioneer,15000,1500
   }
 
   function renderBulkPreviewTable(validCount, invalidCount) {
-    const previewContainer = document.getElementById('bulk-preview-container');
-    const tbody = document.getElementById('bulk-preview-table-body');
-    const elValid = document.getElementById('bulk-valid-count');
-    const elInvalid = document.getElementById('bulk-invalid-count');
-    const elTotal = document.getElementById('bulk-total-count');
+    const previewContainer = document.getElementById('csv-preview-container');
+    const dropzone = document.getElementById('csv-dropzone');
+    const tbody = document.getElementById('csv-preview-tbody');
+    const elValid = document.getElementById('csv-valid-rows-badge');
+    const elInvalid = document.getElementById('csv-invalid-rows-badge');
+    const elTotal = document.getElementById('csv-total-rows-badge');
+    const validationWarning = document.getElementById('csv-validation-warning');
     const confirmBtn = document.getElementById('btn-confirm-bulk-import');
+    const confirmBtnText = document.getElementById('btn-confirm-bulk-import-text');
 
     if (elValid) elValid.textContent = `${validCount} Valid`;
-    if (elInvalid) elInvalid.textContent = `${invalidCount} Invalid`;
-    if (elTotal) elTotal.textContent = `${parsedBulkData.length} Total`;
+    if (elInvalid) {
+      elInvalid.textContent = `${invalidCount} Issue${invalidCount === 1 ? '' : 's'}`;
+      elInvalid.classList.toggle('hidden', invalidCount === 0);
+    }
+    if (elTotal) elTotal.textContent = `${parsedBulkData.length} Row${parsedBulkData.length === 1 ? '' : 's'}`;
+
+    if (validationWarning) {
+      validationWarning.classList.toggle('hidden', invalidCount === 0);
+    }
 
     if (confirmBtn) {
       confirmBtn.disabled = validCount === 0;
-      confirmBtn.innerHTML = validCount > 0 
-        ? `<i data-lucide="check" class="w-4 h-4"></i><span>Import ${validCount} Valid Student${validCount === 1 ? '' : 's'}</span>`
-        : '<span>No Valid Records to Import</span>';
+    }
+    if (confirmBtnText) {
+      confirmBtnText.textContent = validCount > 0 
+        ? `Import ${validCount} Valid Student${validCount === 1 ? '' : 's'}`
+        : 'No Valid Records to Import';
     }
 
     if (!tbody) return;
@@ -4001,25 +4206,31 @@ Nia Wanjiku,Esther Wanjiku,+254 799 888 777,Data Science & AI,Pioneer,15000,1500
 
       tr.innerHTML = `
         <td class="py-2.5 px-3 font-mono text-center text-slate-400 font-bold">${item.index}</td>
+        <td class="py-2.5 px-3 text-center">${validationBadge}</td>
         <td class="py-2.5 px-3 font-bold text-slate-900">${escapeHTML(item.name || '—')}</td>
         <td class="py-2.5 px-3 text-slate-600 font-mono">${escapeHTML(item.phone || '—')}</td>
         <td class="py-2.5 px-3 font-semibold text-indigo-700">${escapeHTML(item.bootcamp || '—')}</td>
         <td class="py-2.5 px-3 text-slate-600">${escapeHTML(item.location || 'Campus')}</td>
         <td class="py-2.5 px-3 font-medium text-slate-700">${
-          item.transportMode === 'morning_bus' || item.transportMode === 'both'
-            ? `<span class="text-amber-700 font-bold">Bus / Van</span>`
-            : item.transportMode === 'parent_pickup'
-              ? 'Parent Pickup'
-              : 'Self Arrival'
+          item.transportMode === 'both'
+            ? `<span class="text-teal-700 font-bold">Both Pick-up & Drop-off</span>`
+            : item.transportMode === 'morning_bus'
+              ? `<span class="text-amber-700 font-bold">Morning Bus</span>`
+              : item.transportMode === 'evening_bus'
+                ? `<span class="text-indigo-700 font-bold">Evening Drop-off</span>`
+                : item.transportMode === 'parent_pickup'
+                  ? 'Parent Pickup'
+                  : 'Self Arrival'
         }</td>
-        <td class="py-2.5 px-3 font-mono font-bold text-slate-700">KES ${item.totalFee.toLocaleString()}</td>
-        <td class="py-2.5 px-3 font-mono font-bold text-emerald-700">KES ${item.amountPaid.toLocaleString()}</td>
-        <td class="py-2.5 px-3 text-center">${validationBadge}</td>
+        <td class="py-2.5 px-3 font-mono font-bold text-right text-slate-700">KES ${item.totalFee.toLocaleString()}</td>
+        <td class="py-2.5 px-3 font-mono font-bold text-right text-emerald-700">KES ${item.amountPaid.toLocaleString()}</td>
+        <td class="py-2.5 px-3 font-mono font-bold text-right ${item.balanceDue > 0 ? 'text-rose-600' : 'text-slate-500'}">KES ${item.balanceDue.toLocaleString()}</td>
       `;
       tbody.appendChild(tr);
     });
 
     previewContainer?.classList.remove('hidden');
+    dropzone?.classList.add('hidden');
     if (window.lucide) window.lucide.createIcons();
   }
 
@@ -4061,7 +4272,7 @@ Nia Wanjiku,Esther Wanjiku,+254 799 888 777,Data Science & AI,Pioneer,15000,1500
         cohort: activeCohort,
         track: row.bootcamp,
         transport_mode: row.transportMode,
-        assigned_vehicle: (row.transportMode === 'morning_bus' || row.transportMode === 'both') ? defaultVehicle : '',
+        assigned_vehicle: (row.transportMode === 'morning_bus' || row.transportMode === 'both' || row.transportMode === 'evening_bus') ? defaultVehicle : '',
         total_fee: row.totalFee,
         amount_paid: row.amountPaid,
         balance_due: row.balanceDue,
@@ -4113,10 +4324,12 @@ Nia Wanjiku,Esther Wanjiku,+254 799 888 777,Data Science & AI,Pioneer,15000,1500
     // Reset Modal
     parsedBulkData = [];
     const modal = document.getElementById('modal-bulk-import');
-    const previewContainer = document.getElementById('bulk-preview-container');
-    const fileInput = document.getElementById('bulk-csv-file-input');
+    const previewContainer = document.getElementById('csv-preview-container');
+    const dropzone = document.getElementById('csv-dropzone');
+    const fileInput = document.getElementById('csv-file-input');
     if (fileInput) fileInput.value = '';
     previewContainer?.classList.add('hidden');
+    dropzone?.classList.remove('hidden');
     modal?.classList.add('hidden');
 
     renderApp();
@@ -4130,10 +4343,17 @@ Nia Wanjiku,Esther Wanjiku,+254 799 888 777,Data Science & AI,Pioneer,15000,1500
     }
 
     const modal = document.getElementById('modal-bulk-import');
-    const previewContainer = document.getElementById('bulk-preview-container');
-    const fileInput = document.getElementById('bulk-csv-file-input');
+    const previewContainer = document.getElementById('csv-preview-container');
+    const dropzone = document.getElementById('csv-dropzone');
+    const fileInput = document.getElementById('csv-file-input');
+    const tbody = document.getElementById('csv-preview-tbody');
+    const validationWarning = document.getElementById('csv-validation-warning');
+
     if (fileInput) fileInput.value = '';
+    if (tbody) tbody.innerHTML = '';
     previewContainer?.classList.add('hidden');
+    validationWarning?.classList.add('hidden');
+    dropzone?.classList.remove('hidden');
     parsedBulkData = [];
     modal?.classList.remove('hidden');
   }
