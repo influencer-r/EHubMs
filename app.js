@@ -851,6 +851,9 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       return;
     }
 
+    const authCard = document.querySelector('.auth-card') || document.getElementById('auth-gateway');
+    const rect = authCard ? authCard.getBoundingClientRect() : null;
+
     const canvas = document.createElement('canvas');
     canvas.style.position = 'fixed';
     canvas.style.top = '0';
@@ -870,40 +873,41 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     const width = (canvas.width = window.innerWidth || 800);
     const height = (canvas.height = window.innerHeight || 600);
 
+    // Anchor origin directly over the sign-in card
+    const cardCenterX = rect ? (rect.left + rect.width / 2) : width / 2;
+    const cardCenterY = rect ? (rect.top + rect.height * 0.45) : height / 2;
+
     // EldoHub Academy brand palette
     const colors = ['#008E80', '#D4AF37', '#5EEAD4', '#10B981', '#F59E0B', '#0C3B2E', '#F2D36B'];
-    const particleCount = 70;
+    const particleCount = 60;
     const particles = [];
 
-    // Launch two synchronized celebratory fountains from lower left and right
+    // Burst particles radiating outward directly from the sign-in card
     for (let i = 0; i < particleCount; i++) {
-      const fromLeft = i % 2 === 0;
-      const angle = fromLeft
-        ? (Math.PI / 4) + (Math.random() * 0.45 - 0.22)
-        : (3 * Math.PI / 4) + (Math.random() * 0.45 - 0.22);
-      const speed = 11 + Math.random() * 11;
+      const angle = -Math.PI * 0.85 + Math.random() * Math.PI * 0.7;
+      const speed = 4 + Math.random() * 8.5;
 
       particles.push({
-        x: fromLeft ? width * 0.15 : width * 0.85,
-        y: height * 0.95,
-        vx: Math.cos(angle) * speed,
-        vy: -Math.sin(angle) * speed,
-        size: 5 + Math.random() * 6,
-        isRound: Math.random() > 0.6,
+        x: cardCenterX + (Math.random() - 0.5) * (rect ? Math.min(rect.width * 0.65, 240) : 100),
+        y: cardCenterY + (Math.random() - 0.5) * 35,
+        vx: Math.cos(angle) * speed + (Math.random() - 0.5) * 2,
+        vy: Math.sin(angle) * speed,
+        size: 5 + Math.random() * 5,
+        isRound: Math.random() > 0.5,
         color: colors[Math.floor(Math.random() * colors.length)],
         rotation: Math.random() * 360,
-        rotationSpeed: (Math.random() - 0.5) * 10,
+        rotationSpeed: (Math.random() - 0.5) * 12,
         wobble: Math.random() * 10,
-        wobbleSpeed: 0.08 + Math.random() * 0.08,
+        wobbleSpeed: 0.1 + Math.random() * 0.1,
         opacity: 1,
-        gravity: 0.38,
-        drag: 0.96
+        gravity: 0.28,
+        drag: 0.95
       });
     }
 
     let animationFrame;
     const startTime = performance.now();
-    const duration = 2200;
+    const duration = 1900;
 
     function render(currentTime) {
       const elapsed = currentTime - startTime;
@@ -917,8 +921,8 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         p.rotation += p.rotationSpeed;
         p.wobble += p.wobbleSpeed;
 
-        if (elapsed > 1100) {
-          p.opacity = Math.max(0, 1 - (elapsed - 1100) / 1100);
+        if (elapsed > 900) {
+          p.opacity = Math.max(0, 1 - (elapsed - 900) / 1000);
         }
 
         ctx.save();
@@ -1176,9 +1180,25 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(authenticatedStaff));
         logAuditAction('STAFF_SIGN_IN', 'auth', authenticatedStaff.id, { email: authenticatedStaff.email });
         notify(`Welcome, ${authenticatedStaff.full_name} (${formatRoleName(authenticatedStaff.role)})!`, 'success');
+
+        const submitBtn = document.getElementById('btn-auth-submit');
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<i data-lucide="check" class="w-4 h-4 text-emerald-400"></i><span>Authenticated!</span>';
+          if (window.lucide) window.lucide.createIcons();
+        }
+
         triggerWelcomeConfetti();
-        applyRolePermissions();
-        renderApp();
+
+        setTimeout(() => {
+          applyRolePermissions();
+          renderApp();
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<span>Authenticate & Enter</span><i data-lucide="arrow-right" class="w-4 h-4"></i>';
+            if (window.lucide) window.lucide.createIcons();
+          }
+        }, 600);
       } else {
         showAuthError('Invalid credentials or unregistered staff account.');
         notify('Invalid credentials or unregistered staff account.', 'error');
@@ -1315,8 +1335,10 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
           notify('Password successfully created! Welcome to EldoHub Academy.', 'success');
           triggerWelcomeConfetti();
-          applyRolePermissions();
-          renderApp();
+          setTimeout(() => {
+            applyRolePermissions();
+            renderApp();
+          }, 600);
         }
       } catch (err) {
         showUpdateError(`Password setup notice: ${err.message || 'Please retry'}`);
