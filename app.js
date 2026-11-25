@@ -69,6 +69,60 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     realtimeSubscription: null
   };
 
+    function generateUUID() {
+    if (typeof crypto !== 'undefined') {
+      if (typeof crypto.randomUUID === 'function') {
+        try { return crypto.randomUUID(); } catch (e) {}
+      }
+      if (typeof crypto.getRandomValues === 'function') {
+        try {
+          return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+            (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+          );
+        } catch (e) {}
+      }
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
+  function sanitizeStudentForSupabase(s) {
+    return {
+      id: s.id,
+      name: s.name,
+      phone: s.phone || null,
+      residence: s.residence || null,
+      branch: s.branch || 'bootcamp',
+      cohort: s.cohort || 'August Bootcamp',
+      track: s.track || 'General Track',
+      transport_mode: s.transport_mode || 'self_arrival',
+      total_fee: Number(s.total_fee || 0),
+      amount_paid: Number(s.amount_paid || 0),
+      payment_status: s.payment_status || 'Cleared',
+      notes: s.notes || null,
+      created_at: s.created_at || new Date().toISOString(),
+      updated_at: s.updated_at || new Date().toISOString()
+    };
+  }
+
+  function sanitizePaymentForSupabase(p) {
+    return {
+      id: p.id,
+      student_id: p.student_id,
+      amount: Number(p.amount || 0),
+      payment_date: p.payment_date || new Date().toISOString().split('T')[0],
+      payment_method: p.payment_method || 'M-Pesa',
+      reference_code: p.reference_code || null,
+      notes: p.notes || null,
+      recorded_by: p.recorded_by || null,
+      recorded_by_name: p.recorded_by_name || null,
+      created_at: p.created_at || new Date().toISOString()
+    };
+  }
+
   function loadStoredData() {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
@@ -231,8 +285,10 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       try {
         let success = false;
         if (item.type === 'INSERT_STUDENT') {
-          const { error } = await state.supabaseClient.from('students').upsert([item.payload], { onConflict: 'id' });
+          const cleanStudent = sanitizeStudentForSupabase(item.payload);
+          const { error } = await state.supabaseClient.from('students').upsert([cleanStudent], { onConflict: 'id' });
           if (!error) success = true;
+          else console.warn('Supabase INSERT_STUDENT error:', error);
         } else if (item.type === 'DELETE_STUDENT') {
           const { error } = await state.supabaseClient.from('students').delete().eq('id', item.payload.id);
           if (!error) success = true;
@@ -240,8 +296,8 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
           const { error } = await state.supabaseClient.from('manifest_logs').upsert([item.payload], { onConflict: 'student_id,date,type' });
           if (!error) success = true;
         } else if (item.type === 'ASSIGN_VEHICLE') {
-          const { error } = await state.supabaseClient.from('students').update({ assigned_vehicle: item.payload.vehicleName }).eq('id', item.payload.studentId);
-          if (!error) success = true;
+          // assigned_vehicle is managed locally as vehicle column is not in Supabase students table
+          success = true;
         } else if (item.type === 'INSERT_VEHICLE') {
           const { error } = await state.supabaseClient.from('vehicles').upsert([item.payload], { onConflict: 'id' });
           if (!error) success = true;
@@ -252,7 +308,8 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
           const { error } = await state.supabaseClient.from('audit_logs').insert([item.payload]);
           if (!error) success = true;
         } else if (item.type === 'INSERT_PAYMENT') {
-          const { error } = await state.supabaseClient.from('fee_payments').insert([item.payload]);
+          const cleanPayment = sanitizePaymentForSupabase(item.payload);
+          const { error } = await state.supabaseClient.from('fee_payments').insert([cleanPayment]);
           if (!error) {
             const std = state.data.students.find(s => s.id === item.payload.student_id);
             if (std) {
@@ -262,16 +319,30 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
               }).eq('id', std.id);
             }
             success = true;
+          } else {
+            console.warn('Supabase INSERT_PAYMENT error:', error);
           }
         } else if (item.type === 'BULK_IMPORT_STUDENTS') {
           const { students, payments } = item.payload;
+          let studentsOk = true;
+          let paymentsOk = true;
           if (students && students.length > 0) {
-            const { error: sErr } = await state.supabaseClient.from('students').upsert(students, { onConflict: 'id' });
-            if (!sErr) success = true;
+            const cleanStudents = students.map(sanitizeStudentForSupabase);
+            const { error: sErr } = await state.supabaseClient.from('students').upsert(cleanStudents, { onConflict: 'id' });
+            if (sErr) {
+              console.warn('Supabase bulk students upsert error:', sErr);
+              studentsOk = false;
+            }
           }
           if (payments && payments.length > 0) {
-            await state.supabaseClient.from('fee_payments').insert(payments);
+            const cleanPayments = payments.map(sanitizePaymentForSupabase);
+            const { error: pErr } = await state.supabaseClient.from('fee_payments').insert(cleanPayments);
+            if (pErr) {
+              console.warn('Supabase bulk payments insert error:', pErr);
+              paymentsOk = false;
+            }
           }
+          if (studentsOk && paymentsOk) success = true;
         } else if (item.type === 'PROVISION_STAFF') {
           const p = item.payload;
           const clientConfig = {
@@ -540,26 +611,25 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
           queue.filter(item => item.type === 'DELETE_STUDENT').map(item => item.payload.id)
         );
 
-        // Keep local students that are pending insert and haven't been deleted
-        const pendingLocalStudents = (state.data.students || []).filter(
-          s => pendingStudentIds.has(s.id) && !cloudIdSet.has(s.id)
+        // Keep all local students that are not present in cloud and haven't been deleted
+        const localStudentsToKeep = (state.data.students || []).filter(
+          s => !cloudIdSet.has(s.id) && !deletedStudentIds.has(s.id)
         );
 
         // Filter out any cloud students that are queued for deletion locally
         const filteredCloud = cloudStudents.filter(s => !deletedStudentIds.has(s.id));
 
-        state.data.students = [...filteredCloud, ...pendingLocalStudents];
+        state.data.students = [...filteredCloud, ...localStudentsToKeep];
       }
 
       // 1B. Safe Fee Payments Merge
       if (paymentsRes && paymentsRes.data && !paymentsRes.error) {
         const cloudPayments = paymentsRes.data;
         const cloudPaymentIds = new Set(cloudPayments.map(p => p.id));
-        const pendingPayments = queue
-          .filter(item => item.type === 'INSERT_PAYMENT')
-          .map(item => item.payload)
-          .filter(p => !cloudPaymentIds.has(p.id));
-        state.data.feePayments = [...cloudPayments, ...pendingPayments];
+        const localPaymentsToKeep = (state.data.feePayments || []).filter(
+          p => !cloudPaymentIds.has(p.id)
+        );
+        state.data.feePayments = [...cloudPayments, ...localPaymentsToKeep];
       }
 
       // 2. Safe Manifest Logs Merge: Never overwrite local pending status changes
@@ -1860,25 +1930,25 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     if (state.activeManifestType === 'morning_pickup') {
       headingText.textContent = 'Morning Pick-up Bus Manifest';
       headingIcon.innerHTML = '<i data-lucide="bus" class="w-5 h-5 text-sky-600"></i>';
-      subheadingText.textContent = 'EldoHub Fleet Operations â€¢ Alphabetical (Aâ€“Z) Checklist';
+      subheadingText.textContent = 'EldoHub Fleet Operations • Alphabetical (A"“Z) Checklist';
       if (batchActionLabel) batchActionLabel.textContent = 'Mark All Picked Up';
       if (thChecklistCol) thChecklistCol.textContent = 'Pick-up Checklist';
     } else if (state.activeManifestType === 'evening_dropoff') {
       headingText.textContent = 'Evening Drop-off Bus Manifest';
       headingIcon.innerHTML = '<i data-lucide="bus-front" class="w-5 h-5 text-blue-600"></i>';
-      subheadingText.textContent = 'EldoHub Dismissal Boarding â€¢ Alphabetical (Aâ€“Z) Checklist';
+      subheadingText.textContent = 'EldoHub Dismissal Boarding • Alphabetical (A"“Z) Checklist';
       if (batchActionLabel) batchActionLabel.textContent = 'Mark All Dropped Off';
       if (thChecklistCol) thChecklistCol.textContent = 'Drop-off Checklist';
     } else if (state.activeManifestType === 'gate_pickup') {
       headingText.textContent = 'Gate / Parent Carline Register';
       headingIcon.innerHTML = '<i data-lucide="shield-check" class="w-5 h-5 text-emerald-600"></i>';
-      subheadingText.textContent = 'Gate Arrival & Dismissal Checklist â€¢ Alphabetical (Aâ€“Z)';
+      subheadingText.textContent = 'Gate Arrival & Dismissal Checklist • Alphabetical (A"“Z)';
       if (batchActionLabel) batchActionLabel.textContent = 'Mark All Checked In';
       if (thChecklistCol) thChecklistCol.textContent = 'Gate Check-in';
     } else {
       headingText.textContent = 'Bootcamp Class Attendance Register';
       headingIcon.innerHTML = '<i data-lucide="clipboard-check" class="w-5 h-5 text-purple-600"></i>';
-      subheadingText.textContent = 'Daily Bootcamp Class Attendance â€¢ Two-Box Checklist (Present / Absent)';
+      subheadingText.textContent = 'Daily Bootcamp Class Attendance • Two-Box Checklist (Present / Absent)';
       if (batchActionLabel) batchActionLabel.textContent = 'Mark All Present';
       if (thChecklistCol) thChecklistCol.textContent = 'Attendance (Present / Absent)';
     }
@@ -1934,7 +2004,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
                   ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-600'
                   : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-emerald-500 hover:text-emerald-700'
               }" title="Mark Present">
-                <span class="text-sm font-black">${isPresent ? 'âœ”' : 'âœ“'}</span>
+                <span class="text-sm font-black">${isPresent ? '✓' : '✓'}</span>
                 <span>Present</span>
               </button>
 
@@ -1943,7 +2013,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
                   ? 'bg-rose-600 text-white shadow-sm ring-2 ring-rose-600'
                   : 'bg-white text-slate-700 border-2 border-slate-200 hover:border-rose-500 hover:text-rose-700'
               }" title="Mark Absent">
-                <span class="text-sm font-black">âœ–</span>
+                <span class="text-sm font-black">✗</span>
                 <span>Absent</span>
               </button>
             </div>
@@ -1958,7 +2028,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
                   ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm ring-2 ring-emerald-600'
                   : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-2 border-rose-300'
               }" title="Click to toggle Pick-up state">
-                <span class="text-base font-black">${isPickedUp ? 'âœ”' : 'âœ–'}</span>
+                <span class="text-base font-black">${isPickedUp ? '✓' : '✗'}</span>
                 <span>${isPickedUp ? 'Picked Up' : 'Not Picked Up'}</span>
               </button>
             </div>
@@ -1973,7 +2043,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
                   ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm ring-2 ring-emerald-600'
                   : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-2 border-rose-300'
               }" title="Click to toggle Drop-off state">
-                <span class="text-base font-black">${isDroppedOff ? 'âœ”' : 'âœ–'}</span>
+                <span class="text-base font-black">${isDroppedOff ? '✓' : '✗'}</span>
                 <span>${isDroppedOff ? 'Dropped Off' : 'Not Dropped Off'}</span>
               </button>
             </div>
@@ -1988,7 +2058,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
                   ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm ring-2 ring-emerald-600'
                   : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-2 border-rose-300'
               }" title="Click to toggle Gate Check-in state">
-                <span class="text-base font-black">${isCheckedIn ? 'âœ”' : 'âœ–'}</span>
+                <span class="text-base font-black">${isCheckedIn ? '✓' : '✗'}</span>
                 <span>${isCheckedIn ? 'Checked In' : 'Not Checked In'}</span>
               </button>
             </div>
@@ -2198,24 +2268,24 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     if (elCohortLabel) elCohortLabel.textContent = `${state.activeCohort} Roster`;
 
     if (isAttendance) {
-      if (elCompletedLabel) elCompletedLabel.textContent = 'Present (âœ”)';
+      if (elCompletedLabel) elCompletedLabel.textContent = 'Present (✓)';
       if (elCompletedSublabel) elCompletedSublabel.textContent = 'Marked Present';
-      if (elPendingLabel) elPendingLabel.textContent = 'Absent (âœ–)';
+      if (elPendingLabel) elPendingLabel.textContent = 'Absent (✗)';
       if (elPendingSublabel) elPendingSublabel.textContent = 'Marked Absent';
     } else if (isMorning) {
-      if (elCompletedLabel) elCompletedLabel.textContent = 'Picked Up (âœ”)';
+      if (elCompletedLabel) elCompletedLabel.textContent = 'Picked Up (✓)';
       if (elCompletedSublabel) elCompletedSublabel.textContent = 'Bus Boarded';
-      if (elPendingLabel) elPendingLabel.textContent = 'Not Picked Up (âœ–)';
+      if (elPendingLabel) elPendingLabel.textContent = 'Not Picked Up (✗)';
       if (elPendingSublabel) elPendingSublabel.textContent = 'Pending Pick-up';
     } else if (isEvening) {
-      if (elCompletedLabel) elCompletedLabel.textContent = 'Dropped Off (âœ”)';
+      if (elCompletedLabel) elCompletedLabel.textContent = 'Dropped Off (✓)';
       if (elCompletedSublabel) elCompletedSublabel.textContent = 'Safely Disembarked';
-      if (elPendingLabel) elPendingLabel.textContent = 'Not Dropped Off (âœ–)';
+      if (elPendingLabel) elPendingLabel.textContent = 'Not Dropped Off (✗)';
       if (elPendingSublabel) elPendingSublabel.textContent = 'Pending Drop-off';
     } else {
-      if (elCompletedLabel) elCompletedLabel.textContent = 'Checked In (âœ”)';
+      if (elCompletedLabel) elCompletedLabel.textContent = 'Checked In (✓)';
       if (elCompletedSublabel) elCompletedSublabel.textContent = 'Gate Verified';
-      if (elPendingLabel) elPendingLabel.textContent = 'Not Checked In (âœ–)';
+      if (elPendingLabel) elPendingLabel.textContent = 'Not Checked In (✗)';
       if (elPendingSublabel) elPendingSublabel.textContent = 'Pending Arrival';
     }
   }
@@ -2583,7 +2653,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
           activeVehicles.forEach(v => {
             const opt = document.createElement('option');
             opt.value = v.name;
-            opt.textContent = `${v.name} (${v.type.toUpperCase()}${v.capacity ? ' â€¢ ' + v.capacity + ' seats' : ''})`;
+            opt.textContent = `${v.name} (${v.type.toUpperCase()}${v.capacity ? ' • ' + v.capacity + ' seats' : ''})`;
             vehSelect.appendChild(opt);
           });
         }
@@ -2618,7 +2688,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       const balanceDue = Math.max(0, totalFee - amountPaid);
       const paymentStatus = amountPaid >= totalFee && totalFee > 0 ? 'Paid' : (amountPaid > 0 ? 'Partial' : 'Unpaid');
 
-      const studentId = crypto.randomUUID ? crypto.randomUUID() : 'std_' + Date.now();
+      const studentId = generateUUID();
 
       const newStudent = {
         id: studentId,
@@ -2645,7 +2715,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       let initialPayment = null;
       if (amountPaid > 0) {
         initialPayment = {
-          id: crypto.randomUUID ? crypto.randomUUID() : 'pay_' + Date.now(),
+          id: generateUUID(),
           student_id: studentId,
           student_name: name,
           amount: amountPaid,
@@ -2745,7 +2815,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
             <td style="text-align: center; font-weight: bold; color: #b45309;">${escapeHTML(s.assigned_vehicle || (s.transport_mode === 'both' ? 'Bus' : '-'))}</td>
             <td style="text-align: center;">
               <span class="print-badge" style="${isDone ? 'background-color: #dcfce7; border-color: #10b981; color: #166534;' : 'background-color: #fee2e2; border-color: #ef4444; color: #991b1b;'}">
-                ${isDone ? 'âœ” ' + (st.toUpperCase().replace('_', ' ')) : 'âœ– NOT VERIFIED'}
+                ${isDone ? '✓ ' + (st.toUpperCase().replace('_', ' ')) : '✗ NOT VERIFIED'}
               </span>
             </td>
             <td style="border-bottom: 1px dashed #94a3b8;"></td>
@@ -2917,11 +2987,11 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         const tableRows = students.map((s, idx) => {
           const status = getStudentStatus(s.id);
           let displayStatus = 'NOT VERIFIED';
-          if (status === 'present') displayStatus = '[âœ”] PRESENT';
-          else if (status === 'absent') displayStatus = '[âœ–] ABSENT';
-          else if (status === 'picked_up') displayStatus = '[âœ”] PICKED UP';
-          else if (status === 'dropped_off') displayStatus = '[âœ”] DROPPED OFF';
-          else if (status === 'checked_in') displayStatus = '[âœ”] CHECKED IN';
+          if (status === 'present') displayStatus = '[✓] PRESENT';
+          else if (status === 'absent') displayStatus = '[✗] ABSENT';
+          else if (status === 'picked_up') displayStatus = '[✓] PICKED UP';
+          else if (status === 'dropped_off') displayStatus = '[✓] DROPPED OFF';
+          else if (status === 'checked_in') displayStatus = '[✓] CHECKED IN';
           return [
             idx + 1,
             s.name,
@@ -3304,7 +3374,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
           </div>
           <div class="text-[11px] text-slate-500 flex items-center gap-2 mt-0.5 font-medium">
             <a href="tel:${escapeHTML(s.phone)}" class="text-sky-600 hover:underline font-mono">${escapeHTML(s.phone)}</a>
-            <span>â€¢</span>
+            <span>•</span>
             <span class="truncate max-w-[120px]">${escapeHTML(s.residence || 'Campus')}</span>
           </div>
         </td>
@@ -3430,7 +3500,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       student.updated_at = new Date().toISOString();
 
       // Create payment transaction log
-      const paymentId = crypto.randomUUID ? crypto.randomUUID() : 'pay_' + Date.now();
+      const paymentId = generateUUID();
       const paymentRecord = {
         id: paymentId,
         student_id: student.id,
@@ -3500,7 +3570,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     const balanceDue = Number(student.balance_due !== undefined ? student.balance_due : Math.max(0, totalFee - amountPaid));
 
     if (elName) elName.textContent = student.name;
-    if (elCohortTrack) elCohortTrack.textContent = `${student.cohort} â€¢ ${student.track}`;
+    if (elCohortTrack) elCohortTrack.textContent = `${student.cohort} • ${student.track}`;
     if (elTotal) elTotal.textContent = `KES ${totalFee.toLocaleString()}`;
     if (elPaid) elPaid.textContent = `KES ${amountPaid.toLocaleString()}`;
     if (elBal) elBal.textContent = `KES ${balanceDue.toLocaleString()}`;
@@ -3532,7 +3602,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         const bal = Number(s.balance_due !== undefined ? s.balance_due : Math.max(0, (s.total_fee || 0) - (s.amount_paid || 0)));
         const opt = document.createElement('option');
         opt.value = s.id;
-        opt.textContent = `${s.name} (${s.cohort} - ${s.track}) â€¢ Due: KES ${bal.toLocaleString()}`;
+        opt.textContent = `${s.name} (${s.cohort} - ${s.track}) • Due: KES ${bal.toLocaleString()}`;
         if (studentId && s.id === studentId) opt.selected = true;
         studentSelect.appendChild(opt);
       });
@@ -3624,7 +3694,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     if (elDate) elDate.textContent = payDate;
     if (elStudent) elStudent.textContent = student.name;
     if (elPhone) elPhone.textContent = student.phone;
-    if (elCohort) elCohort.textContent = `${student.cohort} â€¢ ${student.track}`;
+    if (elCohort) elCohort.textContent = `${student.cohort} • ${student.track}`;
     if (elAmt) elAmt.textContent = `KES ${receiptAmount.toLocaleString()}`;
     if (elMethod) elMethod.textContent = payMethod;
     if (elRef) elRef.textContent = refCode;
@@ -3733,7 +3803,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     doc.text('BOOTCAMP PROGRAM:', 16, 48);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(12, 59, 46);
-    doc.text(`${student.cohort} â€¢ ${student.track}`, 45, 48);
+    doc.text(`${student.cohort} • ${student.track}`, 45, 48);
 
     // Payment Item Table
     doc.autoTable({
@@ -3807,10 +3877,22 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
   function initStudentProfileDrawer() {
     const drawer = document.getElementById('drawer-student-profile');
-    const closeBtn = document.getElementById('btn-close-student-profile');
-    const btnRecordPay = document.getElementById('profile-btn-record-payment');
+    const closeBtn = document.getElementById('btn-close-student-drawer');
+    const btnRecordPay = document.getElementById('drawer-btn-record-payment');
 
     closeBtn?.addEventListener('click', () => drawer?.classList.add('hidden'));
+
+    // Click on the dark backdrop (not inner panel) closes the drawer
+    drawer?.addEventListener('click', (e) => {
+      if (e.target === drawer) drawer.classList.add('hidden');
+    });
+
+    // Escape key closes drawer
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && drawer && !drawer.classList.contains('hidden')) {
+        drawer.classList.add('hidden');
+      }
+    });
 
     btnRecordPay?.addEventListener('click', () => {
       const studentId = btnRecordPay.getAttribute('data-student-id');
@@ -3835,23 +3917,24 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     const status = student.payment_status || (amountPaid >= totalFee && totalFee > 0 ? 'Paid' : (amountPaid > 0 ? 'Partial' : 'Unpaid'));
 
     // Populate Dossier
-    const elInit = document.getElementById('profile-avatar-initial');
-    const elName = document.getElementById('profile-student-name');
-    const elTrack = document.getElementById('profile-student-track');
-    const elBadge = document.getElementById('profile-fee-status-badge');
-    const elTotal = document.getElementById('profile-total-fee');
-    const elPaid = document.getElementById('profile-amount-paid');
-    const elBal = document.getElementById('profile-balance-due');
-    const elPhone = document.getElementById('profile-parent-phone');
-    const elRes = document.getElementById('profile-residence');
-    const elCohort = document.getElementById('profile-cohort');
-    const elMode = document.getElementById('profile-transport-mode');
-    const elVeh = document.getElementById('profile-vehicle');
-    const btnRecordPay = document.getElementById('profile-btn-record-payment');
+    const elInit = document.getElementById('drawer-student-avatar');
+    const elName = document.getElementById('drawer-student-name');
+    const elTrack = document.getElementById('drawer-student-track');
+    const elBadge = document.getElementById('drawer-student-status-badge');
+    const elTotal = document.getElementById('drawer-student-total-fee');
+    const elPaid = document.getElementById('drawer-student-amount-paid');
+    const elBal = document.getElementById('drawer-student-balance-due');
+    const elPhone = document.getElementById('drawer-student-phone');
+    const elRes = document.getElementById('drawer-student-residence');
+    const elCohort = document.getElementById('drawer-student-cohort');
+    const elMode = document.getElementById('drawer-student-transport');
+    const elVeh = document.getElementById('drawer-student-transport');
+    const btnRecordPay = document.getElementById('drawer-btn-record-payment');
 
     if (elInit) elInit.textContent = initial;
     if (elName) elName.textContent = student.name;
-    if (elTrack) elTrack.textContent = `${student.cohort} â€¢ ${student.track}`;
+    if (elCohort) elCohort.textContent = `${student.cohort || 'August Bootcamp'} \u2022 ${student.track || 'General'}`;
+    if (elTrack) elTrack.textContent = student.track || 'General Track';
 
     if (elBadge) {
       if (status === 'Paid') {
@@ -3871,13 +3954,22 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     if (elBal) elBal.textContent = `KES ${balanceDue.toLocaleString()}`;
 
     if (elPhone) {
-      elPhone.textContent = student.phone;
-      elPhone.href = `tel:${student.phone}`;
+      elPhone.textContent = student.phone || 'N/A';
+      elPhone.href = student.phone ? `tel:${student.phone}` : '#';
     }
     if (elRes) elRes.textContent = student.residence || 'Campus / Walk-in';
-    if (elCohort) elCohort.textContent = student.cohort;
-    if (elMode) elMode.textContent = student.transport_mode ? student.transport_mode.replace(/_/g, ' ').toUpperCase() : 'NONE';
-    if (elVeh) elVeh.textContent = student.assigned_vehicle || 'Unassigned / Local';
+    const transportLabel = (student.transport_mode || 'self_arrival').replace(/_/g, ' ').toUpperCase();
+    const vehLabel = student.assigned_vehicle ? ` (${student.assigned_vehicle})` : '';
+    if (elMode) elMode.textContent = `${transportLabel}${vehLabel}`;
+
+    const notesBox = document.getElementById('drawer-student-notes-box');
+    const notesEl = document.getElementById('drawer-student-notes');
+    if (student.notes && student.notes.trim()) {
+      if (notesEl) notesEl.textContent = student.notes;
+      notesBox?.classList.remove('hidden');
+    } else {
+      notesBox?.classList.add('hidden');
+    }
 
     if (btnRecordPay) {
       btnRecordPay.setAttribute('data-student-id', student.id);
@@ -3885,32 +3977,36 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       btnRecordPay.style.display = (user && (user.role === 'super_admin' || user.role === 'receptionist')) ? 'flex' : 'none';
     }
 
-    // Populate Payment History Table
-    const historyBody = document.getElementById('profile-payment-history-body');
-    const noMsg = document.getElementById('profile-no-payments-msg');
+    // Populate Payment History List
+    const historyBody = document.getElementById('drawer-payments-list');
+    const noMsg = document.getElementById('drawer-no-payments-msg');
     const studentPayments = (state.data.feePayments || []).filter(p => p.student_id === student.id);
+    const payCountEl = document.getElementById('drawer-payment-count');
+    if (payCountEl) payCountEl.textContent = `${studentPayments.length} Payment${studentPayments.length === 1 ? '' : 's'}`;
 
     if (historyBody) {
       historyBody.innerHTML = '';
       if (studentPayments.length === 0) {
+        historyBody.innerHTML = '<div class="p-4 text-center text-xs text-slate-400 font-medium">No payment records yet.</div>';
         noMsg?.classList.remove('hidden');
       } else {
         noMsg?.classList.add('hidden');
         studentPayments.forEach(p => {
-          const tr = document.createElement('tr');
-          tr.className = 'hover:bg-slate-50 transition-colors border-b border-slate-100 text-xs';
-          tr.innerHTML = `
-            <td class="py-2.5 px-3 font-mono text-slate-600">${escapeHTML(p.payment_date || '')}</td>
-            <td class="py-2.5 px-3 font-semibold text-slate-800">${escapeHTML(p.payment_method || 'M-Pesa')}</td>
-            <td class="py-2.5 px-3 font-mono font-bold text-slate-700">${escapeHTML(p.reference_code || '')}</td>
-            <td class="py-2.5 px-3 font-mono font-extrabold text-emerald-700">KES ${Number(p.amount || 0).toLocaleString()}</td>
-            <td class="py-2.5 px-3 text-right">
-              <button data-receipt-payment-id="${p.id}" class="btn-profile-receipt p-1.5 rounded-lg text-sky-600 hover:bg-sky-50 transition-colors touch-btn" title="View Payment Receipt">
+          const div = document.createElement('div');
+          div.className = 'flex items-center justify-between p-3 border-b border-slate-100 text-xs hover:bg-slate-50 transition-colors';
+          div.innerHTML = `
+            <div>
+              <div class="font-mono font-bold text-slate-700">${escapeHTML(p.payment_date || '')}</div>
+              <div class="text-slate-500">${escapeHTML(p.payment_method || 'M-Pesa')} &bull; <span class="font-mono text-slate-600">${escapeHTML(p.reference_code || 'N/A')}</span></div>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="font-mono font-extrabold text-emerald-700">KES ${Number(p.amount || 0).toLocaleString()}</span>
+              <button data-receipt-payment-id="${p.id}" class="btn-profile-receipt p-1.5 rounded-lg text-sky-600 hover:bg-sky-50 transition-colors" title="View Receipt">
                 <i data-lucide="receipt" class="w-3.5 h-3.5"></i>
               </button>
-            </td>
+            </div>
           `;
-          historyBody.appendChild(tr);
+          historyBody.appendChild(div);
         });
 
         historyBody.querySelectorAll('.btn-profile-receipt').forEach(btn => {
@@ -4207,9 +4303,9 @@ Another Student,Another Guardian,+254 711 111 111,Junior Robotics,Elgon View,Yes
       tr.innerHTML = `
         <td class="py-2.5 px-3 font-mono text-center text-slate-400 font-bold">${item.index}</td>
         <td class="py-2.5 px-3 text-center">${validationBadge}</td>
-        <td class="py-2.5 px-3 font-bold text-slate-900">${escapeHTML(item.name || 'â€”')}</td>
-        <td class="py-2.5 px-3 text-slate-600 font-mono">${escapeHTML(item.phone || 'â€”')}</td>
-        <td class="py-2.5 px-3 font-semibold text-indigo-700">${escapeHTML(item.bootcamp || 'â€”')}</td>
+        <td class="py-2.5 px-3 font-bold text-slate-900">${escapeHTML(item.name || '"”')}</td>
+        <td class="py-2.5 px-3 text-slate-600 font-mono">${escapeHTML(item.phone || '"”')}</td>
+        <td class="py-2.5 px-3 font-semibold text-indigo-700">${escapeHTML(item.bootcamp || '"”')}</td>
         <td class="py-2.5 px-3 text-slate-600">${escapeHTML(item.location || 'Campus')}</td>
         <td class="py-2.5 px-3 font-medium text-slate-700">${
           item.transportMode === 'both'
@@ -4262,7 +4358,7 @@ Another Student,Another Guardian,+254 711 111 111,Junior Robotics,Elgon View,Yes
         state.data.tracks.bootcamp.push(row.bootcamp);
       }
 
-      const studentId = crypto.randomUUID ? crypto.randomUUID() : 'std_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
+      const studentId = generateUUID();
       const student = {
         id: studentId,
         name: row.name,
@@ -4288,7 +4384,7 @@ Another Student,Another Guardian,+254 711 111 111,Junior Robotics,Elgon View,Yes
       // If initial fee was paid, create transaction
       if (row.amountPaid > 0) {
         const paymentRecord = {
-          id: crypto.randomUUID ? crypto.randomUUID() : 'pay_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+          id: generateUUID(),
           student_id: studentId,
           student_name: row.name,
           amount: row.amountPaid,
@@ -4331,6 +4427,13 @@ Another Student,Another Guardian,+254 711 111 111,Junior Robotics,Elgon View,Yes
     previewContainer?.classList.add('hidden');
     dropzone?.classList.remove('hidden');
     modal?.classList.add('hidden');
+
+    state.activeCohort = activeCohort;
+    // If imported students are self arrival and currently on bus manifest, switch to class attendance
+    const hasBusTransport = newStudents.some(s => s.transport_mode === 'morning_bus' || s.transport_mode === 'both');
+    if (!hasBusTransport && (state.activeManifestType === 'morning_pickup' || state.activeManifestType === 'evening_dropoff')) {
+      state.activeManifestType = 'class_attendance';
+    }
 
     renderApp();
   }
@@ -4972,7 +5075,7 @@ Another Student,Another Guardian,+254 711 111 111,Junior Robotics,Elgon View,Yes
     setupOfflineNetworkListeners();
     updateSyncIndicator();
 
-    // Wire header sync pill click â†’ manual flush
+    // Wire header sync pill click -> manual flush
     document.getElementById('header-sync-status-btn')?.addEventListener('click', () => {
       if (navigator.onLine) flushOutboxQueue();
       else notify('No internet connection. Changes are safely stored on this device.', 'info');
@@ -4993,4 +5096,6 @@ Another Student,Another Guardian,+254 711 111 111,Junior Robotics,Elgon View,Yes
   });
 
 })();
+
+
 
