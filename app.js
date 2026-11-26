@@ -110,7 +110,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       transport_mode: s.transport_mode || 'self_arrival',
       total_fee: Number(s.total_fee || 0),
       amount_paid: Number(s.amount_paid || 0),
-      payment_status: s.payment_status || 'Cleared',
+      payment_status: ['Paid', 'Partial', 'Unpaid'].includes(s.payment_status) ? s.payment_status : 'Unpaid',
       notes: s.notes || null,
       created_at: s.created_at || new Date().toISOString(),
       updated_at: s.updated_at || new Date().toISOString()
@@ -363,7 +363,8 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
             const cleanStudents = students.map(sanitizeStudentForSupabase);
             const { error: sErr } = await state.supabaseClient.from('students').upsert(cleanStudents, { onConflict: 'id' });
             if (sErr) {
-              console.warn('Supabase bulk students upsert error:', sErr);
+              console.error('Supabase bulk students upsert error:', sErr);
+              notify(`Database Sync Error: ${sErr.message || sErr.code || 'Permission Denied'}`, 'error');
               studentsOk = false;
             }
           }
@@ -5199,7 +5200,12 @@ Another Student,Another Guardian,+254 711 111 111,Junior Robotics,Elgon View,Yes
       await flushOutboxQueue();
       await fetchSupabaseData(true);
       renderApp();
-      notify('Cloud synchronization complete!', 'success');
+      const remaining = getOutboxQueue();
+      if (remaining.length === 0) {
+        notify('Cloud synchronization complete! All records backed up.', 'success');
+      } else {
+        notify(`Sync pending: ${remaining.length} item(s) could not be written to cloud database. Check database permissions.`, 'error');
+      }
     });
 
     // Wire PWA install button
