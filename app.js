@@ -99,11 +99,13 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
   function sanitizeStudentForSupabase(s) {
     const validId = ensureValidUUID(s.id);
     s.id = validId;
+    const cleanPhone = (s.phone && String(s.phone).trim()) ? String(s.phone).trim() : 'N/A';
+    const cleanResidence = (s.residence && String(s.residence).trim()) ? String(s.residence).trim() : 'N/A';
     return {
       id: validId,
-      name: s.name,
-      phone: s.phone || null,
-      residence: s.residence || null,
+      name: s.name || 'Unnamed Student',
+      phone: cleanPhone,
+      residence: cleanResidence,
       branch: s.branch || 'bootcamp',
       cohort: s.cohort || 'Bootcamp 2026',
       track: s.track || 'General Track',
@@ -111,7 +113,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       total_fee: Number(s.total_fee || 0),
       amount_paid: Number(s.amount_paid || 0),
       payment_status: ['Paid', 'Partial', 'Unpaid'].includes(s.payment_status) ? s.payment_status : 'Unpaid',
-      notes: s.notes || null,
+      notes: s.notes || '',
       created_at: s.created_at || new Date().toISOString(),
       updated_at: s.updated_at || new Date().toISOString()
     };
@@ -128,10 +130,10 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       amount: Number(p.amount || 0),
       payment_date: p.payment_date || new Date().toISOString().split('T')[0],
       payment_method: p.payment_method || 'M-Pesa',
-      reference_code: p.reference_code || null,
-      notes: p.notes || null,
+      reference_code: p.reference_code || ('REC-' + Math.floor(100000 + Math.random() * 900000)),
+      notes: p.notes || '',
       recorded_by: p.recorded_by || null,
-      recorded_by_name: p.recorded_by_name || null,
+      recorded_by_name: p.recorded_by_name || '',
       created_at: p.created_at || new Date().toISOString()
     };
   }
@@ -341,19 +343,23 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
           const { error } = await state.supabaseClient.from('audit_logs').insert([item.payload]);
           if (!error) success = true;
         } else if (item.type === 'INSERT_PAYMENT') {
-          const cleanPayment = sanitizePaymentForSupabase(item.payload);
-          const { error } = await state.supabaseClient.from('fee_payments').insert([cleanPayment]);
-          if (!error) {
-            const std = state.data.students.find(s => s.id === item.payload.student_id);
-            if (std) {
-              await state.supabaseClient.from('students').update({
-                amount_paid: std.amount_paid,
-                payment_status: std.payment_status
-              }).eq('id', std.id);
-            }
+          if (Number(item.payload.amount || 0) <= 0) {
             success = true;
           } else {
-            console.warn('Supabase INSERT_PAYMENT error:', error);
+            const cleanPayment = sanitizePaymentForSupabase(item.payload);
+            const { error } = await state.supabaseClient.from('fee_payments').insert([cleanPayment]);
+            if (!error) {
+              const std = state.data.students.find(s => s.id === item.payload.student_id);
+              if (std) {
+                await state.supabaseClient.from('students').update({
+                  amount_paid: std.amount_paid,
+                  payment_status: std.payment_status
+                }).eq('id', std.id);
+              }
+              success = true;
+            } else {
+              console.warn('Supabase INSERT_PAYMENT error:', error);
+            }
           }
         } else if (item.type === 'BULK_IMPORT_STUDENTS') {
           const { students, payments } = item.payload;
@@ -369,11 +375,14 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
             }
           }
           if (payments && payments.length > 0) {
-            const cleanPayments = payments.map(sanitizePaymentForSupabase);
-            const { error: pErr } = await state.supabaseClient.from('fee_payments').insert(cleanPayments);
-            if (pErr) {
-              console.warn('Supabase bulk payments insert error:', pErr);
-              paymentsOk = false;
+            const validPayments = payments.filter(p => Number(p.amount || 0) > 0);
+            if (validPayments.length > 0) {
+              const cleanPayments = validPayments.map(sanitizePaymentForSupabase);
+              const { error: pErr } = await state.supabaseClient.from('fee_payments').insert(cleanPayments);
+              if (pErr) {
+                console.warn('Supabase bulk payments insert error:', pErr);
+                paymentsOk = false;
+              }
             }
           }
           if (studentsOk && paymentsOk) success = true;

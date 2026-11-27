@@ -148,3 +148,9 @@ CREATE POLICY "Authenticated staff can insert audit logs" ON public.audit_logs
 
 CREATE POLICY "Authenticated staff can view audit logs" ON public.audit_logs
     FOR SELECT TO authenticated USING (true);
+
+-- 8. Remove strict NOT NULL from phone and residence so records without phone/residence don't crash sync
+ALTER TABLE public.students ALTER COLUMN phone DROP NOT NULL;
+ALTER TABLE public.students ALTER COLUMN residence DROP NOT NULL;
+ALTER TABLE public.students ALTER COLUMN phone SET DEFAULT '';
+ALTER TABLE public.students ALTER COLUMN residence SET DEFAULT '';
