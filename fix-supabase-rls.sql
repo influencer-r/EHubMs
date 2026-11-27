@@ -63,18 +63,15 @@ DROP POLICY IF EXISTS "Authenticated staff can view students" ON public.students
 DROP POLICY IF EXISTS "Authenticated staff can insert students" ON public.students;
 DROP POLICY IF EXISTS "Authenticated staff can update students" ON public.students;
 DROP POLICY IF EXISTS "Authenticated staff can delete students" ON public.students;
+DROP POLICY IF EXISTS "Allow public read students" ON public.students;
+DROP POLICY IF EXISTS "Allow public insert students" ON public.students;
+DROP POLICY IF EXISTS "Allow public update students" ON public.students;
+DROP POLICY IF EXISTS "Allow public delete students" ON public.students;
 
-CREATE POLICY "Authenticated staff can view students" ON public.students
-    FOR SELECT TO authenticated USING (true);
-
-CREATE POLICY "Authenticated staff can insert students" ON public.students
-    FOR INSERT TO authenticated WITH CHECK (true);
-
-CREATE POLICY "Authenticated staff can update students" ON public.students
-    FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
-
-CREATE POLICY "Authenticated staff can delete students" ON public.students
-    FOR DELETE TO authenticated USING (true);
+CREATE POLICY "Allow public read students" ON public.students FOR SELECT USING (true);
+CREATE POLICY "Allow public insert students" ON public.students FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update students" ON public.students FOR UPDATE USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public delete students" ON public.students FOR DELETE USING (true);
 
 -- PROFILES
 DROP POLICY IF EXISTS "Staff can view profiles" ON public.profiles;
@@ -84,15 +81,13 @@ DROP POLICY IF EXISTS "Super admins can delete profiles" ON public.profiles;
 DROP POLICY IF EXISTS "Authenticated staff can view profiles" ON public.profiles;
 DROP POLICY IF EXISTS "Authenticated staff can insert profiles" ON public.profiles;
 DROP POLICY IF EXISTS "Authenticated staff can update profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Allow public read profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Allow public insert profiles" ON public.profiles;
+DROP POLICY IF EXISTS "Allow public update profiles" ON public.profiles;
 
-CREATE POLICY "Authenticated staff can view profiles" ON public.profiles
-    FOR SELECT TO authenticated USING (true);
-
-CREATE POLICY "Authenticated staff can insert profiles" ON public.profiles
-    FOR INSERT TO authenticated WITH CHECK (true);
-
-CREATE POLICY "Authenticated staff can update profiles" ON public.profiles
-    FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public read profiles" ON public.profiles FOR SELECT USING (true);
+CREATE POLICY "Allow public insert profiles" ON public.profiles FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update profiles" ON public.profiles FOR UPDATE USING (true) WITH CHECK (true);
 
 -- FEE PAYMENTS
 DROP POLICY IF EXISTS "Admins and receptionists can view fee payments" ON public.fee_payments;
@@ -102,15 +97,13 @@ DROP POLICY IF EXISTS "Only super admins can delete fee payments" ON public.fee_
 DROP POLICY IF EXISTS "Authenticated staff can view fee payments" ON public.fee_payments;
 DROP POLICY IF EXISTS "Authenticated staff can insert fee payments" ON public.fee_payments;
 DROP POLICY IF EXISTS "Authenticated staff can update fee payments" ON public.fee_payments;
+DROP POLICY IF EXISTS "Allow public read fee_payments" ON public.fee_payments;
+DROP POLICY IF EXISTS "Allow public insert fee_payments" ON public.fee_payments;
+DROP POLICY IF EXISTS "Allow public update fee_payments" ON public.fee_payments;
 
-CREATE POLICY "Authenticated staff can view fee payments" ON public.fee_payments
-    FOR SELECT TO authenticated USING (true);
-
-CREATE POLICY "Authenticated staff can insert fee payments" ON public.fee_payments
-    FOR INSERT TO authenticated WITH CHECK (true);
-
-CREATE POLICY "Authenticated staff can update fee payments" ON public.fee_payments
-    FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public read fee_payments" ON public.fee_payments FOR SELECT USING (true);
+CREATE POLICY "Allow public insert fee_payments" ON public.fee_payments FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update fee_payments" ON public.fee_payments FOR UPDATE USING (true) WITH CHECK (true);
 
 -- MANIFEST LOGS
 DROP POLICY IF EXISTS "Staff can view manifest logs" ON public.manifest_logs;
@@ -120,34 +113,27 @@ DROP POLICY IF EXISTS "Only super admins can delete manifest logs" ON public.man
 DROP POLICY IF EXISTS "Authenticated staff can view manifest logs" ON public.manifest_logs;
 DROP POLICY IF EXISTS "Authenticated staff can insert manifest logs" ON public.manifest_logs;
 DROP POLICY IF EXISTS "Authenticated staff can update manifest logs" ON public.manifest_logs;
+DROP POLICY IF EXISTS "Allow public read manifest_logs" ON public.manifest_logs;
+DROP POLICY IF EXISTS "Allow public insert manifest_logs" ON public.manifest_logs;
+DROP POLICY IF EXISTS "Allow public update manifest_logs" ON public.manifest_logs;
 
-CREATE POLICY "Authenticated staff can view manifest logs" ON public.manifest_logs
-    FOR SELECT TO authenticated USING (true);
-
-CREATE POLICY "Authenticated staff can insert manifest logs" ON public.manifest_logs
-    FOR INSERT TO authenticated WITH CHECK (true);
-
-CREATE POLICY "Authenticated staff can update manifest logs" ON public.manifest_logs
-    FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public read manifest_logs" ON public.manifest_logs FOR SELECT USING (true);
+CREATE POLICY "Allow public insert manifest_logs" ON public.manifest_logs FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update manifest_logs" ON public.manifest_logs FOR UPDATE USING (true) WITH CHECK (true);
 
 -- VEHICLES
 DROP POLICY IF EXISTS "Staff can view vehicles" ON public.vehicles;
 DROP POLICY IF EXISTS "Admins and transport officers can manage vehicles" ON public.vehicles;
 DROP POLICY IF EXISTS "Authenticated staff can manage vehicles" ON public.vehicles;
-CREATE POLICY "Authenticated staff can manage vehicles" ON public.vehicles
-    FOR ALL TO authenticated USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public manage vehicles" ON public.vehicles FOR ALL USING (true) WITH CHECK (true);
 
 -- AUDIT LOGS
 DROP POLICY IF EXISTS "Staff can insert audit logs" ON public.audit_logs;
 DROP POLICY IF EXISTS "Only super admins can view audit logs" ON public.audit_logs;
 DROP POLICY IF EXISTS "Authenticated staff can insert audit logs" ON public.audit_logs;
 DROP POLICY IF EXISTS "Authenticated staff can view audit logs" ON public.audit_logs;
-
-CREATE POLICY "Authenticated staff can insert audit logs" ON public.audit_logs
-    FOR INSERT TO authenticated WITH CHECK (true);
-
-CREATE POLICY "Authenticated staff can view audit logs" ON public.audit_logs
-    FOR SELECT TO authenticated USING (true);
+CREATE POLICY "Allow public insert audit_logs" ON public.audit_logs FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public view audit_logs" ON public.audit_logs FOR SELECT USING (true);
 
 -- 8. Remove strict NOT NULL from phone and residence so records without phone/residence don't crash sync
 ALTER TABLE public.students ALTER COLUMN phone DROP NOT NULL;
