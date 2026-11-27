@@ -369,9 +369,24 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
             const cleanStudents = students.map(sanitizeStudentForSupabase);
             const { error: sErr } = await state.supabaseClient.from('students').upsert(cleanStudents, { onConflict: 'id' });
             if (sErr) {
-              console.error('Supabase bulk students upsert error:', sErr);
-              notify(`Database Sync Error: ${sErr.message || sErr.code || 'Permission Denied'}`, 'error');
-              studentsOk = false;
+              console.warn('Supabase bulk students upsert error, falling back to individual inserts:', sErr);
+              let savedCount = 0;
+              let lastErr = sErr;
+              for (const std of cleanStudents) {
+                const { error: singleErr } = await state.supabaseClient.from('students').upsert([std], { onConflict: 'id' });
+                if (!singleErr) {
+                  savedCount++;
+                } else {
+                  lastErr = singleErr;
+                  console.error(`Failed to save student ${std.name}:`, singleErr);
+                }
+              }
+              if (savedCount === 0) {
+                notify(`Database Sync Error: ${lastErr.message || lastErr.code || 'Permission Denied'}`, 'error');
+                studentsOk = false;
+              } else {
+                console.log(`Saved ${savedCount}/${cleanStudents.length} students individually.`);
+              }
             }
           }
           if (payments && payments.length > 0) {
@@ -4284,7 +4299,7 @@ Another Student,Another Guardian,+254 711 111 111,Junior Robotics,Elgon View,Yes
 
       // Lenient column matching for parent/guardian contact
       const phone = (
-        row.parent_phone || row.phone || row.phone_number || row.mobile || 
+        row.parent_phone_number || row.parent_phone || row.phone || row.phone_number || row.mobile || 
         row.mobile_number || row.contact || row.parent_contact || 
         row.guardian_phone || row.tel || row.telephone || ''
       ).trim();
@@ -4798,16 +4813,30 @@ Another Student,Another Guardian,+254 711 111 111,Junior Robotics,Elgon View,Yes
         btn.innerHTML = '<i data-lucide="refresh-cw" class="w-4 h-4 animate-spin"></i><span>Syncing...</span>';
         if (window.lucide) window.lucide.createIcons();
       }
+      if (state.data.students && state.data.students.length > 0) {
+        enqueueOutbox('BULK_IMPORT_STUDENTS', {
+          students: state.data.students,
+          payments: state.data.feePayments || []
+        });
+      }
       await flushOutboxQueue();
       await fetchSupabaseData(true);
+      renderApp();
+      const remaining = getOutboxQueue();
       if (btn) {
         btn.disabled = false;
-        btn.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i><span>Synchronized!</span>';
+        if (remaining.length === 0) {
+          btn.innerHTML = '<i data-lucide="check" class="w-4 h-4"></i><span>Synchronized!</span>';
+          notify('Cloud synchronization complete! All records backed up.', 'success');
+        } else {
+          btn.innerHTML = '<i data-lucide="alert-circle" class="w-4 h-4"></i><span>Sync Failed</span>';
+          notify(`Sync pending: ${remaining.length} item(s) could not be written to cloud.`, 'error');
+        }
         if (window.lucide) window.lucide.createIcons();
         setTimeout(() => {
           btn.innerHTML = '<i data-lucide="refresh-cw" class="w-4 h-4"></i><span>Synchronize Now</span>';
           if (window.lucide) window.lucide.createIcons();
-        }, 2000);
+        }, 2500);
       }
     };
 
