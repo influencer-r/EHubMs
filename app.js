@@ -58,7 +58,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     activeCohort: 'Bootcamp 2026',
     activeTrack: 'all',
     activeVehicle: 'all',
-    activeManifestType: 'morning_pickup',
+    activeManifestType: 'class_attendance',
     activeDate: new Date().toISOString().split('T')[0],
     activeViewModule: 'manifest_operations', // 'manifest_operations' | 'fees_payments' | 'staff_management' | 'audit_logs'
     feesFilter: { query: '', cohort: 'all', status: 'all' },
@@ -685,6 +685,26 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         const filteredCloud = cloudStudents.filter(s => !deletedStudentIds.has(s.id));
 
         state.data.students = [...filteredCloud, ...localStudentsToKeep];
+
+        const hasBusStudents = state.data.students.some(s => s.transport_mode === 'morning_bus' || s.transport_mode === 'both');
+        if (!hasBusStudents && (state.activeManifestType === 'morning_pickup' || state.activeManifestType === 'evening_dropoff')) {
+          state.activeManifestType = 'class_attendance';
+        }
+
+        // Dynamically register tracks and cohorts from students into state filters
+        const studentCohorts = new Set(state.data.students.map(s => s.cohort).filter(Boolean));
+        if (!state.data.cohorts) state.data.cohorts = { bootcamp: [] };
+        if (!Array.isArray(state.data.cohorts.bootcamp)) state.data.cohorts.bootcamp = ['Bootcamp 2026'];
+        studentCohorts.forEach(c => {
+          if (!state.data.cohorts.bootcamp.includes(c)) state.data.cohorts.bootcamp.push(c);
+        });
+
+        const studentTracks = new Set(state.data.students.map(s => s.track).filter(Boolean));
+        if (!state.data.tracks) state.data.tracks = { bootcamp: [] };
+        if (!Array.isArray(state.data.tracks.bootcamp)) state.data.tracks.bootcamp = [];
+        studentTracks.forEach(t => {
+          if (!state.data.tracks.bootcamp.includes(t)) state.data.tracks.bootcamp.push(t);
+        });
 
         // AUTO-SYNC: If this device has local students not yet in the cloud, sync them up immediately!
         if (localStudentsToKeep.length > 0 && navigator.onLine) {
