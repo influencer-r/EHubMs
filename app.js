@@ -635,7 +635,50 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
   }
 
   async function fetchSupabaseData(force = false) {
-    if (!state.supabaseClient || !navigator.onLine) {
+    if (!navigator.onLine) {
+      updateSyncIndicator();
+      return;
+    }
+
+    // ── Direct REST fallback when Supabase SDK is unavailable (CDN failed, etc.) ──
+    if (!state.supabaseClient) {
+      try {
+        const SUPA_URL = DEFAULT_SUPABASE_CONFIG.url;
+        const SUPA_KEY = DEFAULT_SUPABASE_CONFIG.key;
+        const r = await fetch(`${SUPA_URL}/rest/v1/students?select=*`, {
+          headers: { 'apikey': SUPA_KEY, 'Authorization': `Bearer ${SUPA_KEY}` }
+        });
+        if (r.ok) {
+          const students = await r.json();
+          if (Array.isArray(students) && students.length > 0) {
+            state.data.students = students.map(s => ({
+              ...s,
+              branch: 'bootcamp',
+              total_fee: Number(s.total_fee || 0),
+              amount_paid: Number(s.amount_paid || 0),
+              balance_due: Number((s.total_fee || 0) - (s.amount_paid || 0)),
+              payment_status: s.payment_status || 'Unpaid'
+            }));
+            state.activeManifestType = 'class_attendance';
+            const cohorts = new Set(students.map(s => s.cohort).filter(Boolean));
+            if (!state.data.cohorts) state.data.cohorts = { bootcamp: [] };
+            cohorts.forEach(c => { if (!state.data.cohorts.bootcamp.includes(c)) state.data.cohorts.bootcamp.push(c); });
+            const tracks = new Set(students.map(s => s.track).filter(Boolean));
+            if (!state.data.tracks) state.data.tracks = { bootcamp: [] };
+            tracks.forEach(t => { if (!state.data.tracks.bootcamp.includes(t)) state.data.tracks.bootcamp.push(t); });
+            // Fix activeCohort if it doesn't match any student
+            if (!state.data.students.some(s => s.cohort === state.activeCohort)) {
+              state.activeCohort = students.find(s => s.cohort)?.cohort || state.activeCohort;
+            }
+            saveStoredData();
+            if (!state.isPasswordRecoveryActive) renderApp();
+            if (force) notify(`Loaded ${students.length} students from cloud.`, 'success');
+            console.log(`[EHub] REST fallback loaded ${students.length} students.`);
+          }
+        }
+      } catch(e) {
+        console.warn('[EHub] Direct REST fallback failed:', e);
+      }
       updateSyncIndicator();
       return;
     }
@@ -686,6 +729,15 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         const filteredCloud = cloudStudents.filter(s => !deletedStudentIds.has(s.id));
 
         state.data.students = [...filteredCloud, ...localStudentsToKeep];
+
+        // Auto-fix activeCohort if it doesn't match any loaded student
+        if (state.data.students.length > 0 && !state.data.students.some(s => s.cohort === state.activeCohort)) {
+          const firstCohort = state.data.students.find(s => s.cohort)?.cohort;
+          if (firstCohort) {
+            console.log(`[EHub] activeCohort "${state.activeCohort}" has no students; switching to "${firstCohort}"`);
+            state.activeCohort = firstCohort;
+          }
+        }
 
         // Check if current active cohort has any bus transport students
         const currentCohortBusStudents = state.data.students.some(s => 
@@ -5318,6 +5370,49 @@ Another Student,Another Guardian,+254 711 111 111,Junior Robotics,Elgon View,Yes
 
     applyRolePermissions();
     renderApp();
+
+    // ── Startup pre-fetch: load students directly via REST (CDN-independent) ──
+    // Runs regardless of whether the Supabase SDK loaded, ensures mobile sees data.
+    (async () => {
+      try {
+        const r = await fetch(`${DEFAULT_SUPABASE_CONFIG.url}/rest/v1/students?select=*`, {
+          headers: {
+            'apikey': DEFAULT_SUPABASE_CONFIG.key,
+            'Authorization': `Bearer ${DEFAULT_SUPABASE_CONFIG.key}`
+          }
+        });
+        if (r.ok) {
+          const students = await r.json();
+          if (Array.isArray(students) && students.length > 0) {
+            // Only overwrite if we have fewer local students (cloud is authoritative)
+            if (students.length > (state.data.students || []).length) {
+              state.data.students = students.map(s => ({
+                ...s,
+                branch: 'bootcamp',
+                total_fee: Number(s.total_fee || 0),
+                amount_paid: Number(s.amount_paid || 0),
+                balance_due: Number((s.total_fee || 0) - (s.amount_paid || 0)),
+                payment_status: s.payment_status || 'Unpaid'
+              }));
+              state.activeManifestType = 'class_attendance';
+              const cohorts = new Set(students.map(s => s.cohort).filter(Boolean));
+              state.data.cohorts = { bootcamp: [...cohorts] };
+              const tracks = new Set(students.map(s => s.track).filter(Boolean));
+              state.data.tracks = { bootcamp: [...tracks] };
+              // Ensure activeCohort is valid
+              if (!state.data.students.some(s => s.cohort === state.activeCohort)) {
+                state.activeCohort = students.find(s => s.cohort)?.cohort || 'Bootcamp 2026';
+              }
+              saveStoredData();
+              if (state.currentUser && !state.isPasswordRecoveryActive) renderApp();
+              console.log(`[EHub] Startup pre-fetch loaded ${students.length} students.`);
+            }
+          }
+        }
+      } catch(e) {
+        console.warn('[EHub] Startup pre-fetch failed:', e);
+      }
+    })();
   });
 
 })();
