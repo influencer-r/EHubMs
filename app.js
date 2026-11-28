@@ -46,7 +46,7 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       bootcamp: ['Bootcamp 2026']
     },
     tracks: {
-      bootcamp: ['Junior Robotics', 'Advanced Robotics', 'Web Development', 'AI & Coding', 'Data Science & AI']
+      bootcamp: []
     }
   };
 
