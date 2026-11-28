@@ -77,7 +77,7 @@
   <script src="https://unpkg.com/lucide@0.460.0"></script>
 
   <!-- Custom Stylesheet with cache busting -->
-  <link rel="stylesheet" href="./style.css?v=35">
+  <link rel="stylesheet" href="./style.css?v=36">
 </head>
 <body class="text-slate-900 min-h-screen flex flex-col antialiased selection:bg-[#008E80] selection:text-white">
 
@@ -265,7 +265,7 @@
           </span>
 
           <nav class="space-y-1">
-            <button id="tab-logistics-morning" class="sidebar-nav-item w-full active" data-manifest="morning_pickup">
+            <button id="tab-logistics-morning" class="sidebar-nav-item w-full" data-manifest="morning_pickup">
               <i data-lucide="bus" class="w-4 h-4 shrink-0"></i>
               <span class="sidebar-text-hide flex-1 text-left">Morning Bus Pick-up</span>
               <span id="badge-nav-morning" class="sidebar-text-hide text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
@@ -283,7 +283,7 @@
               <span id="badge-nav-gate" class="sidebar-text-hide text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
             </button>
 
-            <button id="tab-logistics-class" class="sidebar-nav-item w-full" data-manifest="class_attendance">
+            <button id="tab-logistics-class" class="sidebar-nav-item w-full active" data-manifest="class_attendance">
               <i data-lucide="clipboard-check" class="w-4 h-4 shrink-0"></i>
               <span class="sidebar-text-hide flex-1 text-left">Class Attendance</span>
               <span id="badge-nav-class" class="sidebar-text-hide text-[10px] font-bold px-2 py-0.5 rounded-full">0</span>
@@ -405,7 +405,7 @@
             <div>
               <div class="flex items-center gap-2">
                 <h2 id="top-view-title" class="text-base sm:text-lg font-black tracking-tight text-slate-900 truncate">
-                  Morning Pick-up Bus Manifest
+                  Class Attendance Register
                 </h2>
               </div>
               <p id="top-view-subheading" class="text-[11px] text-slate-500 hidden sm:block font-medium">
@@ -527,6 +527,32 @@
 
           <!-- Stream & Cohort Controls -->
           <div class="bg-white rounded-2xl p-4 sm:p-5 border border-slate-200 shadow-sm space-y-4">
+            <!-- Operational Register Mode Switcher (Visible on both Mobile & Desktop) -->
+            <div class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+              <div class="flex flex-wrap items-center gap-2">
+                <i data-lucide="clipboard-list" class="w-4 h-4 text-emerald-600"></i>
+                <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Register Mode:</span>
+                <div id="manifest-mode-switcher-container" class="flex flex-wrap items-center gap-1.5">
+                  <button type="button" class="manifest-mode-btn touch-btn h-8 px-3 rounded-lg text-xs font-bold transition-all bg-emerald-600 text-white shadow-sm flex items-center gap-1.5" data-manifest="class_attendance">
+                    <i data-lucide="clipboard-check" class="w-3.5 h-3.5"></i>
+                    <span>Class Attendance</span>
+                  </button>
+                  <button type="button" class="manifest-mode-btn touch-btn h-8 px-3 rounded-lg text-xs font-bold transition-all bg-slate-100 text-slate-700 hover:text-slate-900 hover:bg-slate-200 border border-slate-200 flex items-center gap-1.5" data-manifest="morning_pickup">
+                    <i data-lucide="bus" class="w-3.5 h-3.5"></i>
+                    <span>Morning Bus</span>
+                  </button>
+                  <button type="button" class="manifest-mode-btn touch-btn h-8 px-3 rounded-lg text-xs font-bold transition-all bg-slate-100 text-slate-700 hover:text-slate-900 hover:bg-slate-200 border border-slate-200 flex items-center gap-1.5" data-manifest="evening_dropoff">
+                    <i data-lucide="bus-front" class="w-3.5 h-3.5"></i>
+                    <span>Evening Bus</span>
+                  </button>
+                  <button type="button" class="manifest-mode-btn touch-btn h-8 px-3 rounded-lg text-xs font-bold transition-all bg-slate-100 text-slate-700 hover:text-slate-900 hover:bg-slate-200 border border-slate-200 flex items-center gap-1.5" data-manifest="gate_pickup">
+                    <i data-lucide="shield-check" class="w-3.5 h-3.5"></i>
+                    <span>Gate / Carline</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
             <div class="flex flex-wrap items-center justify-between gap-3">
               <div class="flex items-center gap-2">
                 <i data-lucide="layers" class="w-4 h-4 text-sky-600"></i>
@@ -1877,7 +1903,7 @@
   <div id="toast-container" class="fixed bottom-20 sm:bottom-6 right-6 z-[9999] flex flex-col gap-2 pointer-events-none"></div>
 
   <!-- Application Logic with cache busting -->
-  <script src="./app.js?v=35"></script>
+  <script src="./app.js?v=36"></script>
 
   <!-- Service Worker Registration for Offline Reliability & 24hr Persistence -->
   <script>

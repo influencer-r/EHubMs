@@ -642,10 +642,10 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
     try {
       const [studentsRes, logsRes, profilesRes, auditRes, vehiclesRes, paymentsRes] = await Promise.all([
-        state.supabaseClient.from('students').select('*'),
-        state.supabaseClient.from('manifest_logs').select('*'),
-        state.supabaseClient.from('profiles').select('*'),
-        state.supabaseClient.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(100),
+        state.supabaseClient.from('students').select('*').catch(err => ({ data: null, error: err })),
+        state.supabaseClient.from('manifest_logs').select('*').catch(err => ({ data: null, error: err })),
+        state.supabaseClient.from('profiles').select('*').catch(err => ({ data: null, error: err })),
+        state.supabaseClient.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(100).catch(err => ({ data: null, error: err })),
         state.supabaseClient.from('vehicles').select('*').catch(() => ({ data: null })),
         state.supabaseClient.from('fee_payments').select('*').order('created_at', { ascending: false }).catch(() => ({ data: null }))
       ]);
@@ -653,7 +653,8 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
       const queue = getOutboxQueue();
 
       // 1. Safe Students Merge: Never overwrite students pending sync in the outbox
-      if (studentsRes.data && !studentsRes.error) {
+      if (studentsRes && studentsRes.data && !studentsRes.error) {
+        console.log(`[Supabase Fetch] Loaded ${studentsRes.data.length} student records from cloud.`);
         const cloudStudents = studentsRes.data.map(s => {
           const totalFee = Number(s.total_fee !== undefined ? s.total_fee : 0);
           const amountPaid = Number(s.amount_paid !== undefined ? s.amount_paid : 0);
@@ -686,8 +687,13 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
 
         state.data.students = [...filteredCloud, ...localStudentsToKeep];
 
-        const hasBusStudents = state.data.students.some(s => s.transport_mode === 'morning_bus' || s.transport_mode === 'both');
-        if (!hasBusStudents && (state.activeManifestType === 'morning_pickup' || state.activeManifestType === 'evening_dropoff')) {
+        // Check if current active cohort has any bus transport students
+        const currentCohortBusStudents = state.data.students.some(s => 
+          (!state.activeCohort || s.cohort === state.activeCohort) && 
+          (s.transport_mode === 'morning_bus' || s.transport_mode === 'both')
+        );
+        if (!currentCohortBusStudents && (state.activeManifestType === 'morning_pickup' || state.activeManifestType === 'evening_dropoff')) {
+          console.log('[EHub] No bus students in current cohort, defaulting view to class_attendance.');
           state.activeManifestType = 'class_attendance';
         }
 
@@ -1794,6 +1800,23 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
     const isAttendance = state.activeManifestType === 'class_attendance';
     const isTransportManifest = !isAttendance && (state.activeManifestType === 'morning_pickup' || state.activeManifestType === 'evening_dropoff');
 
+    // Register Mode Switcher Pills (Dashboard header)
+    const modeBtns = document.querySelectorAll('.manifest-mode-btn');
+    modeBtns.forEach(btn => {
+      const mode = btn.getAttribute('data-manifest');
+      const isActive = state.activeManifestType === mode;
+      if (isActive) {
+        btn.className = 'manifest-mode-btn touch-btn h-8 px-3 rounded-lg text-xs font-bold transition-all bg-emerald-600 text-white shadow-sm flex items-center gap-1.5';
+      } else {
+        btn.className = 'manifest-mode-btn touch-btn h-8 px-3 rounded-lg text-xs font-bold transition-all bg-slate-100 text-slate-700 hover:text-slate-900 hover:bg-slate-200 border border-slate-200 flex items-center gap-1.5';
+      }
+      btn.onclick = () => {
+        state.activeManifestType = mode;
+        state.activeViewModule = 'manifest_operations';
+        renderApp();
+      };
+    });
+
     // Cohorts
     const cohortContainer = document.getElementById('cohort-switcher-container');
     if (cohortContainer) {
@@ -2093,25 +2116,42 @@ const ELDOHUB_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAA5M
         if (state.activeManifestType === 'morning_pickup' || state.activeManifestType === 'evening_dropoff') {
           if (emptyTitle) emptyTitle.textContent = 'No Students on this Bus Manifest';
           if (emptyDesc) {
-            emptyDesc.innerHTML = `You have <strong class="text-white">${state.data.students.length}</strong> total enrolled student(s). If they arrive by walk-in or parent drop-off, view them on <a href="#" id="link-switch-attendance" class="text-teal-300 font-bold underline">Class Attendance</a> or <a href="#" id="link-switch-gate" class="text-teal-300 font-bold underline">Gate Register</a>.`;
-            document.getElementById('link-switch-attendance')?.addEventListener('click', (e) => {
-              e.preventDefault();
-              state.activeManifestType = 'class_attendance';
-              renderApp();
-            });
-            document.getElementById('link-switch-gate')?.addEventListener('click', (e) => {
-              e.preventDefault();
-              state.activeManifestType = 'gate_pickup';
-              renderApp();
-            });
+            emptyDesc.innerHTML = `You have <strong class="text-white">${state.data.students.length}</strong> enrolled students in the database (all currently set to Self-Arrival / Parent Drop-off).<br><br><button type="button" id="btn-switch-to-class-auto" class="touch-btn h-9 px-4 rounded-xl text-xs font-black bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-900 shadow-md hover:opacity-90 inline-flex items-center gap-1.5 cursor-pointer"><i data-lucide="clipboard-check" class="w-4 h-4"></i> Switch to Class Attendance Register</button>`;
+            setTimeout(() => {
+              document.getElementById('btn-switch-to-class-auto')?.addEventListener('click', () => {
+                state.activeManifestType = 'class_attendance';
+                state.activeTrack = 'all';
+                renderApp();
+              });
+              if (window.lucide) window.lucide.createIcons();
+            }, 50);
           }
         } else {
-          if (emptyTitle) emptyTitle.textContent = 'No Students in this View';
-          if (emptyDesc) emptyDesc.textContent = 'Try adjusting your track or cohort filters above.';
+          if (emptyTitle) emptyTitle.textContent = 'No Students in this Filter';
+          if (emptyDesc) {
+            emptyDesc.innerHTML = `No students found matching Track "<strong>${state.activeTrack}</strong>".<br><br><button type="button" id="btn-reset-track-filter" class="touch-btn h-8 px-3 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow-sm inline-flex items-center gap-1.5 cursor-pointer"><i data-lucide="list" class="w-3.5 h-3.5"></i> Show All Tracks (${state.data.students.length} students)</button>`;
+            setTimeout(() => {
+              document.getElementById('btn-reset-track-filter')?.addEventListener('click', () => {
+                state.activeTrack = 'all';
+                renderApp();
+              });
+              if (window.lucide) window.lucide.createIcons();
+            }, 50);
+          }
         }
       } else {
-        if (emptyTitle) emptyTitle.textContent = 'No Students in this Manifest';
-        if (emptyDesc) emptyDesc.textContent = 'All rosters start completely clean. Use the Admission Desk or Bulk CSV to register students.';
+        if (emptyTitle) emptyTitle.textContent = 'No Local Records Found';
+        if (emptyDesc) {
+          emptyDesc.innerHTML = `This device has not yet synchronized the student roster from the cloud.<br><br><button type="button" id="btn-manual-cloud-pull" class="touch-btn h-9 px-4 rounded-xl text-xs font-black bg-emerald-600 text-white shadow-md hover:bg-emerald-700 inline-flex items-center gap-1.5 cursor-pointer"><i data-lucide="cloud-download" class="w-4 h-4"></i> Synchronize 162 Records from Cloud</button>`;
+          setTimeout(() => {
+            document.getElementById('btn-manual-cloud-pull')?.addEventListener('click', async () => {
+              notify('Fetching records from cloud database...', 'info');
+              await fetchSupabaseData(true);
+              renderApp();
+            });
+            if (window.lucide) window.lucide.createIcons();
+          }, 50);
+        }
       }
       return;
     }
